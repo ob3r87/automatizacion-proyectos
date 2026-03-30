@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+{% block title %}{% if oferta %}Editar Oferta{% else %}Nueva Oferta{% endif %} — Phican Ingenieros{% endblock %}
+
+{% block extra_head %}
+<style>
+  #totales-panel { position: sticky; top: 1rem; }
+  .linea-row td { vertical-align: middle; }
+  .btn-del-linea { cursor: pointer; }
+  #tabla-lineas input { font-size: 0.875rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">
+    <i class="bi bi-{% if oferta %}pencil{% else %}plus-circle{% endif %} text-primary"></i>
+    {% if oferta %}Editar oferta: {{ oferta.referencia }}{% else %}Nueva oferta{% endif %}
+  </h2>
+  <a href="{{ url_for('crm.ofertas_lista') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+<form method="POST" id="oferta-form">
+  <div class="row g-3">
+    <!-- Columna principal -->
+    <div class="col-lg-8">
+
+      <!-- Cabecera oferta -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">
+          <i class="bi bi-info-circle"></i> Datos generales
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Referencia</label>
+              <input type="text" name="referencia" class="form-control"
+                     value="{{ referencia }}"
+                     {% if oferta %}readonly{% endif %}>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fecha</label>
+              <input type="date" name="fecha_creacion" class="form-control"
+                     value="{{ oferta.fecha_creacion[:10] if oferta else '' }}" id="fecha-creacion">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Validez (días)</label>
+              <input type="number" name="validez_dias" class="form-control"
+                     value="{{ oferta.validez_dias if oferta else 30 }}" min="1" id="validez-dias">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Estado</label>
+              <select name="status" class="form-select">
+                {% for est in ['borrador','enviado','pendiente','aceptado','rechazado'] %}
+                <option value="{{ est }}"
+                  {% if oferta and oferta.status == est %}selected
+                  {% elif not oferta and est == 'borrador' %}selected{% endif %}>
+                  {{ est | capitalize }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-8">
+              <label class="form-label">Título del presupuesto *</label>
+              <input type="text" name="titulo" class="form-control" required
+                     value="{{ oferta.titulo if oferta else '' }}"
+                     placeholder="Ej: Homologación furgoneta isotérmica">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Tipo de trabajo</label>
+              <select name="tipo_trabajo" class="form-select">
+                <option value="">— Seleccionar —</option>
+                {% for wt in work_types %}
+                <option value="{{ wt.codigo }}"
+                  {% if oferta and oferta.tipo_trabajo == wt.codigo %}selected{% endif %}>
+                  {{ wt.codigo }} — {{ wt.nombre }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Descripción / Objeto</label>
+              <textarea name="descripcion" class="form-control" rows="2"
+                        placeholder="Descripción del trabajo a realizar...">{{ oferta.descripcion if oferta else '' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cliente -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-person"></i> Cliente</span>
+          <a href="{{ url_for('crm.cliente_nuevo') }}?next={{ request.url }}"
+             class="btn btn-sm btn-outline-success" target="_blank">
+            <i class="bi bi-person-plus"></i> Crear nuevo
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-8">
+              <label class="form-label">Seleccionar cliente</label>
+              <select name="client_id" class="form-select" id="sel-cliente">
+                <option value="">— Sin cliente —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}"
+                  {% if oferta and oferta.client_id == c.id %}selected{% endif %}>
+                  {{ c.nombre }}{% if c.empresa %} — {{ c.empresa }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">&nbsp;</label>
+              <button type="button" class="btn btn-outline-secondary w-100 d-block"
+                      onclick="recargarClientes()">
+                <i class="bi bi-arrow-clockwise"></i> Actualizar lista
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Líneas -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-list-ul"></i> Líneas del presupuesto</span>
+          <button type="button" class="btn btn-sm btn-success" onclick="addLinea()">
+            <i class="bi bi-plus-lg"></i> Añadir línea
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0" id="tabla-lineas">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:22%">Concepto</th>
+                  <th style="width:35%">Descripción</th>
+                  <th style="width:10%" class="text-center">Cant.</th>
+                  <th style="width:13%" class="text-end">P. Unitario €</th>
+                  <th style="width:13%" class="text-end">Total €</th>
+                  <th style="width:7%"></th>
+                </tr>
+              </thead>
+              <tbody id="tbody-lineas">
+                <!-- Líneas se añaden con JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button type="button" class="btn btn-sm btn-outline-success" onclick="addLinea()">
+            <i class="bi bi-plus"></i> Añadir línea
+          </button>
+        </div>
+      </div>
+
+      <!-- Notas -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold"><i class="bi bi-chat-text"></i> Notas</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Notas para el cliente</label>
+              <textarea name="notas_cliente" class="form-control" rows="3"
+                        placeholder="Condiciones, forma de pago, aclaraciones...">{{ oferta.notas_cliente if oferta else '' }}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Notas internas</label>
+              <textarea name="notas_internas" class="form-control" rows="3"
+                        placeholder="Notas privadas, recordatorios...">{{ oferta.notas_internas if oferta else '' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sidebar totales -->
+    <div class="col-lg-4">
+      <div id="totales-panel">
+        <div class="card mb-3">
+          <div class="card-header fw-semibold bg-primary text-white">
+            <i class="bi bi-calculator"></i> Resumen económico
+          </div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between mb-2">
+              <span>Subtotal</span>
+              <strong id="t-subtotal">0,00 €</strong>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col">
+                <label class="form-label small mb-1">Descuento %</label>
+                <input type="number" name="descuento_pct" id="descuento-pct" class="form-control form-control-sm"
+                       step="0.5" min="0" max="100"
+                       value="{{ oferta.descuento_pct if oferta else 0 }}"
+                       oninput="recalcularTotales()">
+              </div>
+              <div class="col">
+                <label class="form-label small mb-1">IGIC %</label>
+                <input type="number" name="iva_pct" id="iva-pct" class="form-control form-control-sm"
+                       step="0.5" min="0" max="21"
+                       value="{{ oferta.iva_pct if oferta else 7 }}"
+                       oninput="recalcularTotales()">
+              </div>
+            </div>
+            <div class="d-flex justify-content-between text-muted small mb-1" id="fila-dto" style="display:none!important">
+              <span id="lbl-dto">Descuento (0%)</span>
+              <span id="t-dto">0,00 €</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span>Base imponible</span>
+              <strong id="t-base">0,00 €</strong>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span id="lbl-iva">IGIC (7%)</span>
+              <strong id="t-iva">0,00 €</strong>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between fs-5">
+              <span class="fw-bold">TOTAL</span>
+              <strong class="text-primary" id="t-total">0,00 €</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header fw-semibold small">
+            <i class="bi bi-calendar-check"></i> Vencimiento
+          </div>
+          <div class="card-body small">
+            <div class="text-muted">Válido hasta:</div>
+            <div class="fw-bold fs-6" id="fecha-venc-display">—</div>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Guardar oferta
+          </button>
+          <a href="{{ url_for('crm.ofertas_lista') }}" class="btn btn-outline-secondary">
+            Cancelar
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Datalist conceptos -->
+<datalist id="conceptos-list">
+  {% for wt in work_types %}
+  <option value="{{ wt.codigo }}" data-precio="{{ wt.precio_base }}" data-nombre="{{ wt.nombre }}">
+  {% endfor %}
+</datalist>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Datos de tipos de trabajo para autocompletar precio
+const workTypes = {
+  {% for wt in work_types %}
+  '{{ wt.codigo }}': { nombre: {{ wt.nombre | tojson }}, precio: {{ wt.precio_base }} },
+  {% endfor %}
+};
+
+// Líneas iniciales (edición)
+const lineasIniciales = [
+  {% for l in lines %}
+  {
+    concepto: {{ l.concepto | tojson }},
+    descripcion: {{ l.descripcion | tojson }},
+    cantidad: {{ l.cantidad }},
+    precio: {{ l.precio_unitario }},
+  },
+  {% endfor %}
+];
+
+let lineaIdx = 0;
+
+function fmtEur(v) {
+  return v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €';
+}
+
+function addLinea(concepto='', descripcion='', cantidad=1, precio=0) {
+  const idx = lineaIdx++;
+  const tbody = document.getElementById('tbody-lineas');
+  const tr = document.createElement('tr');
+  tr.className = 'linea-row';
+  tr.dataset.idx = idx;
+  tr.innerHTML = `
+    <td>
+      <input type="text" name="concepto[]" class="form-control form-control-sm concepto-input"
+             list="conceptos-list" placeholder="Código o concepto"
+             value="${concepto}" onchange="autocompletarLinea(this, ${idx})" oninput="recalcularTotales()">
+    </td>
+    <td>
+      <input type="text" name="descripcion_linea[]" class="form-control form-control-sm desc-input"
+             placeholder="Descripción detallada" value="${descripcion}">
+    </td>
+    <td>
+      <input type="number" name="cantidad[]" class="form-control form-control-sm cant-input text-center"
+             step="0.01" min="0" value="${cantidad}" oninput="recalcularTotales()">
+    </td>
+    <td>
+      <input type="number" name="precio_unitario[]" class="form-control form-control-sm precio-input text-end"
+             step="0.01" min="0" value="${precio}" oninput="recalcularTotales()">
+    </td>
+    <td class="text-end fw-bold total-linea">${fmtEur(cantidad * precio)}</td>
+    <td class="text-center">
+      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-del-linea"
+              onclick="delLinea(${idx})">
+        <i class="bi bi-x"></i>
+      </button>
+    </td>`;
+  tbody.appendChild(tr);
+  recalcularTotales();
+}
+
+function autocompletarLinea(input, idx) {
+  const codigo = input.value.trim().toUpperCase();
+  const wt = workTypes[codigo];
+  if (!wt) return;
+  const row = document.querySelector(`tr[data-idx="${idx}"]`);
+  if (!row) return;
+  const descInput = row.querySelector('.desc-input');
+  const precioInput = row.querySelector('.precio-input');
+  if (descInput && !descInput.value) descInput.value = wt.nombre;
+  if (precioInput && parseFloat(precioInput.value) === 0) {
+    precioInput.value = wt.precio.toFixed(2);
+  }
+  recalcularTotales();
+}
+
+function delLinea(idx) {
+  const row = document.querySelector(`tr[data-idx="${idx}"]`);
+  if (row) row.remove();
+  recalcularTotales();
+}
+
+function recalcularTotales() {
+  let subtotal = 0;
+  document.querySelectorAll('#tbody-lineas tr.linea-row').forEach(row => {
+    const cant = parseFloat(row.querySelector('.cant-input').value) || 0;
+    const precio = parseFloat(row.querySelector('.precio-input').value) || 0;
+    const total = cant * precio;
+    row.querySelector('.total-linea').textContent = fmtEur(total);
+    subtotal += total;
+  });
+  const dtoPct = parseFloat(document.getElementById('descuento-pct').value) || 0;
+  const ivaPct = parseFloat(document.getElementById('iva-pct').value) || 7;
+  const dto = subtotal * dtoPct / 100;
+  const base = subtotal - dto;
+  const iva = base * ivaPct / 100;
+  const total = base + iva;
+
+  document.getElementById('t-subtotal').textContent = fmtEur(subtotal);
+  document.getElementById('t-dto').textContent = '- ' + fmtEur(dto);
+  document.getElementById('lbl-dto').textContent = `Descuento (${dtoPct}%)`;
+  document.getElementById('fila-dto').style.display = dtoPct > 0 ? 'flex' : 'none';
+  document.getElementById('t-base').textContent = fmtEur(base);
+  document.getElementById('lbl-iva').textContent = `IGIC (${ivaPct}%)`;
+  document.getElementById('t-iva').textContent = fmtEur(iva);
+  document.getElementById('t-total').textContent = fmtEur(total);
+
+  // Calcular fecha de vencimiento
+  const fechaStr = document.getElementById('fecha-creacion').value;
+  const validez = parseInt(document.getElementById('validez-dias').value) || 30;
+  if (fechaStr) {
+    const d = new Date(fechaStr);
+    d.setDate(d.getDate() + validez);
+    document.getElementById('fecha-venc-display').textContent =
+      d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit', year:'numeric'});
+  }
+}
+
+// Inicializar fecha hoy si vacía
+if (!document.getElementById('fecha-creacion').value) {
+  document.getElementById('fecha-creacion').value = new Date().toISOString().split('T')[0];
+}
+
+document.getElementById('fecha-creacion').addEventListener('input', recalcularTotales);
+document.getElementById('validez-dias').addEventListener('input', recalcularTotales);
+
+// Cargar líneas iniciales
+if (lineasIniciales.length) {
+  lineasIniciales.forEach(l => addLinea(l.concepto, l.descripcion, l.cantidad, l.precio));
+} else {
+  addLinea(); // Una línea vacía por defecto
+}
+
+recalcularTotales();
+
+// Actualizar lista de clientes
+function recargarClientes() {
+  fetch('/crm/api/clientes')
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('sel-cliente');
+      const currentVal = sel.value;
+      sel.innerHTML = '<option value="">— Sin cliente —</option>';
+      data.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.nombre + (c.empresa ? ' — ' + c.empresa : '');
+        if (String(c.id) === currentVal) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Diario — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h2 class="mb-0"><i class="bi bi-house-door text-primary"></i> Dashboard Diario</h2>
+    <small class="text-muted">{{ today | replace('-', '/') }}</small>
+  </div>
+  <a href="{{ url_for('entry_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nueva Entrada
+  </a>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-primary">{{ entries | length }}</div>
+      <div class="text-muted small">Entradas hoy</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-success">{{ "%.1f" | format(total_hours) }}</div>
+      <div class="text-muted small">Horas hoy</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-info">{{ projects | length }}</div>
+      <div class="text-muted small">Proyectos activos</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-warning">{{ templates | length }}</div>
+      <div class="text-muted small">Plantillas</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Entradas de hoy -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-day"></i> Entradas de hoy</span>
+        <a href="{{ url_for('entries_page') }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+      </div>
+      <div class="card-body p-0">
+        {% if entries %}
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Proyecto</th>
+              <th>Descripción</th>
+              <th>Categoría</th>
+              <th class="text-end">Horas</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in entries %}
+            <tr>
+              <td><small class="text-muted">{{ e.project_ref or '—' }}</small></td>
+              <td>{{ e.description[:60] }}{% if e.description|length > 60 %}...{% endif %}</td>
+              <td><span class="badge bg-secondary">{{ e.category }}</span></td>
+              <td class="text-end fw-bold">{{ "%.1f" | format(e.hours) }}h</td>
+              <td><span class="badge bg-{% if e.status=='completado' %}success{% elif e.status=='en_curso' %}primary{% elif e.status=='facturado' %}info{% else %}warning{% endif %}">{{ e.status }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="3" class="fw-bold">Total</td>
+              <td class="text-end fw-bold">{{ "%.1f" | format(total_hours) }}h</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-inbox fs-2"></i>
+          <p class="mt-2">No hay entradas para hoy.</p>
+          <a href="{{ url_for('entry_new') }}" class="btn btn-sm btn-primary">Crear primera entrada</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Proyectos recientes -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-folder2-open"></i> Proyectos recientes</div>
+      <div class="card-body p-0">
+        {% if projects %}
+        <ul class="list-group list-group-flush">
+          {% for p in projects[:10] %}
+          <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <div>
+              <div class="fw-semibold small">{{ p.ref }}</div>
+              {% if p.cliente %}<div class="text-muted" style="font-size:0.78rem">{{ p.cliente }}</div>{% endif %}
+            </div>
+            {% if p.revisiones %}
+            <span class="badge bg-light text-dark">Rev. {{ p.revisiones[-1] }}</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-3 small">No hay proyectos encontrados.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Acceso rápido plantillas -->
+    {% if templates %}
+    <div class="card mt-3">
+      <div class="card-header"><i class="bi bi-lightning"></i> Entrada rápida con plantilla</div>
+      <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+          {% for t in templates[:6] %}
+          <button class="btn btn-sm btn-outline-primary" onclick="crearDesde({{ t.id }})">
+            {{ t.name[:20] }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function crearDesde(tid) {
+  window.location = '/entries/new?template_id=' + tid;
+}
+</script>
+{% endblock %}

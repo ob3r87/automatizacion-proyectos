@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{% if entry %}Editar Entrada{% else %}Nueva Entrada{% endif %} — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">
+    <i class="bi bi-{% if entry %}pencil{% else %}plus-circle{% endif %} text-primary"></i>
+    {% if entry %}Editar Entrada{% else %}Nueva Entrada{% endif %}
+  </h2>
+  <a href="{{ url_for('entries_page') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <form id="entry-form">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Fecha *</label>
+              <input type="date" id="date" class="form-control" required
+                     value="{{ entry.date if entry else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Horas *</label>
+              <input type="number" id="hours" class="form-control" step="0.25" min="0" required
+                     value="{{ entry.hours if entry else '0' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <select id="status" class="form-select">
+                {% for val, label in statuses %}
+                <option value="{{ val }}" {% if entry and entry.status == val %}selected{% elif not entry and val=='completado' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Descripción *</label>
+              <textarea id="description" class="form-control" rows="3" required>{{ entry.description if entry else '' }}</textarea>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Proyecto</label>
+              <select id="project_ref" class="form-select">
+                <option value="">— Sin proyecto —</option>
+                {% for p in projects %}
+                <option value="{{ p.ref }}" {% if entry and entry.project_ref == p.ref %}selected{% endif %}>{{ p.ref }}{% if p.cliente %} — {{ p.cliente }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Cliente</label>
+              <input type="text" id="client_name" class="form-control"
+                     value="{{ entry.client_name if entry else '' }}" placeholder="Nombre del cliente">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Revisión</label>
+              <input type="text" id="revision" class="form-control"
+                     value="{{ entry.revision if entry else '' }}" placeholder="ej: R00">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Categoría</label>
+              <select id="category" class="form-select">
+                {% for val, label in categories %}
+                <option value="{{ val }}" {% if entry and entry.category == val %}selected{% elif not entry and val=='otro' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Plantilla base</label>
+              <select id="template_id" class="form-select" onchange="cargarPlantilla(this.value)">
+                <option value="">— Ninguna —</option>
+                {% for t in templates %}
+                <option value="{{ t.id }}" {% if entry and entry.template_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Notas internas</label>
+              <textarea id="notes" class="form-control" rows="2">{{ entry.notes if entry else '' }}</textarea>
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> Guardar
+            </button>
+            <a href="{{ url_for('entries_page') }}" class="btn btn-outline-secondary">Cancelar</a>
+            {% if entry %}
+            <button type="button" class="btn btn-outline-danger ms-auto"
+                    onclick="eliminarEntrada({{ entry.id }})">
+              <i class="bi bi-trash"></i> Eliminar
+            </button>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    {% if templates %}
+    <div class="card mb-3">
+      <div class="card-header small"><i class="bi bi-lightning"></i> Plantillas rápidas</div>
+      <div class="card-body p-2">
+        <div class="d-flex flex-wrap gap-1">
+          {% for t in templates %}
+          <button class="btn btn-sm btn-outline-secondary" onclick="cargarPlantilla('{{ t.id }}')">
+            {{ t.name[:20] }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header small"><i class="bi bi-info-circle"></i> Ayuda</div>
+      <div class="card-body small text-muted">
+        <p>Las horas se pueden introducir en incrementos de 0.25 (15 min).</p>
+        <p>Selecciona un proyecto para vincular esta entrada al expediente correspondiente.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const entryId = {{ entry.id if entry else 'null' }};
+
+const templates = {
+  {% for t in templates %}
+  '{{ t.id }}': {
+    description: {{ t.description | tojson }},
+    category: '{{ t.default_category }}',
+    hours: {{ t.default_hours }},
+    notes: {{ t.default_notes | tojson }},
+  },
+  {% endfor %}
+};
+
+function cargarPlantilla(tid) {
+  if (!tid || !templates[tid]) return;
+  const t = templates[tid];
+  if (t.description) document.getElementById('description').value = t.description;
+  if (t.category) document.getElementById('category').value = t.category;
+  if (t.hours) document.getElementById('hours').value = t.hours;
+  if (t.notes) document.getElementById('notes').value = t.notes;
+  document.getElementById('template_id').value = tid;
+}
+
+// Fecha por defecto hoy
+if (!document.getElementById('date').value) {
+  document.getElementById('date').value = new Date().toISOString().split('T')[0];
+}
+
+// Cargar plantilla por query string
+const urlParams = new URLSearchParams(window.location.search);
+const tplId = urlParams.get('template_id');
+if (tplId) cargarPlantilla(tplId);
+
+document.getElementById('entry-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const data = {
+    date: document.getElementById('date').value,
+    description: document.getElementById('description').value,
+    client_name: document.getElementById('client_name').value,
+    project_ref: document.getElementById('project_ref').value,
+    revision: document.getElementById('revision').value,
+    hours: parseFloat(document.getElementById('hours').value) || 0,
+    category: document.getElementById('category').value,
+    status: document.getElementById('status').value,
+    notes: document.getElementById('notes').value,
+    template_id: document.getElementById('template_id').value || null,
+  };
+
+  const url = entryId ? '/api/entries/' + entryId : '/api/entries';
+  const method = entryId ? 'PUT' : 'POST';
+
+  fetch(url, {
+    method: method,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  }).then(r => r.json()).then(d => {
+    if (d.id || d.ok) {
+      window.location = '/entries';
+    } else {
+      alert('Error al guardar: ' + JSON.stringify(d));
+    }
+  });
+});
+
+function eliminarEntrada(id) {
+  if (!confirm('¿Seguro que deseas eliminar esta entrada?')) return;
+  fetch('/api/entries/' + id, {method:'DELETE'})
+    .then(() => window.location = '/entries');
+}
+</script>
+{% endblock %}

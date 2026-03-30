@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Tipos de Trabajo — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-tags text-primary"></i> Tipos de trabajo</h2>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+    <i class="bi bi-plus-lg"></i> Nuevo tipo
+  </button>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0" id="tabla-tipos">
+      <thead class="table-light">
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th class="text-end">Precio base €</th>
+          <th class="text-center">Unidad</th>
+          <th class="text-center">Activo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tipos %}
+        <tr id="tipo-{{ t.id }}" class="{{ '' if t.activo else 'table-secondary text-muted' }}">
+          <td><span class="badge bg-primary font-monospace">{{ t.codigo }}</span></td>
+          <td class="fw-semibold">{{ t.nombre }}</td>
+          <td class="text-muted small">{{ t.descripcion }}</td>
+          <td class="text-end fw-bold">{{ "%.2f" | format(t.precio_base) }}</td>
+          <td class="text-center"><small>{{ t.unidad }}</small></td>
+          <td class="text-center">
+            {% if t.activo %}
+            <i class="bi bi-check-circle-fill text-success"></i>
+            {% else %}
+            <i class="bi bi-x-circle-fill text-danger"></i>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                    onclick='editarTipo({{ t.id }}, {{ t | tojson }})' title="Editar">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">No hay tipos de trabajo registrados.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted">
+    {{ tipos | length }} tipos de trabajo. Los precios son orientativos para autocompletar formularios.
+  </div>
+</div>
+
+<!-- Modal nuevo/editar -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-tipo-titulo">Nuevo tipo de trabajo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-tipo-id">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Código *</label>
+            <input type="text" id="t-codigo" class="form-control text-uppercase"
+                   placeholder="HOV" maxlength="5">
+            <div class="form-text">3-5 caracteres, único</div>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Nombre *</label>
+            <input type="text" id="t-nombre" class="form-control"
+                   placeholder="Nombre descriptivo">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Descripción</label>
+            <textarea id="t-desc" class="form-control" rows="2"
+                      placeholder="Descripción del tipo de trabajo"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Precio base €</label>
+            <input type="number" id="t-precio" class="form-control" step="0.01" value="0" min="0">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Unidad</label>
+            <input type="text" id="t-unidad" class="form-control" value="ud" placeholder="ud, h, m2...">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Activo</label>
+            <select id="t-activo" class="form-select">
+              <option value="1">Sí</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarTipo()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modal = new bootstrap.Modal(document.getElementById('modalNuevo'));
+const modalEl = document.getElementById('modalNuevo');
+
+modalEl.addEventListener('hidden.bs.modal', () => {
+  document.getElementById('edit-tipo-id').value = '';
+  document.getElementById('t-codigo').value = '';
+  document.getElementById('t-nombre').value = '';
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-precio').value = 0;
+  document.getElementById('t-unidad').value = 'ud';
+  document.getElementById('t-activo').value = 1;
+  document.getElementById('modal-tipo-titulo').textContent = 'Nuevo tipo de trabajo';
+  document.getElementById('t-codigo').readOnly = false;
+});
+
+function editarTipo(id, data) {
+  document.getElementById('edit-tipo-id').value = id;
+  document.getElementById('t-codigo').value = data.codigo || '';
+  document.getElementById('t-codigo').readOnly = true;
+  document.getElementById('t-nombre').value = data.nombre || '';
+  document.getElementById('t-desc').value = data.descripcion || '';
+  document.getElementById('t-precio').value = data.precio_base || 0;
+  document.getElementById('t-unidad').value = data.unidad || 'ud';
+  document.getElementById('t-activo').value = data.activo ? 1 : 0;
+  document.getElementById('modal-tipo-titulo').textContent = 'Editar tipo: ' + data.codigo;
+  modal.show();
+}
+
+function guardarTipo() {
+  const id = document.getElementById('edit-tipo-id').value;
+  const data = {
+    codigo: document.getElementById('t-codigo').value.trim().toUpperCase(),
+    nombre: document.getElementById('t-nombre').value.trim(),
+    descripcion: document.getElementById('t-desc').value.trim(),
+    precio_base: parseFloat(document.getElementById('t-precio').value) || 0,
+    unidad: document.getElementById('t-unidad').value.trim() || 'ud',
+    activo: parseInt(document.getElementById('t-activo').value),
+  };
+
+  if (!data.nombre) { alert('El nombre es obligatorio.'); return; }
+
+  const url = id ? '/crm/tipos-trabajo/' + id : '/crm/tipos-trabajo';
+  const method = id ? 'PUT' : 'POST';
+
+  fetch(url, {
+    method,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok || d.id) { modal.hide(); location.reload(); }
+    else alert('Error: ' + (d.error || 'desconocido'));
+  });
+}
+</script>
+{% endblock %}

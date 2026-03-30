@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}CRM Dashboard — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-speedometer2 text-primary"></i> CRM Dashboard</h2>
+  <a href="{{ url_for('crm.oferta_nueva') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nueva oferta
+  </a>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-md col-6">
+    <div class="card text-center p-3">
+      <div class="fs-2 fw-bold text-primary">{{ total_ofertas }}</div>
+      <div class="text-muted small">Total ofertas</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card text-center p-3">
+      <div class="fs-2 fw-bold text-warning">{{ pendientes }}</div>
+      <div class="text-muted small">Pendientes</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card text-center p-3">
+      <div class="fs-2 fw-bold text-success">{{ aceptadas_mes }}</div>
+      <div class="text-muted small">Aceptadas este mes</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card text-center p-3">
+      <div class="fs-2 fw-bold text-success">
+        {{ "%.0f" | format(importe_mes) }} €
+      </div>
+      <div class="text-muted small">Importe aceptado (mes)</div>
+    </div>
+  </div>
+  <div class="col-md col-6">
+    <div class="card text-center p-3">
+      <div class="fs-2 fw-bold text-info">{{ tasa_conversion }}%</div>
+      <div class="text-muted small">Tasa conversión</div>
+    </div>
+  </div>
+</div>
+
+<!-- Kanban -->
+<h5 class="mb-3"><i class="bi bi-kanban"></i> Tablero de ofertas</h5>
+<div class="row g-3 mb-4">
+  {% set cols = [
+    ('borrador', 'Borrador', 'secondary'),
+    ('pendiente', 'Pendiente', 'warning'),
+    ('aceptado', 'Aceptado', 'success'),
+    ('rechazado', 'Rechazado', 'danger'),
+  ] %}
+  {% for estado, label, color in cols %}
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header bg-{{ color }} {% if color != 'warning' %}text-white{% endif %} d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold">{{ label }}</span>
+        <span class="badge bg-white text-dark">{{ kanban.get(estado, []) | length }}</span>
+      </div>
+      <div class="card-body p-2" style="max-height:420px;overflow-y:auto">
+        {% for of in kanban.get(estado, []) %}
+        <a href="{{ url_for('crm.oferta_detalle', oid=of.id) }}" class="text-decoration-none">
+          <div class="card mb-2 border-0 shadow-sm bg-light">
+            <div class="card-body py-2 px-3">
+              <div class="fw-semibold small text-dark">{{ of.referencia }}</div>
+              <div class="text-muted" style="font-size:0.78rem">{{ of.cliente_nombre or '—' }}</div>
+              <div class="text-truncate" style="font-size:0.82rem;max-width:180px" title="{{ of.titulo }}">{{ of.titulo }}</div>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="text-muted">{{ fmt_date(of.fecha_creacion) }}</small>
+                <span class="fw-bold text-{{ color }} small">{{ "%.0f" | format(of.total) }} €</span>
+              </div>
+            </div>
+          </div>
+        </a>
+        {% else %}
+        <div class="text-center text-muted py-3 small">Sin ofertas</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Últimas ofertas -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history"></i> Últimas ofertas</span>
+    <a href="{{ url_for('crm.ofertas_lista') }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Referencia</th>
+          <th>Cliente</th>
+          <th>Título</th>
+          <th>Estado</th>
+          <th class="text-end">Total</th>
+          <th>Fecha</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for of in ultimas %}
+        <tr>
+          <td><code>{{ of.referencia }}</code></td>
+          <td>{{ of.cliente_nombre or '—' }}</td>
+          <td class="text-truncate" style="max-width:200px">{{ of.titulo }}</td>
+          <td>
+            {% set bc = {'borrador':'secondary','enviado':'warning','pendiente':'warning','aceptado':'success','rechazado':'danger'} %}
+            <span class="badge bg-{{ bc.get(of.status, 'secondary') }}">{{ of.status }}</span>
+          </td>
+          <td class="text-end fw-bold">{{ "%.2f" | format(of.total) }} €</td>
+          <td><small>{{ fmt_date(of.fecha_creacion) }}</small></td>
+          <td>
+            <a href="{{ url_for('crm.oferta_detalle', oid=of.id) }}"
+               class="btn btn-xs btn-outline-primary py-0 px-1">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>.btn-xs{font-size:0.75rem}</style>
+{% endblock %}

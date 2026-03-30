@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Entradas — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-journal-text text-primary"></i> Entradas de trabajo</h2>
+  <a href="{{ url_for('entry_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nueva entrada
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Desde</label>
+        <input type="date" id="f_from" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Hasta</label>
+        <input type="date" id="f_to" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Categoría</label>
+        <select id="f_cat" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for val, label in categories %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Estado</label>
+        <select id="f_status" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          {% for val, label in statuses %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Buscar</label>
+        <input type="text" id="f_q" class="form-control form-control-sm" placeholder="Descripción, cliente...">
+      </div>
+      <div class="col-md-1">
+        <button class="btn btn-sm btn-primary w-100" onclick="cargarEntradas()">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Resultados -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span id="resultado-info">Cargando...</span>
+    <span id="total-horas" class="badge bg-primary fs-6"></span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0" id="tabla-entradas">
+        <thead class="table-light">
+          <tr>
+            <th>Fecha</th>
+            <th>Proyecto</th>
+            <th>Cliente</th>
+            <th>Descripción</th>
+            <th>Categoría</th>
+            <th class="text-end">Horas</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-entradas">
+          <tr><td colspan="8" class="text-center text-muted py-3">Cargando entradas...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <div id="paginacion-info" class="small text-muted"></div>
+    <div id="paginacion-botones"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+const perPage = 25;
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const p = iso.split('T')[0].split('-');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+const statusColors = {
+  completado: 'success', en_curso: 'primary', pendiente: 'warning', facturado: 'info'
+};
+const catNames = { {% for val, label in categories %}'{{val}}':'{{label}}',{% endfor %} };
+
+function cargarEntradas(page) {
+  currentPage = page || 1;
+  const params = new URLSearchParams({
+    page: currentPage, per_page: perPage,
+    date_from: document.getElementById('f_from').value,
+    date_to: document.getElementById('f_to').value,
+    category: document.getElementById('f_cat').value,
+    status: document.getElementById('f_status').value,
+    q: document.getElementById('f_q').value,
+  });
+  fetch('/api/entries?' + params)
+    .then(r => r.json())
+    .then(data => {
+      const tbody = document.getElementById('tbody-entradas');
+      if (!data.entries.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Sin resultados.</td></tr>';
+      } else {
+        tbody.innerHTML = data.entries.map(e => `
+          <tr>
+            <td><small>${fmtDate(e.date)}</small></td>
+            <td><small class="text-muted">${e.project_ref||'—'}</small></td>
+            <td><small>${e.client_name||'—'}</small></td>
+            <td>${e.description.substring(0,60)}${e.description.length>60?'...':''}</td>
+            <td><span class="badge bg-secondary">${catNames[e.category]||e.category}</span></td>
+            <td class="text-end fw-bold">${e.hours.toFixed(1)}h</td>
+            <td><span class="badge bg-${statusColors[e.status]||'secondary'}">${e.status}</span></td>
+            <td>
+              <a href="/entries/${e.id}/edit" class="btn btn-xs btn-outline-secondary py-0 px-1" title="Editar">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarEntrada(${e.id})" title="Eliminar">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>`).join('');
+      }
+      document.getElementById('resultado-info').textContent = `${data.total} entradas`;
+      document.getElementById('total-horas').textContent = `${data.total_hours.toFixed(1)}h total`;
+
+      const totalPages = Math.ceil(data.total / perPage);
+      document.getElementById('paginacion-info').textContent =
+        `Página ${currentPage} de ${totalPages}`;
+
+      let btns = '';
+      if (currentPage > 1) btns += `<button class="btn btn-sm btn-outline-secondary me-1" onclick="cargarEntradas(${currentPage-1})">&#8592;</button>`;
+      if (currentPage < totalPages) btns += `<button class="btn btn-sm btn-outline-secondary" onclick="cargarEntradas(${currentPage+1})">&#8594;</button>`;
+      document.getElementById('paginacion-botones').innerHTML = btns;
+    });
+}
+
+function eliminarEntrada(id) {
+  if (!confirm('¿Eliminar esta entrada?')) return;
+  fetch('/api/entries/' + id, {method: 'DELETE'})
+    .then(() => cargarEntradas(currentPage));
+}
+
+// Inicializar con fechas del mes actual
+const hoy = new Date();
+const iniMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+document.getElementById('f_from').value = iniMes;
+document.getElementById('f_to').value = hoy.toISOString().split('T')[0];
+
+document.getElementById('f_q').addEventListener('keydown', e => { if(e.key==='Enter') cargarEntradas(); });
+
+cargarEntradas();
+</script>
+<style>
+.btn-xs { font-size: 0.75rem; }
+</style>
+{% endblock %}

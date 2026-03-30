@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{% if cliente %}Editar Cliente{% else %}Nuevo Cliente{% endif %} — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">
+    <i class="bi bi-person-{% if cliente %}gear{% else %}plus{% endif %} text-primary"></i>
+    {% if cliente %}Editar cliente: {{ cliente.nombre }}{% else %}Nuevo cliente{% endif %}
+  </h2>
+  <a href="{{ url_for('crm.clientes_lista') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre / Razón social *</label>
+              <input type="text" name="nombre" class="form-control" required
+                     value="{{ cliente.nombre if cliente else '' }}"
+                     placeholder="Nombre completo o razón social">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Empresa</label>
+              <input type="text" name="empresa" class="form-control"
+                     value="{{ cliente.empresa if cliente else '' }}"
+                     placeholder="Nombre de la empresa">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">NIF / CIF</label>
+              <input type="text" name="nif" class="form-control"
+                     value="{{ cliente.nif if cliente else '' }}"
+                     placeholder="12345678X">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ cliente.email if cliente else '' }}"
+                     placeholder="correo@ejemplo.com">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" name="telefono" class="form-control"
+                     value="{{ cliente.telefono if cliente else '' }}"
+                     placeholder="922 000 000">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Dirección</label>
+              <input type="text" name="direccion" class="form-control"
+                     value="{{ cliente.direccion if cliente else '' }}"
+                     placeholder="C/ Ejemplo, Nº 1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ciudad / Municipio</label>
+              <input type="text" name="ciudad" class="form-control"
+                     value="{{ cliente.ciudad if cliente else '' }}"
+                     placeholder="Santa Úrsula">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">C.P.</label>
+              <input type="text" name="cp" class="form-control"
+                     value="{{ cliente.cp if cliente else '' }}"
+                     placeholder="38390">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Notas internas</label>
+              <textarea name="notas" class="form-control" rows="3"
+                        placeholder="Observaciones sobre el cliente...">{{ cliente.notas if cliente else '' }}</textarea>
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> Guardar cliente
+            </button>
+            <a href="{{ url_for('crm.clientes_lista') }}" class="btn btn-outline-secondary">
+              Cancelar
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if cliente %}
+    <div class="card mt-3">
+      <div class="card-header small"><i class="bi bi-info-circle"></i> Información del registro</div>
+      <div class="card-body small text-muted">
+        <div class="row">
+          <div class="col">
+            <strong>Creado:</strong> {{ cliente.created_at[:10] }}
+          </div>
+          <div class="col">
+            <strong>Actualizado:</strong> {{ cliente.updated_at[:10] }}
+          </div>
+          <div class="col">
+            <strong>ID interno:</strong> #{{ cliente.id }}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}{{ oferta.referencia }} — Phican Ingenieros{% endblock %}
+
+{% block content %}
+{% set bc = {'borrador':'secondary','enviado':'warning','pendiente':'warning','aceptado':'success','rechazado':'danger'} %}
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h2 class="mb-0">
+      <i class="bi bi-file-earmark-check text-primary"></i>
+      {{ oferta.referencia }}
+      <span class="badge bg-{{ bc.get(oferta.status, 'secondary') }} fs-6 ms-2">{{ oferta.status }}</span>
+    </h2>
+    <small class="text-muted">{{ oferta.titulo }}</small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('crm.oferta_editar', oid=oferta.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    <a href="{{ url_for('crm.oferta_pdf', oid=oferta.id) }}" class="btn btn-outline-danger btn-sm" target="_blank">
+      <i class="bi bi-file-pdf"></i> Generar PDF
+    </a>
+    <form method="POST" action="{{ url_for('crm.oferta_duplicar', oid=oferta.id) }}" class="d-inline">
+      <button type="button" class="btn btn-outline-info btn-sm" onclick="duplicarOferta()">
+        <i class="bi bi-files"></i> Duplicar
+      </button>
+    </form>
+    <a href="{{ url_for('crm.ofertas_lista') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+</div>
+
+<!-- Acciones según estado -->
+<div class="card mb-3 border-{{ bc.get(oferta.status, 'secondary') }}">
+  <div class="card-body py-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="fw-semibold small">Cambiar estado:</span>
+
+      {% if oferta.status == 'borrador' %}
+        <button class="btn btn-sm btn-warning" onclick="cambiarEstado('enviado')">
+          <i class="bi bi-send"></i> Enviar al cliente
+        </button>
+        <button class="btn btn-sm btn-outline-warning" onclick="cambiarEstado('pendiente')">
+          <i class="bi bi-clock"></i> Marcar pendiente
+        </button>
+
+      {% elif oferta.status in ('enviado', 'pendiente') %}
+        <button class="btn btn-sm btn-success" onclick="cambiarEstadoConNota('aceptado')">
+          <i class="bi bi-check-circle"></i> Marcar Aceptado
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="cambiarEstadoConNota('rechazado')">
+          <i class="bi bi-x-circle"></i> Marcar Rechazado
+        </button>
+
+      {% elif oferta.status == 'aceptado' %}
+        {% if oferta.pdf_path %}
+        <a href="{{ url_for('crm.oferta_pdf', oid=oferta.id) }}" class="btn btn-sm btn-success" target="_blank">
+          <i class="bi bi-download"></i> Descargar PDF
+        </a>
+        {% endif %}
+        <button class="btn btn-sm btn-outline-secondary" onclick="cambiarEstado('borrador')">
+          <i class="bi bi-arrow-counterclockwise"></i> Reabrir
+        </button>
+
+      {% elif oferta.status == 'rechazado' %}
+        <button class="btn btn-sm btn-outline-warning" onclick="cambiarEstado('borrador')">
+          <i class="bi bi-arrow-counterclockwise"></i> Reactivar
+        </button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Datos principales -->
+  <div class="col-lg-8">
+
+    <!-- Datos oferta -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-info-circle"></i> Datos de la oferta</div>
+      <div class="card-body">
+        <div class="row g-2 small">
+          <div class="col-md-4">
+            <div class="text-muted">Referencia</div>
+            <div class="fw-bold font-monospace">{{ oferta.referencia }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted">Tipo de trabajo</div>
+            <div>{{ oferta.tipo_trabajo or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted">Estado</div>
+            <div><span class="badge bg-{{ bc.get(oferta.status, 'secondary') }}">{{ oferta.status }}</span></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted">Fecha creación</div>
+            <div>{{ fmt_date(oferta.fecha_creacion) }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted">Válido hasta</div>
+            <div>
+              {% if oferta.fecha_vencimiento %}
+                {{ fmt_date(oferta.fecha_vencimiento) }}
+              {% else %}
+                {{ oferta.validez_dias }} días
+              {% endif %}
+            </div>
+          </div>
+          {% if oferta.fecha_envio %}
+          <div class="col-md-4">
+            <div class="text-muted">Fecha envío</div>
+            <div>{{ fmt_date(oferta.fecha_envio) }}</div>
+          </div>
+          {% endif %}
+          {% if oferta.fecha_respuesta %}
+          <div class="col-md-4">
+            <div class="text-muted">Fecha respuesta</div>
+            <div>{{ fmt_date(oferta.fecha_respuesta) }}</div>
+          </div>
+          {% endif %}
+          {% if oferta.descripcion %}
+          <div class="col-12">
+            <div class="text-muted">Descripción</div>
+            <div>{{ oferta.descripcion }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Líneas -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-list-ul"></i> Partidas</div>
+      <div class="card-body p-0">
+        {% if lines %}
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Concepto</th>
+              <th>Descripción</th>
+              <th class="text-center">Cant.</th>
+              <th class="text-end">P. Unit.</th>
+              <th class="text-end">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in lines %}
+            <tr>
+              <td class="fw-semibold">{{ l.concepto }}</td>
+              <td class="text-muted">{{ l.descripcion }}</td>
+              <td class="text-center">{{ l.cantidad | int if l.cantidad == l.cantidad | int else l.cantidad }}</td>
+              <td class="text-end">{{ "%.2f" | format(l.precio_unitario) }} €</td>
+              <td class="text-end fw-bold">{{ "%.2f" | format(l.cantidad * l.precio_unitario) }} €</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-3 small">Sin partidas definidas.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Notas cliente -->
+    {% if oferta.notas_cliente %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-chat-text"></i> Notas para el cliente</div>
+      <div class="card-body small">{{ oferta.notas_cliente }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Historial -->
+    {% if historial %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-clock-history"></i> Historial de cambios</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha</th>
+              <th>Estado anterior</th>
+              <th>Estado nuevo</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in historial %}
+            <tr>
+              <td><small>{{ h.fecha[:16] | replace('T',' ') }}</small></td>
+              <td>{% if h.status_anterior %}<span class="badge bg-{{ bc.get(h.status_anterior,'secondary') }}">{{ h.status_anterior }}</span>{% else %}—{% endif %}</td>
+              <td><span class="badge bg-{{ bc.get(h.status_nuevo,'secondary') }}">{{ h.status_nuevo }}</span></td>
+              <td><small class="text-muted">{{ h.notas or '—' }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Sidebar -->
+  <div class="col-lg-4">
+    <!-- Cliente -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-person"></i> Cliente</div>
+      <div class="card-body small">
+        {% if oferta.cliente_nombre %}
+        <div class="fw-bold fs-6">{{ oferta.cliente_nombre }}</div>
+        {% if oferta.cliente_empresa %}<div class="text-muted">{{ oferta.cliente_empresa }}</div>{% endif %}
+        {% if oferta.cliente_nif %}<div><i class="bi bi-card-text"></i> {{ oferta.cliente_nif }}</div>{% endif %}
+        {% if oferta.cliente_email %}
+        <div><i class="bi bi-envelope"></i>
+          <a href="mailto:{{ oferta.cliente_email }}">{{ oferta.cliente_email }}</a>
+        </div>
+        {% endif %}
+        {% if oferta.cliente_telefono %}<div><i class="bi bi-telephone"></i> {{ oferta.cliente_telefono }}</div>{% endif %}
+        {% if oferta.cliente_direccion %}<div><i class="bi bi-geo-alt"></i> {{ oferta.cliente_direccion }}</div>{% endif %}
+        {% else %}
+        <div class="text-muted">Sin cliente asignado.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Totales -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold bg-primary text-white">
+        <i class="bi bi-calculator"></i> Importes
+      </div>
+      <div class="card-body small">
+        <div class="d-flex justify-content-between mb-1">
+          <span>Subtotal</span>
+          <span>{{ "%.2f" | format(totals.subtotal) }} €</span>
+        </div>
+        {% if totals.descuento > 0 %}
+        <div class="d-flex justify-content-between mb-1 text-danger">
+          <span>Descuento ({{ oferta.descuento_pct }}%)</span>
+          <span>- {{ "%.2f" | format(totals.descuento) }} €</span>
+        </div>
+        {% endif %}
+        <div class="d-flex justify-content-between mb-1">
+          <span>Base imponible</span>
+          <span>{{ "%.2f" | format(totals.base) }} €</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span>IGIC ({{ oferta.iva_pct }}%)</span>
+          <span>{{ "%.2f" | format(totals.iva) }} €</span>
+        </div>
+        <hr class="my-1">
+        <div class="d-flex justify-content-between fs-5 fw-bold text-primary">
+          <span>TOTAL</span>
+          <span>{{ "%.2f" | format(totals.total) }} €</span>
+        </div>
+      </div>
+    </div>
+
+    {% if oferta.notas_internas %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold small"><i class="bi bi-lock"></i> Notas internas</div>
+      <div class="card-body small text-muted">{{ oferta.notas_internas }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal para notas al cambiar estado -->
+<div class="modal fade" id="modalEstado" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cambiar estado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Notas (opcional)</label>
+        <textarea id="nota-estado" class="form-control" rows="3"
+                  placeholder="Motivo del cambio, observaciones..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-confirmar-estado">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ofertaId = {{ oferta.id }};
+const modalEstado = new bootstrap.Modal(document.getElementById('modalEstado'));
+let pendingStatus = '';
+
+function cambiarEstado(status, notas) {
+  fetch('/crm/ofertas/' + ofertaId + '/estado', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({status: status, notas: notas || ''}),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      if (d.carpeta) {
+        alert('Oferta aceptada. Carpeta creada:\n' + d.carpeta);
+      }
+      location.reload();
+    } else {
+      alert('Error: ' + (d.error || 'desconocido'));
+    }
+  });
+}
+
+function cambiarEstadoConNota(status) {
+  pendingStatus = status;
+  document.getElementById('nota-estado').value = '';
+  document.getElementById('btn-confirmar-estado').textContent =
+    status === 'aceptado' ? 'Marcar Aceptado' : 'Marcar Rechazado';
+  document.getElementById('btn-confirmar-estado').className =
+    'btn btn-sm ' + (status === 'aceptado' ? 'btn-success' : 'btn-danger');
+  modalEstado.show();
+}
+
+document.getElementById('btn-confirmar-estado').addEventListener('click', function() {
+  const notas = document.getElementById('nota-estado').value.trim();
+  modalEstado.hide();
+  cambiarEstado(pendingStatus, notas);
+});
+
+function duplicarOferta() {
+  if (!confirm('¿Crear una copia de esta oferta como borrador?')) return;
+  fetch('/crm/ofertas/' + ofertaId + '/duplicar', {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        if (confirm(`Oferta duplicada: ${d.referencia}\n¿Ir a la nueva oferta?`)) {
+          window.location = '/crm/ofertas/' + d.id;
+        }
+      }
+    });
+}
+</script>
+{% endblock %}

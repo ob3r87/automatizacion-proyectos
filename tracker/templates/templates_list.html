@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Plantillas — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-file-earmark-text text-primary"></i> Plantillas de trabajo</h2>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNueva">
+    <i class="bi bi-plus-lg"></i> Nueva plantilla
+  </button>
+</div>
+
+{% if templates %}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Categoría</th>
+          <th class="text-end">Horas default</th>
+          <th>Notas</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in templates %}
+        <tr id="row-{{ t.id }}">
+          <td class="fw-semibold">{{ t.name }}</td>
+          <td>{{ t.description[:60] }}</td>
+          <td><span class="badge bg-secondary">{{ t.default_category }}</span></td>
+          <td class="text-end">{{ "%.1f" | format(t.default_hours) }}h</td>
+          <td><small class="text-muted">{{ t.default_notes[:40] }}</small></td>
+          <td>
+            <a href="{{ url_for('entry_new') }}?template_id={{ t.id }}"
+               class="btn btn-sm btn-outline-primary py-0" title="Usar plantilla">
+              <i class="bi bi-play-fill"></i>
+            </a>
+            <button class="btn btn-sm btn-outline-secondary py-0" title="Editar"
+                    onclick="editarPlantilla({{ t.id }}, {{ t | tojson }})">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger py-0" title="Eliminar"
+                    onclick="eliminarPlantilla({{ t.id }})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-file-earmark-text fs-1"></i>
+    <p class="mt-3">No hay plantillas creadas todavía.</p>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNueva">
+      Crear primera plantilla
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal Nueva/Editar -->
+<div class="modal fade" id="modalNueva" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-title">Nueva plantilla</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id">
+        <div class="mb-3">
+          <label class="form-label">Nombre *</label>
+          <input type="text" id="t-name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Descripción</label>
+          <textarea id="t-desc" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="row g-2">
+          <div class="col">
+            <label class="form-label">Categoría</label>
+            <select id="t-cat" class="form-select">
+              {% for val, label in categories %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col">
+            <label class="form-label">Horas default</label>
+            <input type="number" id="t-hours" class="form-control" step="0.25" value="0">
+          </div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label">Notas default</label>
+          <textarea id="t-notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarPlantilla()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modalEl = document.getElementById('modalNueva');
+const modal = new bootstrap.Modal(modalEl);
+
+function editarPlantilla(id, data) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('t-name').value = data.name || '';
+  document.getElementById('t-desc').value = data.description || '';
+  document.getElementById('t-cat').value = data.default_category || 'otro';
+  document.getElementById('t-hours').value = data.default_hours || 0;
+  document.getElementById('t-notes').value = data.default_notes || '';
+  document.getElementById('modal-title').textContent = 'Editar plantilla';
+  modal.show();
+}
+
+modalEl.addEventListener('hidden.bs.modal', () => {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-hours').value = 0;
+  document.getElementById('t-notes').value = '';
+  document.getElementById('modal-title').textContent = 'Nueva plantilla';
+});
+
+function guardarPlantilla() {
+  const id = document.getElementById('edit-id').value;
+  const data = {
+    name: document.getElementById('t-name').value.trim(),
+    description: document.getElementById('t-desc').value.trim(),
+    default_category: document.getElementById('t-cat').value,
+    default_hours: parseFloat(document.getElementById('t-hours').value) || 0,
+    default_notes: document.getElementById('t-notes').value.trim(),
+  };
+  if (!data.name) { alert('El nombre es obligatorio.'); return; }
+
+  const url = id ? '/api/templates/' + id : '/api/templates';
+  const method = id ? 'PUT' : 'POST';
+
+  fetch(url, {method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => r.json())
+    .then(() => { modal.hide(); location.reload(); });
+}
+
+function eliminarPlantilla(id) {
+  if (!confirm('¿Eliminar esta plantilla?')) return;
+  fetch('/api/templates/' + id, {method:'DELETE'})
+    .then(() => document.getElementById('row-' + id).remove());
+}
+</script>
+{% endblock %}

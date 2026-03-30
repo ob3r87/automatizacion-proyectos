@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Ofertas — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-file-earmark-check text-primary"></i> Ofertas / Presupuestos</h2>
+  <a href="{{ url_for('crm.oferta_nueva') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nueva oferta
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Estado</label>
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          {% for est in ['borrador','enviado','pendiente','aceptado','rechazado'] %}
+          <option value="{{ est }}" {% if status_filter == est %}selected{% endif %}>
+            {{ est | capitalize }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Año</label>
+        <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          {% for yr in years %}
+          <option value="{{ yr }}" {% if year_filter == yr %}selected{% endif %}>{{ yr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        {% if status_filter or year_filter %}
+        <a href="{{ url_for('crm.ofertas_lista') }}" class="btn btn-sm btn-outline-secondary w-100">
+          <i class="bi bi-x-circle"></i> Limpiar filtros
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>{{ ofertas | length }} oferta(s)</span>
+    {% if ofertas %}
+    <span class="fw-bold text-success">
+      Total: {{ "%.2f" | format(ofertas | sum(attribute='total')) }} €
+    </span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    {% if ofertas %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Referencia</th>
+            <th>Cliente</th>
+            <th>Título</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th class="text-end">Total</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for of in ofertas %}
+          {% set bc = {'borrador':'secondary','enviado':'warning','pendiente':'warning','aceptado':'success','rechazado':'danger'} %}
+          <tr>
+            <td><code class="text-primary">{{ of.referencia }}</code></td>
+            <td>{{ of.cliente_nombre or '—' }}</td>
+            <td class="text-truncate" style="max-width:220px" title="{{ of.titulo }}">{{ of.titulo }}</td>
+            <td><small class="text-muted">{{ of.tipo_trabajo or '—' }}</small></td>
+            <td><span class="badge bg-{{ bc.get(of.status, 'secondary') }}">{{ of.status }}</span></td>
+            <td class="text-end fw-bold">{{ "%.2f" | format(of.total) }} €</td>
+            <td><small>{{ fmt_date(of.fecha_creacion) }}</small></td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('crm.oferta_detalle', oid=of.id) }}"
+                   class="btn btn-outline-primary py-0" title="Ver">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('crm.oferta_editar', oid=of.id) }}"
+                   class="btn btn-outline-secondary py-0" title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{{ url_for('crm.oferta_pdf', oid=of.id) }}"
+                   class="btn btn-outline-danger py-0" title="PDF" target="_blank">
+                  <i class="bi bi-file-pdf"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-file-earmark-check fs-1"></i>
+      <p class="mt-2">No hay ofertas{% if status_filter or year_filter %} con estos filtros{% endif %}.</p>
+      <a href="{{ url_for('crm.oferta_nueva') }}" class="btn btn-primary btn-sm">
+        Crear primera oferta
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

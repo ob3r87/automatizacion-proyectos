@@ -18,13 +18,17 @@ except ImportError:
     from flask import (Flask, render_template, request, jsonify,
                        redirect, url_for, send_file)
 
-from db import init_db, query, execute, get_db
+from db import init_db, init_crm_db, init_work_types_defaults, query, execute, get_db
 from project_scanner import scan_projects, get_project_files, get_project_datos
 
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "phican-crm-secret-2024")
+
+from crm_routes import crm_bp
+app.register_blueprint(crm_bp)
 
 CATEGORIES = [
     ("proyecto", "Proyecto"),
@@ -478,5 +482,7 @@ def api_export_csv():
 
 if __name__ == "__main__":
     init_db()
+    init_crm_db()
+    init_work_types_defaults()
     print("Tracker disponible en http://localhost:5050")
     app.run(host="127.0.0.1", port=5050, debug=True)
