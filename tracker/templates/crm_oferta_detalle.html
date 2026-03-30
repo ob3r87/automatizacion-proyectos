@@ -247,9 +247,15 @@
           <span>IGIC ({{ oferta.iva_pct }}%)</span>
           <span>{{ "%.2f" | format(totals.iva) }} €</span>
         </div>
+        {% if oferta.irpf_pct and oferta.irpf_pct > 0 %}
+        <div class="d-flex justify-content-between mb-1 text-danger">
+          <span>Ret. IRPF ({{ oferta.irpf_pct }}%)</span>
+          <span>- {{ "%.2f" | format(totals.irpf) }} €</span>
+        </div>
+        {% endif %}
         <hr class="my-1">
         <div class="d-flex justify-content-between fs-5 fw-bold text-primary">
-          <span>TOTAL</span>
+          <span>TOTAL A COBRAR</span>
           <span>{{ "%.2f" | format(totals.total) }} €</span>
         </div>
       </div>

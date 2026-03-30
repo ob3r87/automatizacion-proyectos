@@ -342,12 +342,14 @@ def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, ou
     # ── TOTALES ───────────────────────────────────────────────────
     subtotal = sum(float(l.get("cantidad", 1)) * float(l.get("precio_unitario", 0)) for l in lines_data)
     descuento_pct = float(offer_data.get("descuento_pct", 0))
-    iva_pct = float(offer_data.get("iva_pct", 7))
+    iva_pct       = float(offer_data.get("iva_pct", 7))
+    irpf_pct      = float(offer_data.get("irpf_pct", 15) or 15)
 
     descuento_importe = subtotal * descuento_pct / 100
-    base_imponible = subtotal - descuento_importe
-    iva_importe = base_imponible * iva_pct / 100
-    total_final = base_imponible + iva_importe
+    base_imponible    = subtotal - descuento_importe
+    iva_importe       = base_imponible * iva_pct / 100
+    irpf_importe      = base_imponible * irpf_pct / 100   # retención a ingresar por el pagador
+    total_final       = base_imponible + iva_importe - irpf_importe
 
     st_tot_label = ParagraphStyle("TotLabel", parent=styles["Normal"],
                                    fontSize=9, fontName="Helvetica", alignment=TA_RIGHT)
@@ -376,8 +378,13 @@ def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, ou
         Paragraph(f"IGIC ({iva_pct:g}%):", st_tot_label),
         Paragraph(_fmt_euro(iva_importe), st_tot_value),
     ])
+    if irpf_pct > 0:
+        totales_rows.append([
+            Paragraph(f"Ret. IRPF ({irpf_pct:g}%):", st_tot_label),
+            Paragraph(f"- {_fmt_euro(irpf_importe)}", st_tot_value),
+        ])
     totales_rows.append([
-        Paragraph("TOTAL:", st_tot_total_label),
+        Paragraph("TOTAL A COBRAR:", st_tot_total_label),
         Paragraph(_fmt_euro(total_final), st_tot_total_value),
     ])
 

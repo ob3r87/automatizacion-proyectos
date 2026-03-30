@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS offers (
     validez_dias INTEGER DEFAULT 30,
     descuento_pct REAL DEFAULT 0,
     iva_pct REAL DEFAULT 7,
+    irpf_pct REAL DEFAULT 15,
     notas_internas TEXT DEFAULT '',
     notas_cliente TEXT DEFAULT '',
     pdf_path TEXT DEFAULT '',
@@ -172,9 +173,13 @@ WORK_TYPES_DEFAULT = [
 
 
 def init_crm_db():
-    """Inicializa las tablas del CRM."""
+    """Inicializa las tablas del CRM y aplica migraciones si hacen falta."""
     with get_db() as db:
         db.executescript(SCHEMA2)
+        # Migración: añadir irpf_pct si no existe (BD creada antes de esta versión)
+        cols = [r[1] for r in db.execute("PRAGMA table_info(offers)").fetchall()]
+        if "irpf_pct" not in cols:
+            db.execute("ALTER TABLE offers ADD COLUMN irpf_pct REAL DEFAULT 15")
 
 
 def init_work_types_defaults():

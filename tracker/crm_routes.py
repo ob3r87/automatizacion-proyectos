@@ -72,21 +72,25 @@ def siguiente_referencia_oferta():
     return f"PR.{num:03d}/{year}"
 
 
-def _calcular_totales(lines, descuento_pct, iva_pct):
+def _calcular_totales(lines, descuento_pct, iva_pct, irpf_pct=15):
     subtotal = sum(float(l.get("cantidad", 1)) * float(l.get("precio_unitario", 0))
                    for l in lines)
     descuento_pct = float(descuento_pct or 0)
-    iva_pct = float(iva_pct or 7)
-    descuento = subtotal * descuento_pct / 100
-    base = subtotal - descuento
-    iva = base * iva_pct / 100
-    total = base + iva
+    iva_pct       = float(iva_pct or 7)
+    irpf_pct      = float(irpf_pct if irpf_pct is not None else 15)
+    descuento  = subtotal * descuento_pct / 100
+    base       = subtotal - descuento
+    iva        = base * iva_pct / 100
+    irpf       = base * irpf_pct / 100          # retención — se resta al total a cobrar
+    total      = base + iva - irpf
     return {
-        "subtotal": subtotal,
-        "descuento": descuento,
-        "base": base,
-        "iva": iva,
-        "total": total,
+        "subtotal":   subtotal,
+        "descuento":  descuento,
+        "base":       base,
+        "iva":        iva,
+        "irpf":       irpf,
+        "total":      total,         # lo que cobra el profesional
+        "total_bruto": base + iva,   # lo que paga el cliente (sin retención visible)
     }
 
 
@@ -95,7 +99,8 @@ def _oferta_total(offer_id):
     oferta = query("SELECT * FROM offers WHERE id = ?", (offer_id,), one=True)
     if not oferta:
         return 0.0
-    tots = _calcular_totales(lines, oferta.get("descuento_pct", 0), oferta.get("iva_pct", 7))
+    tots = _calcular_totales(lines, oferta.get("descuento_pct", 0),
+                             oferta.get("iva_pct", 7), oferta.get("irpf_pct", 15))
     return tots["total"]
 
 
@@ -317,7 +322,8 @@ def oferta_detalle(oid):
 
     lines = query("SELECT * FROM offer_lines WHERE offer_id = ? ORDER BY orden", (oid,))
     historial = query("SELECT * FROM offer_history WHERE offer_id = ? ORDER BY fecha DESC", (oid,))
-    totals = _calcular_totales(lines, oferta.get("descuento_pct", 0), oferta.get("iva_pct", 7))
+    totals = _calcular_totales(lines, oferta.get("descuento_pct", 0),
+                               oferta.get("iva_pct", 7), oferta.get("irpf_pct", 15))
 
     return render_template(
         "crm_oferta_detalle.html",
@@ -377,9 +383,9 @@ def _guardar_oferta(oid):
             """INSERT INTO offers
                (referencia, client_id, titulo, tipo_trabajo, descripcion, status,
                 fecha_creacion, fecha_vencimiento, validez_dias,
-                descuento_pct, iva_pct, notas_internas, notas_cliente,
+                descuento_pct, iva_pct, irpf_pct, notas_internas, notas_cliente,
                 created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 referencia,
                 client_id,
@@ -392,6 +398,7 @@ def _guardar_oferta(oid):
                 validez,
                 float(f.get("descuento_pct", 0) or 0),
                 float(f.get("iva_pct", 7) or 7),
+                float(f.get("irpf_pct", 15) or 15),
                 f.get("notas_internas", "").strip(),
                 f.get("notas_cliente", "").strip(),
                 now, now,
@@ -403,7 +410,7 @@ def _guardar_oferta(oid):
             """UPDATE offers SET
                client_id=?, titulo=?, tipo_trabajo=?, descripcion=?,
                fecha_vencimiento=?, validez_dias=?,
-               descuento_pct=?, iva_pct=?, notas_internas=?, notas_cliente=?,
+               descuento_pct=?, iva_pct=?, irpf_pct=?, notas_internas=?, notas_cliente=?,
                updated_at=?
                WHERE id=?""",
             (
@@ -415,6 +422,7 @@ def _guardar_oferta(oid):
                 validez,
                 float(f.get("descuento_pct", 0) or 0),
                 float(f.get("iva_pct", 7) or 7),
+                float(f.get("irpf_pct", 15) or 15),
                 f.get("notas_internas", "").strip(),
                 f.get("notas_cliente", "").strip(),
                 now, oid,
@@ -545,9 +553,9 @@ def oferta_duplicar(oid):
     nuevo_oid = execute(
         """INSERT INTO offers
            (referencia, client_id, titulo, tipo_trabajo, descripcion, status,
-            fecha_creacion, validez_dias, descuento_pct, iva_pct,
+            fecha_creacion, validez_dias, descuento_pct, iva_pct, irpf_pct,
             notas_internas, notas_cliente, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             nueva_ref,
             oferta["client_id"],
@@ -558,6 +566,7 @@ def oferta_duplicar(oid):
             oferta["validez_dias"],
             oferta["descuento_pct"],
             oferta["iva_pct"],
+            oferta.get("irpf_pct", 15),
             oferta["notas_internas"],
             oferta["notas_cliente"],
             now, now,
