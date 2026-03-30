@@ -70,7 +70,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Tipo de trabajo</label>
-              <select name="tipo_trabajo" class="form-select">
+              <select name="tipo_trabajo" class="form-select" id="tipo-trabajo-select">
                 <option value="">— Seleccionar —</option>
                 {% for wt in work_types %}
                 <option value="{{ wt.codigo }}"
@@ -123,6 +123,8 @@
           </div>
         </div>
       </div>
+
+      {% include 'crm_hov_section.html' %}
 
       <!-- Líneas -->
       <div class="card mb-3">

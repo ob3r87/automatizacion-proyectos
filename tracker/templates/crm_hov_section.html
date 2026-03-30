@@ -1,0 +1,227 @@
+{# Sección HOV: se incluye en crm_oferta_form.html cuando tipo_trabajo = "HOV" #}
+<div id="seccion-hov" class="mt-3" {% if oferta and oferta.tipo_trabajo != 'HOV' %}style="display:none"{% elif not oferta %}style="display:none"{% endif %}>
+
+  <!-- Card 1: Identificación del vehículo -->
+  <div class="card mb-3 border-primary">
+    <div class="card-header bg-primary text-white fw-semibold">
+      <i class="bi bi-car-front"></i> Datos del vehículo
+    </div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label small">Marca</label>
+          <input type="text" name="hov_marca" class="form-control form-control-sm" value="{{ hov_data.marca if hov_data else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Modelo</label>
+          <input type="text" name="hov_modelo" class="form-control form-control-sm" value="{{ hov_data.modelo if hov_data else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Tipo de vehículo</label>
+          <input type="text" name="hov_tipo_vehiculo" class="form-control form-control-sm" value="{{ hov_data.tipo_vehiculo if hov_data else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Matrícula</label>
+          <input type="text" name="hov_matricula" class="form-control form-control-sm text-uppercase" value="{{ hov_data.matricula if hov_data else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Nº Bastidor</label>
+          <input type="text" name="hov_bastidor" class="form-control form-control-sm text-uppercase" value="{{ hov_data.bastidor if hov_data else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Categoría</label>
+          <select name="hov_categoria" class="form-select form-select-sm" id="hov-categoria" onchange="filtrarActosCategoria()">
+            <option value="">— Todas —</option>
+            {% for cat in ['M1','M2','M3','N1','N2','N3','O1','O2','O3','O4','L3e','L4e','T'] %}
+            <option value="{{ cat }}" {% if hov_data and hov_data.categoria == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Año matriculación</label>
+          <input type="text" name="hov_anio" class="form-control form-control-sm" placeholder="2020" value="{{ hov_data.anio_matriculacion if hov_data else '' }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Actos reglamentarios -->
+  <div class="card mb-3 border-warning">
+    <div class="card-header bg-warning text-dark fw-semibold d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-list-check"></i> Actos reglamentarios</span>
+      <span class="badge bg-dark" id="badge-n-actos">0 seleccionados</span>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info py-2 small mb-3" id="alerta-precio-hov">
+        <i class="bi bi-calculator"></i>
+        Precio calculado: <strong id="precio-hov-calc">650,00 €</strong>
+        &nbsp;·&nbsp; <span id="texto-actos-hov">Selecciona los actos reglamentarios para calcular el precio</span>
+      </div>
+
+      <!-- Los grupos de actos se renderizan dinámicamente por JS desde /crm/api/codigos-reforma -->
+      <div id="grupos-actos-container">
+        <div class="text-center text-muted py-3">
+          <div class="spinner-border spinner-border-sm"></div> Cargando actos reglamentarios...
+        </div>
+      </div>
+
+      <!-- Actos pre-seleccionados (para edición) -->
+      <div id="actos-preseleccionados" style="display:none">
+        {{ hov_data.actos_reglamentarios if hov_data else '[]' }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Datos antes / después -->
+  <div class="card mb-3 border-secondary">
+    <div class="card-header bg-secondary text-white fw-semibold">
+      <i class="bi bi-arrow-left-right"></i> Características técnicas — Antes / Después de la reforma
+    </div>
+    <div class="card-body p-2">
+      <table class="table table-sm table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:35%">Parámetro</th>
+            <th class="text-center text-primary" style="width:30%"><i class="bi bi-arrow-left"></i> Antes</th>
+            <th class="text-center text-success" style="width:30%">Después <i class="bi bi-arrow-right"></i></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set filas_ab = [
+            ('hov_mma', 'MMA — Masa máx. autorizada (kg)'),
+            ('hov_tara', 'Tara / Masa en orden de marcha (kg)'),
+            ('hov_plazas', 'Número de plazas'),
+            ('hov_longitud', 'Longitud total (mm)'),
+            ('hov_anchura', 'Anchura total (mm)'),
+            ('hov_altura', 'Altura total (mm)'),
+            ('hov_mmta', 'MMTA (kg)'),
+            ('hov_mma_eje', 'MMA por eje (kg)'),
+            ('hov_potencia', 'Potencia máxima (kW)'),
+            ('hov_cilindrada', 'Cilindrada (cc)'),
+            ('hov_combustible', 'Combustible / energía'),
+            ('hov_vel_max', 'Velocidad máxima (km/h)'),
+          ] %}
+          {% for campo, etiqueta in filas_ab %}
+          <tr>
+            <td class="small fw-semibold">{{ etiqueta }}</td>
+            <td>
+              <input type="text" name="{{ campo }}_antes" class="form-control form-control-sm border-0 text-primary"
+                     value="{{ hov_data[campo.replace('hov_','') + '_antes'] if hov_data else '' }}"
+                     placeholder="valor actual">
+            </td>
+            <td>
+              <input type="text" name="{{ campo }}_despues" class="form-control form-control-sm border-0 text-success"
+                     value="{{ hov_data[campo.replace('hov_','') + '_despues'] if hov_data else '' }}"
+                     placeholder="nuevo valor">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="mt-2">
+        <label class="form-label small fw-semibold">Notas técnicas de la reforma</label>
+        <textarea name="hov_notas_tecnicas" class="form-control form-control-sm" rows="2"
+                  placeholder="Descripción técnica de la reforma a realizar...">{{ hov_data.notas_tecnicas if hov_data else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Cargar y renderizar actos reglamentarios desde la API
+function cargarActosReglamentarios(categoria) {
+  const url = '/crm/api/codigos-reforma' + (categoria ? '?cat=' + categoria : '');
+  fetch(url).then(r => r.json()).then(data => {
+    const container = document.getElementById('grupos-actos-container');
+    // Leer actos preseleccionados
+    let presel = [];
+    try { presel = JSON.parse(document.getElementById('actos-preseleccionados').textContent.trim()); } catch(e) {}
+
+    let html = '';
+    for (const [gid, grupo] of Object.entries(data.grupos).sort((a,b) => parseInt(a[0]) - parseInt(b[0]))) {
+      html += `<div class="mb-3">
+        <div class="fw-semibold small text-muted border-bottom pb-1 mb-2">
+          Grupo ${gid} — ${grupo.nombre}
+        </div>
+        <div class="row g-1">`;
+      for (const item of grupo.codigos) {
+        const checked = presel.includes(item.codigo) ? 'checked' : '';
+        html += `<div class="col-md-6">
+          <div class="form-check">
+            <input class="form-check-input acto-check" type="checkbox"
+                   name="actos_reglamentarios[]" value="${item.codigo}"
+                   id="acto-${item.codigo}" ${checked}
+                   onchange="actualizarContadorActos()">
+            <label class="form-check-label small" for="acto-${item.codigo}">
+              <span class="badge bg-secondary me-1">${item.codigo}</span>
+              ${item.descripcion}
+            </label>
+          </div>
+        </div>`;
+      }
+      html += '</div></div>';
+    }
+    container.innerHTML = html;
+    actualizarContadorActos();
+  }).catch(() => {
+    document.getElementById('grupos-actos-container').innerHTML =
+      '<div class="alert alert-warning small">No se pudieron cargar los actos reglamentarios.</div>';
+  });
+}
+
+function filtrarActosCategoria() {
+  const cat = document.getElementById('hov-categoria').value;
+  cargarActosReglamentarios(cat);
+}
+
+function actualizarContadorActos() {
+  const checks = document.querySelectorAll('.acto-check:checked');
+  const n = checks.length;
+  document.getElementById('badge-n-actos').textContent = n + ' seleccionado' + (n !== 1 ? 's' : '');
+
+  fetch('/crm/api/precio-hov/' + n).then(r => r.json()).then(data => {
+    const fmt = new Intl.NumberFormat('es-ES', {minimumFractionDigits: 2}).format(data.precio);
+    document.getElementById('precio-hov-calc').textContent = fmt + ' €';
+    document.getElementById('texto-actos-hov').textContent =
+      n === 0 ? 'Selecciona los actos reglamentarios' :
+      n === 1 ? '1 acto reglamentario' : n + ' actos reglamentarios';
+
+    // Auto-actualizar primera línea si concepto es HOV
+    const filaHOV = document.querySelector('#tbody-lineas tr.linea-row');
+    if (filaHOV) {
+      const concepto = filaHOV.querySelector('.concepto-input');
+      if (concepto && (concepto.value === '' || concepto.value.toLowerCase().includes('homolog'))) {
+        filaHOV.querySelector('.precio-input').value = data.precio.toFixed(2);
+        if (typeof recalcularTotales === 'function') recalcularTotales();
+      }
+    }
+  });
+}
+
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+  const secHov = document.getElementById('seccion-hov');
+  const tipoSelect = document.getElementById('tipo-trabajo-select');
+  if (tipoSelect) {
+    tipoSelect.addEventListener('change', function() {
+      secHov.style.display = this.value === 'HOV' ? '' : 'none';
+      if (this.value === 'HOV') {
+        const cat = document.getElementById('hov-categoria').value;
+        cargarActosReglamentarios(cat);
+      }
+    });
+    // Si ya está en HOV, cargar actos
+    if (tipoSelect.value === 'HOV') {
+      const cat = document.getElementById('hov-categoria').value;
+      cargarActosReglamentarios(cat);
+    }
+  } else {
+    // Estamos en modo edición ya con HOV
+    if (secHov && secHov.style.display !== 'none') {
+      const cat = document.getElementById('hov-categoria') ? document.getElementById('hov-categoria').value : '';
+      cargarActosReglamentarios(cat);
+    }
+  }
+});
+</script>

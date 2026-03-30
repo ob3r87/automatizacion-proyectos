@@ -155,6 +155,34 @@ CREATE TABLE IF NOT EXISTS offer_history (
     notas TEXT DEFAULT '',
     FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS offer_hov_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    offer_id INTEGER UNIQUE NOT NULL,
+    marca TEXT DEFAULT '',
+    modelo TEXT DEFAULT '',
+    tipo_vehiculo TEXT DEFAULT '',
+    matricula TEXT DEFAULT '',
+    bastidor TEXT DEFAULT '',
+    categoria TEXT DEFAULT '',
+    anio_matriculacion TEXT DEFAULT '',
+    actos_reglamentarios TEXT DEFAULT '[]',
+    n_actos INTEGER DEFAULT 0,
+    mma_antes TEXT DEFAULT '',       mma_despues TEXT DEFAULT '',
+    tara_antes TEXT DEFAULT '',      tara_despues TEXT DEFAULT '',
+    plazas_antes TEXT DEFAULT '',    plazas_despues TEXT DEFAULT '',
+    longitud_antes TEXT DEFAULT '',  longitud_despues TEXT DEFAULT '',
+    anchura_antes TEXT DEFAULT '',   anchura_despues TEXT DEFAULT '',
+    altura_antes TEXT DEFAULT '',    altura_despues TEXT DEFAULT '',
+    mmta_antes TEXT DEFAULT '',      mmta_despues TEXT DEFAULT '',
+    mma_eje_antes TEXT DEFAULT '',   mma_eje_despues TEXT DEFAULT '',
+    potencia_antes TEXT DEFAULT '',  potencia_despues TEXT DEFAULT '',
+    cilindrada_antes TEXT DEFAULT '', cilindrada_despues TEXT DEFAULT '',
+    combustible_antes TEXT DEFAULT '', combustible_despues TEXT DEFAULT '',
+    vel_max_antes TEXT DEFAULT '',   vel_max_despues TEXT DEFAULT '',
+    notas_tecnicas TEXT DEFAULT '',
+    FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE
+);
 """
 
 WORK_TYPES_DEFAULT = [
@@ -180,6 +208,30 @@ def init_crm_db():
         cols = [r[1] for r in db.execute("PRAGMA table_info(offers)").fetchall()]
         if "irpf_pct" not in cols:
             db.execute("ALTER TABLE offers ADD COLUMN irpf_pct REAL DEFAULT 15")
+        # Migración: crear offer_hov_data si no existe
+        db.execute("""CREATE TABLE IF NOT EXISTS offer_hov_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    offer_id INTEGER UNIQUE NOT NULL,
+    marca TEXT DEFAULT '', modelo TEXT DEFAULT '',
+    tipo_vehiculo TEXT DEFAULT '', matricula TEXT DEFAULT '',
+    bastidor TEXT DEFAULT '', categoria TEXT DEFAULT '',
+    anio_matriculacion TEXT DEFAULT '',
+    actos_reglamentarios TEXT DEFAULT '[]', n_actos INTEGER DEFAULT 0,
+    mma_antes TEXT DEFAULT '', mma_despues TEXT DEFAULT '',
+    tara_antes TEXT DEFAULT '', tara_despues TEXT DEFAULT '',
+    plazas_antes TEXT DEFAULT '', plazas_despues TEXT DEFAULT '',
+    longitud_antes TEXT DEFAULT '', longitud_despues TEXT DEFAULT '',
+    anchura_antes TEXT DEFAULT '', anchura_despues TEXT DEFAULT '',
+    altura_antes TEXT DEFAULT '', altura_despues TEXT DEFAULT '',
+    mmta_antes TEXT DEFAULT '', mmta_despues TEXT DEFAULT '',
+    mma_eje_antes TEXT DEFAULT '', mma_eje_despues TEXT DEFAULT '',
+    potencia_antes TEXT DEFAULT '', potencia_despues TEXT DEFAULT '',
+    cilindrada_antes TEXT DEFAULT '', cilindrada_despues TEXT DEFAULT '',
+    combustible_antes TEXT DEFAULT '', combustible_despues TEXT DEFAULT '',
+    vel_max_antes TEXT DEFAULT '', vel_max_despues TEXT DEFAULT '',
+    notas_tecnicas TEXT DEFAULT '',
+    FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE
+)""")
 
 
 def init_work_types_defaults():

@@ -261,6 +261,65 @@
       </div>
     </div>
 
+    {% if oferta.tipo_trabajo == 'HOV' and hov_data %}
+    <div class="card mb-3">
+      <div class="card-header bg-primary text-white fw-semibold">
+        <i class="bi bi-car-front"></i> Homologación de Vehículo — {{ hov_data.marca }} {{ hov_data.modelo }}
+      </div>
+      <div class="card-body small">
+        <div class="row mb-2">
+          <div class="col"><strong>Matrícula:</strong> {{ hov_data.matricula or '—' }}</div>
+          <div class="col"><strong>Bastidor:</strong> {{ hov_data.bastidor or '—' }}</div>
+          <div class="col"><strong>Categoría:</strong> {{ hov_data.categoria or '—' }}</div>
+          <div class="col"><strong>Año:</strong> {{ hov_data.anio_matriculacion or '—' }}</div>
+        </div>
+
+        {% if hov_data.actos_lista %}
+        <div class="mb-2">
+          <strong>Actos reglamentarios ({{ hov_data.n_actos }}):</strong>
+          <div class="mt-1">
+            {% for acto in hov_data.actos_lista %}
+            <span class="badge bg-secondary me-1 mb-1">{{ acto }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% set filas_detalle = [
+          ('mma', 'MMA (kg)'), ('tara', 'Tara (kg)'), ('plazas', 'Plazas'),
+          ('longitud', 'Longitud (mm)'), ('anchura', 'Anchura (mm)'), ('altura', 'Altura (mm)'),
+          ('mmta', 'MMTA (kg)'), ('potencia', 'Potencia (kW)'), ('cilindrada', 'Cilindrada (cc)'),
+          ('combustible', 'Combustible'), ('vel_max', 'V. máx. (km/h)'),
+        ] %}
+        {% set tiene_ficha = namespace(val=false) %}
+        {% for campo, _ in filas_detalle %}
+          {% if hov_data[campo + '_antes'] or hov_data[campo + '_despues'] %}
+            {% set tiene_ficha.val = true %}
+          {% endif %}
+        {% endfor %}
+        {% if tiene_ficha.val %}
+        <table class="table table-sm table-bordered mt-2 mb-1">
+          <thead class="table-light"><tr><th>Parámetro</th><th class="text-primary">Antes</th><th class="text-success">Después</th></tr></thead>
+          <tbody>
+            {% for campo, etiqueta in filas_detalle %}
+            {% if hov_data[campo + '_antes'] or hov_data[campo + '_despues'] %}
+            <tr>
+              <td class="fw-semibold">{{ etiqueta }}</td>
+              <td class="text-primary">{{ hov_data[campo + '_antes'] or '—' }}</td>
+              <td class="text-success">{{ hov_data[campo + '_despues'] or '—' }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% if hov_data.notas_tecnicas %}
+        <p class="mb-0"><strong>Notas técnicas:</strong> {{ hov_data.notas_tecnicas }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     {% if oferta.notas_internas %}
     <div class="card mb-3">
       <div class="card-header fw-semibold small"><i class="bi bi-lock"></i> Notas internas</div>

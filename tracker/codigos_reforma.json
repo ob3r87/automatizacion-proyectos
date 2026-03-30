@@ -1,0 +1,960 @@
+{
+  "1.1": {
+    "grupo": "1",
+    "descripcion": "Sustitución total o parcial del bastidor o de la estructura autoportante, cuando la parte sustituida sea la que lleva grabado el número de identificación del vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "1.2": {
+    "grupo": "1",
+    "descripcion": "Retroquelado por ausencia, deterioro, desaparición, o modificación del número de identificación del vehículo (VIN)",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "1.3": {
+    "grupo": "1",
+    "descripcion": "Cambio de emplazamiento de la placa de matricula",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "2.1": {
+    "grupo": "2",
+    "descripcion": "Modificación de las características o sustitución de los elementos del sistema de admisión del comburente",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.2": {
+    "grupo": "2",
+    "descripcion": "Modificación de las características o sustitución de los elementos del sistema de alimentación de combustible",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.3": {
+    "grupo": "2",
+    "descripcion": "Modificación o sustitución de la unidad motriz por otra de distintas características",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.4": {
+    "grupo": "2",
+    "descripcion": "Adición o desinstalación de una/s unidad/es motriz/ces para la tracción del vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.5": {
+    "grupo": "2",
+    "descripcion": "Cambio de emplazamiento de la unidad motriz",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.6": {
+    "grupo": "2",
+    "descripcion": "Modificación o sustitución de las características del sistema de escape: disposición, volumen total, silenciadores, catalizadores o filtros de partículas",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.7": {
+    "grupo": "2",
+    "descripcion": "Modificación de la ubicación, sustitución, adición o reducción del número de depósitos de combustible",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "2.8": {
+    "grupo": "2",
+    "descripcion": "Modificación del sistema de accionamiento del mando para la aceleración, así como de la ubicación, sustitución, adición o supresión de mandos",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.9": {
+    "grupo": "2",
+    "descripcion": "Modificación de sistemas o de la programación de los mismos que puedan variar la potencia máxima",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.10": {
+    "grupo": "2",
+    "descripcion": "Modificación del sistema de accionamiento para el arranque de la unidad motriz",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.11": {
+    "grupo": "2",
+    "descripcion": "Transformación a Vehículos eléctricos o híbridos y sus modificaciones",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.12": {
+    "grupo": "2",
+    "descripcion": "Vehículos eléctricos o híbridos: modificación, sustitución, adición o reubicación del sistema de acumulación de energía eléctrica",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.13": {
+    "grupo": "2",
+    "descripcion": "Modificación del sistema del control de emisiones para el paso de una etapa Euro a una etapa superior",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.14": {
+    "grupo": "2",
+    "descripcion": "Instalación de sistemas reductores de emisiones en cuanto a NOX y partículas",
+    "categorias": [
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.15": {
+    "grupo": "2",
+    "descripcion": "Transformación a Vehículos con uso del hidrógeno como medio de almacenamiento de energía y sus modificaciones (pila de combustible)",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "2.16": {
+    "grupo": "2",
+    "descripcion": "Transformación a Vehículos con uso del hidrógeno como medio de almacenamiento de energía y sus modificaciones (motor de combustión interna)",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "3.1": {
+    "grupo": "3",
+    "descripcion": "Modificación de las características o sustitución del elemento de conexión o desconexión de la transmisión (embrague)",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "3.2": {
+    "grupo": "3",
+    "descripcion": "Modificación del sistema de accionamiento del embrague, así como de la ubicación, sustitución, adición o supresión de mandos",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "3.3": {
+    "grupo": "3",
+    "descripcion": "Modificación de la caja de cambios o sustitución por otra de distintas características",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "3.4": {
+    "grupo": "3",
+    "descripcion": "Modificaciones de las características o sustituciones en los elementos de transmisión por otros diferentes a los del vehículo original",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "3.5": {
+    "grupo": "3",
+    "descripcion": "Modificación del sistema de tracción a través de la variación del número de ejes motrices",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "3.6": {
+    "grupo": "3",
+    "descripcion": "Modificación o sustitución del sistema de selección de velocidades por otro de distintas características",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "4.1": {
+    "grupo": "4",
+    "descripcion": "Sustitución del eje por otro de distintas características o modificación de las características del mismo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "4.2": {
+    "grupo": "4",
+    "descripcion": "Modificación de la distancia entre ejes",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "4.3": {
+    "grupo": "4",
+    "descripcion": "Aumento o disminución del número de ejes",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "4.4": {
+    "grupo": "4",
+    "descripcion": "Modificaciones o sustituciones en ruedas o instalación/desinstalación de separadores de ruedas que impliquen modificación de la vía",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "4.5": {
+    "grupo": "4",
+    "descripcion": "Sustitución de neumáticos por otros no equivalentes",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "5.1": {
+    "grupo": "5",
+    "descripcion": "Modificación de las características del sistema de suspensión o de algunos de sus componentes elásticos o amortiguadores",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "6.1": {
+    "grupo": "6",
+    "descripcion": "Modificación del sistema de dirección",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "6.2": {
+    "grupo": "6",
+    "descripcion": "Cambio de emplazamiento, adición o desinstalación de volante",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "6.3": {
+    "grupo": "6",
+    "descripcion": "Sustitución del volante por otro de distintas características",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "6.4": {
+    "grupo": "6",
+    "descripcion": "Instalación o desinstalación de ayudas en el volante",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "6.5": {
+    "grupo": "6",
+    "descripcion": "Modificación del tipo y modo de mando o incorporación/desinstalación de sistemas avanzados de control del vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "7.1": {
+    "grupo": "7",
+    "descripcion": "Modificación de las características del sistema de frenado o de alguno de sus componentes",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "7.2": {
+    "grupo": "7",
+    "descripcion": "Incorporación/desinstalación de sistemas auxiliares de absorción de energía cinética (sistemas de frenada recuperativa)",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "7.3": {
+    "grupo": "7",
+    "descripcion": "Modificación de los mandos de accionamiento del freno, así como de la ubicación, sustitución, adición o supresión de los mismos",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.1": {
+    "grupo": "8",
+    "descripcion": "Reducción de plazas de asiento",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.2": {
+    "grupo": "8",
+    "descripcion": "Aumento de plazas de asiento",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.3": {
+    "grupo": "8",
+    "descripcion": "Sustitución de plazas de asiento por plazas de pie o modificación del número de plazas de pie",
+    "categorias": [
+      "M2",
+      "M3"
+    ]
+  },
+  "8.4": {
+    "grupo": "8",
+    "descripcion": "Acondicionamiento de espacio para la instalación de sillas de ruedas",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3"
+    ]
+  },
+  "8.10": {
+    "grupo": "8",
+    "descripcion": "Sustitución de asiento por otro distinto",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.11": {
+    "grupo": "8",
+    "descripcion": "Cambio de algún cinturón de seguridad por otro de diferente tipo, número o situación de los puntos de anclaje",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.12": {
+    "grupo": "8",
+    "descripcion": "Instalación de cinturones de seguridad",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.20": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación de elementos permanentes en la zona frontal del interior del habitáculo del vehículo",
+    "categorias": [
+      "M1"
+    ]
+  },
+  "8.21": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación de mamparas de separación entre asientos",
+    "categorias": [
+      "M1"
+    ]
+  },
+  "8.22": {
+    "grupo": "8",
+    "descripcion": "Modificación, instalación o desinstalación de elementos en la zona de equipaje, o en el espacio destinado a pasajeros para convertirlo en zona de equipaje",
+    "categorias": [
+      "M1"
+    ]
+  },
+  "8.23": {
+    "grupo": "8",
+    "descripcion": "Modificación de un autobús para utilizarse como: servicio médico, RTV, vivienda, taller o laboratorio ambulante u otros usos especiales",
+    "categorias": [
+      "M2",
+      "M3"
+    ]
+  },
+  "8.24": {
+    "grupo": "8",
+    "descripcion": "Instalación de Convertidores de corriente continua a corriente alterna",
+    "categorias": [
+      "M2",
+      "M3"
+    ]
+  },
+  "8.30": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación de elementos fijos del espacio destinado a carga y/o equipaje del vehículo que no afecten a la estructura",
+    "categorias": [
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.31": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación de elementos fijos que afectan a la estructura del espacio destinado a carga y/o equipaje del vehículo",
+    "categorias": [
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.33": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación arco de seguridad interior contra vuelco",
+    "categorias": [
+      "M1",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.40": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación de rampas, elevadores, grúas, plataformas, asideros, peldaños o sistemas de acceso para personas con movilidad reducida (PMR)",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.50": {
+    "grupo": "8",
+    "descripcion": "Transformaciones que modifiquen la longitud del voladizo delantero y/o trasero",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.51": {
+    "grupo": "8",
+    "descripcion": "Modificaciones que afecten a la carrocería de un vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.52": {
+    "grupo": "8",
+    "descripcion": "Modificación, incorporación o desinstalación de elementos en el exterior del vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.56": {
+    "grupo": "8",
+    "descripcion": "Adaptación de vehículos para el transporte de mercancías peligrosas o modificación de vehículos ya adaptados para dicho transporte",
+    "categorias": [
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.60": {
+    "grupo": "8",
+    "descripcion": "Sustitución o modificación del carrozado de un vehículo",
+    "categorias": [
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.61": {
+    "grupo": "8",
+    "descripcion": "Instalación o desinstalación de grúas",
+    "categorias": [
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.62": {
+    "grupo": "8",
+    "descripcion": "Incorporación o desinstalación de plataformas elevadoras, así como trampillas o rampas de acceso",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "8.70": {
+    "grupo": "8",
+    "descripcion": "Transformación a Ambulancias, funerarios, blindados, autocaravanas y sus modificaciones",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "8.80": {
+    "grupo": "8",
+    "descripcion": "Cambio de clase en M2 y M3",
+    "categorias": [
+      "M2",
+      "M3"
+    ]
+  },
+  "8.81": {
+    "grupo": "8",
+    "descripcion": "Variación del volumen de bodegas o compartimento para equipajes",
+    "categorias": [
+      "M2",
+      "M3"
+    ]
+  },
+  "9.1": {
+    "grupo": "9",
+    "descripcion": "Adición o desinstalación de cualquier elemento, dispositivo, sistema, componente o unidad técnica independiente del alumbrado",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "9.2": {
+    "grupo": "9",
+    "descripcion": "Modificación o sustitución de cualquier elemento, dispositivo, sistema, componente o unidad técnica independiente del alumbrado por otro de distintas características",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "10.1": {
+    "grupo": "10",
+    "descripcion": "Instalación o modificación de dispositivos de acoplamiento en vehículos de categorías M y N",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "10.2": {
+    "grupo": "10",
+    "descripcion": "Instalación, modificación o desinstalación de dispositivos de acoplamiento en vehículos de categoría O",
+    "categorias": [
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "10.6": {
+    "grupo": "10",
+    "descripcion": "Transformación de vehículo remolcado en vehículo remolcado apto para remolcar otro vehículo",
+    "categorias": [
+      "O4"
+    ]
+  },
+  "11.0": {
+    "grupo": "11",
+    "descripcion": "Cambio de alguno de los datos de la tarjeta ITV, cuando no lleva asociada otra transformación del vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "11.1": {
+    "grupo": "11",
+    "descripcion": "Cambio de clasificación",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "11.2": {
+    "grupo": "11",
+    "descripcion": "Variaciones de Masas Máximas Autorizadas",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "11.3": {
+    "grupo": "11",
+    "descripcion": "Variación de cualquiera de las Masas Máximas Técnicas Admisibles del vehículo",
+    "categorias": [
+      "M1",
+      "M2",
+      "M3",
+      "N1",
+      "N2",
+      "N3",
+      "O1",
+      "O2",
+      "O3",
+      "O4"
+    ]
+  },
+  "11.5": {
+    "grupo": "11",
+    "descripcion": "Vehículos para uso exclusivo de pruebas deportivas",
+    "categorias": [
+      "M1",
+      "N1",
+      "N2",
+      "N3"
+    ]
+  },
+  "11.6": {
+    "grupo": "11",
+    "descripcion": "Ampliación de combinaciones de vehículos modulares para el transporte especial",
+    "categorias": [
+      "O4"
+    ]
+  }
+}

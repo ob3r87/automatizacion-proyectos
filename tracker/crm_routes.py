@@ -14,6 +14,37 @@ from flask import (Blueprint, render_template, request, redirect,
 
 from db import query, execute, get_db, init_crm_db, init_work_types_defaults
 
+import json as _json_mod
+_CODIGOS_REFORMA = {}
+try:
+    _cr_path = Path(__file__).parent / "codigos_reforma.json"
+    if _cr_path.exists():
+        _CODIGOS_REFORMA = _json_mod.loads(_cr_path.read_text(encoding="utf-8"))
+except Exception:
+    pass
+
+# Nombres de grupos de reforma
+GRUPOS_REFORMA = {
+    "1": "Identificación", "2": "Unidad motriz", "3": "Transmisión",
+    "4": "Ejes y ruedas", "5": "Dirección", "6": "Frenos",
+    "7": "Carrocería", "8": "Masas y dimensiones", "9": "Acoplamiento",
+    "10": "Accesorios y equipos", "11": "Otras modificaciones"
+}
+
+
+# Tarifa HOV por número de actos reglamentarios
+def _precio_hov(n_actos: int) -> float:
+    if n_actos <= 0:
+        return 650.0
+    if n_actos == 1:
+        return 650.0
+    if n_actos == 2:
+        return 750.0
+    if n_actos == 3:
+        return 900.0
+    return 900.0 + (n_actos - 3) * 120.0
+
+
 crm_bp = Blueprint("crm", __name__, url_prefix="/crm")
 
 BASE_DIR = Path(__file__).parent
@@ -302,6 +333,8 @@ def oferta_nueva():
         clientes=clientes,
         work_types=work_types,
         referencia=referencia,
+        hov_data=None,
+        codigos_reforma=_CODIGOS_REFORMA,
     )
 
 
@@ -325,6 +358,15 @@ def oferta_detalle(oid):
     totals = _calcular_totales(lines, oferta.get("descuento_pct", 0),
                                oferta.get("iva_pct", 7), oferta.get("irpf_pct", 15))
 
+    hov_data = None
+    if oferta.get("tipo_trabajo") == "HOV":
+        hov_data = query("SELECT * FROM offer_hov_data WHERE offer_id=?", (oid,), one=True)
+        if hov_data and hov_data.get("actos_reglamentarios"):
+            try:
+                hov_data["actos_lista"] = _json_mod.loads(hov_data["actos_reglamentarios"])
+            except Exception:
+                hov_data["actos_lista"] = []
+
     return render_template(
         "crm_oferta_detalle.html",
         oferta=oferta,
@@ -332,6 +374,8 @@ def oferta_detalle(oid):
         historial=historial,
         totals=totals,
         fmt_date=_fmt_date_es,
+        hov_data=hov_data,
+        codigos_reforma=_CODIGOS_REFORMA,
     )
 
 
@@ -348,6 +392,12 @@ def oferta_editar(oid):
     clientes = query("SELECT * FROM clients ORDER BY nombre")
     work_types = query("SELECT * FROM work_types WHERE activo=1 ORDER BY codigo")
     lines = query("SELECT * FROM offer_lines WHERE offer_id = ? ORDER BY orden", (oid,))
+    hov_data = query("SELECT * FROM offer_hov_data WHERE offer_id=?", (oid,), one=True) if oferta.get("tipo_trabajo") == "HOV" else None
+    if hov_data and hov_data.get("actos_reglamentarios"):
+        try:
+            hov_data["actos_lista"] = _json_mod.loads(hov_data["actos_reglamentarios"])
+        except Exception:
+            hov_data["actos_lista"] = []
     return render_template(
         "crm_oferta_form.html",
         oferta=oferta,
@@ -355,6 +405,8 @@ def oferta_editar(oid):
         clientes=clientes,
         work_types=work_types,
         referencia=oferta["referencia"],
+        hov_data=hov_data,
+        codigos_reforma=_CODIGOS_REFORMA,
     )
 
 
@@ -451,6 +503,43 @@ def _guardar_oferta(oid):
                 float(precios[i]) if i < len(precios) and precios[i] else 0.0,
             ),
         )
+
+    # Guardar datos HOV si aplica
+    if f.get("tipo_trabajo") == "HOV":
+        actos = f.getlist("actos_reglamentarios[]")
+        actos_json = _json_mod.dumps(actos)
+        n_actos = len(actos)
+        hov_campos = {
+            "marca": f.get("hov_marca", ""), "modelo": f.get("hov_modelo", ""),
+            "tipo_vehiculo": f.get("hov_tipo_vehiculo", ""),
+            "matricula": f.get("hov_matricula", ""), "bastidor": f.get("hov_bastidor", ""),
+            "categoria": f.get("hov_categoria", ""),
+            "anio_matriculacion": f.get("hov_anio", ""),
+            "actos_reglamentarios": actos_json, "n_actos": n_actos,
+            "mma_antes": f.get("hov_mma_antes", ""), "mma_despues": f.get("hov_mma_despues", ""),
+            "tara_antes": f.get("hov_tara_antes", ""), "tara_despues": f.get("hov_tara_despues", ""),
+            "plazas_antes": f.get("hov_plazas_antes", ""), "plazas_despues": f.get("hov_plazas_despues", ""),
+            "longitud_antes": f.get("hov_longitud_antes", ""), "longitud_despues": f.get("hov_longitud_despues", ""),
+            "anchura_antes": f.get("hov_anchura_antes", ""), "anchura_despues": f.get("hov_anchura_despues", ""),
+            "altura_antes": f.get("hov_altura_antes", ""), "altura_despues": f.get("hov_altura_despues", ""),
+            "mmta_antes": f.get("hov_mmta_antes", ""), "mmta_despues": f.get("hov_mmta_despues", ""),
+            "mma_eje_antes": f.get("hov_mma_eje_antes", ""), "mma_eje_despues": f.get("hov_mma_eje_despues", ""),
+            "potencia_antes": f.get("hov_potencia_antes", ""), "potencia_despues": f.get("hov_potencia_despues", ""),
+            "cilindrada_antes": f.get("hov_cilindrada_antes", ""), "cilindrada_despues": f.get("hov_cilindrada_despues", ""),
+            "combustible_antes": f.get("hov_combustible_antes", ""), "combustible_despues": f.get("hov_combustible_despues", ""),
+            "vel_max_antes": f.get("hov_vel_max_antes", ""), "vel_max_despues": f.get("hov_vel_max_despues", ""),
+            "notas_tecnicas": f.get("hov_notas_tecnicas", ""),
+        }
+        existing = query("SELECT id FROM offer_hov_data WHERE offer_id=?", (oid,), one=True)
+        if existing:
+            sets = ", ".join(f"{k}=?" for k in hov_campos)
+            vals = list(hov_campos.values()) + [oid]
+            execute(f"UPDATE offer_hov_data SET {sets} WHERE offer_id=?", vals)
+        else:
+            keys = ", ".join(hov_campos.keys())
+            phs = ", ".join("?" for _ in hov_campos)
+            execute(f"INSERT INTO offer_hov_data (offer_id, {keys}) VALUES (?, {phs})",
+                    [oid] + list(hov_campos.values()))
 
     flash("Oferta guardada correctamente.", "success")
     return redirect(url_for("crm.oferta_detalle", oid=oid))
@@ -640,6 +729,28 @@ def tipos_trabajo_editar(tid):
 
 
 # ─── API auxiliar para clientes (uso en formularios) ─────────────
+
+@crm_bp.route("/api/codigos-reforma")
+def api_codigos_reforma():
+    categoria = request.args.get("cat", "")
+    result = {}
+    for codigo, data in _CODIGOS_REFORMA.items():
+        if not categoria or categoria in data.get("categorias", []):
+            result[codigo] = data
+    # Agrupar por grupo
+    grupos = {}
+    for codigo, data in sorted(result.items(), key=lambda x: (int(x[1]["grupo"]), x[0])):
+        g = data["grupo"]
+        if g not in grupos:
+            grupos[g] = {"nombre": GRUPOS_REFORMA.get(g, f"Grupo {g}"), "codigos": []}
+        grupos[g]["codigos"].append({"codigo": codigo, "descripcion": data["descripcion"]})
+    return jsonify({"grupos": grupos, "precio_hov": _precio_hov(0)})
+
+
+@crm_bp.route("/api/precio-hov/<int:n>")
+def api_precio_hov(n):
+    return jsonify({"n_actos": n, "precio": _precio_hov(n)})
+
 
 @crm_bp.route("/api/clientes")
 def api_clientes():
