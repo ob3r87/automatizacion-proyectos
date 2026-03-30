@@ -1,0 +1,58 @@
+# ─── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# ─── Base de datos del tracker ──────────────────────────────────
+tracker/tracker.db
+tracker/tracker.db-shm
+tracker/tracker.db-wal
+
+# ─── Archivos temporales de Word ─────────────────────────────────
+~$*
+*.tmp
+
+# ─── Proyectos generados (documentos .docx de clientes) ─────────
+proyectos_generados/
+tmp_generacion/
+
+# ─── Plantillas grandes (binarios Word) ─────────────────────────
+PLANTILLA_BASE.docx
+PLANTILLA_BASE.docx.bak
+PLANTILLA_BASE.docx.bak2
+PLANTILLA_CFO.docx
+PLANTILLA_CT.docx
+plantillas_calculo/
+
+# ─── Documentos generados en la raíz ────────────────────────────
+PR_*.docx
+CFO_*.docx
+CT_*.docx
+ANEXO_*.docx
+
+# ─── Archivos de prueba ──────────────────────────────────────────
+_test_gen.json
+
+# ─── Schemas XML (archivos pesados, no son código propio) ────────
+scripts/office/schemas/
+
+# ─── OS ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Editor / IDE ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
