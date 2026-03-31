@@ -1,0 +1,802 @@
+{% extends "base.html" %}
+{% block title %}Configuración — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-gear text-primary"></i> Configuración</h2>
+</div>
+
+<!-- Toast container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+  <div id="toastMsg" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">Operación completada.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Pestañas -->
+<ul class="nav nav-tabs mb-3" id="configTabs">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabTarifas">
+      <i class="bi bi-tags"></i> Tarifas y tipos de trabajo
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEnsayos">
+      <i class="bi bi-clipboard-check"></i> Ensayos disponibles
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHov">
+      <i class="bi bi-car-front"></i> Tarifas HOV
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPdf">
+      <i class="bi bi-file-earmark-pdf"></i> Plantilla PDF
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ── Tab 1: Tarifas ── -->
+  <div class="tab-pane fade show active" id="tabTarifas">
+    <div class="d-flex justify-content-end mb-2">
+      <button class="btn btn-sm btn-primary" onclick="abrirModalTarifa(null)">
+        <i class="bi bi-plus-circle"></i> Nueva tarifa
+      </button>
+    </div>
+
+    {% for subcategoria, items in grupos_tarifas.items() %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold bg-light">
+        <i class="bi bi-folder2"></i> {{ subcategoria or 'Sin categoría' }}
+        <span class="badge bg-secondary ms-2">{{ items | length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:90px">Código</th>
+              <th>Nombre</th>
+              <th style="width:130px">Subcategoría</th>
+              <th class="text-end" style="width:130px">Precio base</th>
+              <th>Actos reglamentarios</th>
+              <th class="text-center" style="width:90px">Ensayos</th>
+              <th class="text-center" style="width:70px">Activo</th>
+              <th class="text-center" style="width:80px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for wt in items %}
+            <tr id="fila-wt-{{ wt.id }}" class="{{ '' if wt.activo else 'table-secondary text-muted' }}">
+              <td class="fw-bold font-monospace">{{ wt.codigo }}</td>
+              <td>{{ wt.nombre }}</td>
+              <td class="small text-muted">{{ wt.subcategoria or '—' }}</td>
+              <td class="text-end" id="precio-td-{{ wt.id }}"
+                  title="Doble clic para editar precio"
+                  ondblclick="editarPrecioRapido(this, {{ wt.id }}, {{ wt.precio_base }})"
+                  style="cursor:pointer">
+                {{ "%.2f"|format(wt.precio_base) }} €
+              </td>
+              <td id="actos-td-{{ wt.id }}">
+                {% if wt.actos_aplicables %}
+                  {% for codigo in wt.actos_aplicables[:4] %}
+                    <span class="badge bg-light text-dark border me-1 font-monospace" style="font-size:.7rem">{{ codigo }}</span>
+                  {% endfor %}
+                  {% if wt.actos_aplicables | length > 4 %}
+                    <span class="badge bg-secondary" title="{{ wt.actos_aplicables[4:] | join(', ') }}">
+                      +{{ wt.actos_aplicables | length - 4 }}
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if wt.requiere_ensayos %}
+                  <span class="badge bg-warning text-dark">Sí</span>
+                {% else %}
+                  <span class="text-muted small">No</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if wt.activo %}
+                  <span class="badge bg-success">Activo</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactivo</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <button class="btn btn-xs btn-outline-primary btn-sm py-0 px-1"
+                        onclick='abrirModalTarifa({{ wt | tojson }})' title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1"
+                        onclick="toggleActivoTarifa({{ wt.id }}, {{ wt.activo }})"
+                        title="{{ 'Desactivar' if wt.activo else 'Activar' }}">
+                  <i class="bi {{ 'bi-eye-slash' if wt.activo else 'bi-eye' }}"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Tab 2: Ensayos ── -->
+  <div class="tab-pane fade" id="tabEnsayos">
+    <div class="d-flex justify-content-end mb-2">
+      <button class="btn btn-sm btn-primary" onclick="abrirModalEnsayo(null)">
+        <i class="bi bi-plus-circle"></i> Nuevo ensayo
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:110px">Código</th>
+              <th>Nombre</th>
+              <th>Normativa</th>
+              <th>Organismo</th>
+              <th class="text-end" style="width:130px">Precio est.</th>
+              <th class="text-center" style="width:70px">Activo</th>
+              <th class="text-center" style="width:80px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for et in ensayo_types %}
+            <tr id="fila-et-{{ et.id }}" class="{{ '' if et.activo else 'table-secondary text-muted' }}">
+              <td class="fw-bold font-monospace small">{{ et.codigo }}</td>
+              <td>{{ et.nombre }}</td>
+              <td class="small text-muted">{{ et.normativa or '—' }}</td>
+              <td class="small text-muted">{{ et.organismo or '—' }}</td>
+              <td class="text-end">{{ "%.2f"|format(et.precio_estimado) }} €</td>
+              <td class="text-center">
+                {% if et.activo %}
+                  <span class="badge bg-success">Activo</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactivo</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <button class="btn btn-xs btn-outline-primary btn-sm py-0 px-1"
+                        onclick='abrirModalEnsayo({{ et | tojson }})' title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1"
+                        onclick="toggleActivoEnsayo({{ et.id }}, {{ et.activo }})"
+                        title="{{ 'Desactivar' if et.activo else 'Activar' }}">
+                  <i class="bi {{ 'bi-eye-slash' if et.activo else 'bi-eye' }}"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 3: Tarifas HOV ── -->
+  <div class="tab-pane fade" id="tabHov">
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-car-front"></i> Escala de precios HOV según número de actos reglamentarios</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          El precio de las homologaciones HOV se calcula según el número de actos reglamentarios implicados.
+          La tarifa base corresponde a 1 acto. A partir del 4.º acto se aplica un incremento por acto adicional.
+        </p>
+        <table class="table table-sm table-bordered" style="max-width:400px">
+          <thead class="table-light">
+            <tr><th>N.º actos</th><th class="text-end">Precio</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1 acto</td><td class="text-end fw-bold">650,00 €</td></tr>
+            <tr><td>2 actos</td><td class="text-end fw-bold">750,00 €</td></tr>
+            <tr><td>3 actos</td><td class="text-end fw-bold">900,00 €</td></tr>
+            <tr><td>4 actos</td><td class="text-end fw-bold">1.020,00 €</td></tr>
+            <tr><td>5 actos</td><td class="text-end fw-bold">1.140,00 €</td></tr>
+            <tr><td>6 actos</td><td class="text-end fw-bold">1.260,00 €</td></tr>
+            <tr><td>7 actos</td><td class="text-end fw-bold">1.380,00 €</td></tr>
+            <tr class="table-light"><td colspan="2" class="small text-muted">A partir del 4.º acto: +120 € / acto adicional</td></tr>
+          </tbody>
+        </table>
+        <p class="small text-muted mt-2">
+          <i class="bi bi-info-circle"></i>
+          Para modificar la tarifa HOV base o el incremento por acto, edite la función
+          <code>_precio_hov()</code> en <code>crm_routes.py</code>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 4: Plantilla PDF ── -->
+  <div class="tab-pane fade" id="tabPdf">
+    <div class="row g-3">
+
+      <!-- Datos empresa -->
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header fw-semibold"><i class="bi bi-building"></i> Datos de empresa</div>
+          <div class="card-body">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Nombre empresa</label>
+              <input type="text" id="pdf-empresa-nombre" class="form-control form-control-sm"
+                     value="{{ pdf_settings.empresa_nombre or '' }}">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Subtítulo / especialidad</label>
+              <input type="text" id="pdf-empresa-subtitulo" class="form-control form-control-sm"
+                     value="{{ pdf_settings.empresa_subtitulo or '' }}">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Dirección</label>
+              <input type="text" id="pdf-empresa-dir" class="form-control form-control-sm"
+                     value="{{ pdf_settings.empresa_direccion or '' }}">
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col">
+                <label class="form-label small fw-semibold">Teléfono</label>
+                <input type="text" id="pdf-empresa-tel" class="form-control form-control-sm"
+                       value="{{ pdf_settings.empresa_tel or '' }}">
+              </div>
+              <div class="col">
+                <label class="form-label small fw-semibold">CIF / NIF</label>
+                <input type="text" id="pdf-empresa-cif" class="form-control form-control-sm"
+                       value="{{ pdf_settings.empresa_cif or '' }}">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Email</label>
+              <input type="email" id="pdf-empresa-email" class="form-control form-control-sm"
+                     value="{{ pdf_settings.empresa_email or '' }}">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Notas de pie de página</label>
+              <textarea id="pdf-notas-pie" class="form-control form-control-sm" rows="2"
+                        placeholder="Texto que aparecerá al pie de cada presupuesto PDF...">{{ pdf_settings.pdf_notas_pie or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Marca de agua + preview -->
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header fw-semibold"><i class="bi bi-droplet-half"></i> Marca de agua</div>
+          <div class="card-body">
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="pdf-wm-activa"
+                     {% if pdf_settings.watermark_activa %}checked{% endif %}
+                     onchange="actualizarPreviewWM()">
+              <label class="form-check-label fw-semibold" for="pdf-wm-activa">Activar marca de agua</label>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Texto</label>
+              <div class="d-flex gap-2 flex-wrap mb-1">
+                {% for opcion in ['BORRADOR', 'CONFIDENCIAL', 'COPIA', 'ANULADO', 'ORIGINAL'] %}
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                        onclick="document.getElementById('pdf-wm-texto').value='{{ opcion }}'; actualizarPreviewWM()">
+                  {{ opcion }}
+                </button>
+                {% endfor %}
+              </div>
+              <input type="text" id="pdf-wm-texto" class="form-control form-control-sm"
+                     value="{{ pdf_settings.watermark_texto or 'BORRADOR' }}"
+                     oninput="actualizarPreviewWM()" maxlength="30">
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-4">
+                <label class="form-label small fw-semibold">Color</label>
+                <input type="color" id="pdf-wm-color" class="form-control form-control-sm form-control-color w-100"
+                       value="{{ pdf_settings.watermark_color or '#CC0000' }}"
+                       oninput="actualizarPreviewWM()">
+              </div>
+              <div class="col-4">
+                <label class="form-label small fw-semibold">Opacidad <span id="pdf-wm-op-val">{{ ((pdf_settings.watermark_opacidad or 0.15) * 100) | int }}%</span></label>
+                <input type="range" id="pdf-wm-opacidad" class="form-range" min="5" max="60" step="5"
+                       value="{{ ((pdf_settings.watermark_opacidad or 0.15) * 100) | int }}"
+                       oninput="document.getElementById('pdf-wm-op-val').textContent=this.value+'%'; actualizarPreviewWM()">
+              </div>
+              <div class="col-4">
+                <label class="form-label small fw-semibold">Ángulo <span id="pdf-wm-ang-val">{{ pdf_settings.watermark_angulo or 45 }}°</span></label>
+                <input type="range" id="pdf-wm-angulo" class="form-range" min="0" max="90" step="5"
+                       value="{{ pdf_settings.watermark_angulo or 45 }}"
+                       oninput="document.getElementById('pdf-wm-ang-val').textContent=this.value+'°'; actualizarPreviewWM()">
+              </div>
+            </div>
+
+            <!-- Preview A4 visual -->
+            <div class="mt-3">
+              <label class="form-label small fw-semibold text-muted">Vista previa</label>
+              <div id="wm-preview" style="
+                  width:100%; aspect-ratio:210/297;
+                  background:#fff; border:1px solid #dee2e6;
+                  border-radius:4px; position:relative; overflow:hidden;
+                  display:flex; align-items:center; justify-content:center;">
+                <!-- líneas decorativas tipo documento -->
+                <div style="position:absolute;top:0;left:0;right:0;bottom:0;padding:12px">
+                  <div style="background:#1565c0;height:4px;border-radius:2px;margin-bottom:6px"></div>
+                  {% for i in range(8) %}
+                  <div style="background:#e0e0e0;height:5px;border-radius:2px;margin-bottom:4px;width:{{ [100,85,92,78,88,95,70,83][loop.index0] }}%"></div>
+                  {% endfor %}
+                </div>
+                <span id="wm-preview-text" style="
+                    position:absolute; font-weight:900; font-size:clamp(14px,4vw,28px);
+                    letter-spacing:2px; pointer-events:none; user-select:none;
+                    white-space:nowrap;">
+                  {{ pdf_settings.watermark_texto or 'BORRADOR' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón guardar -->
+      <div class="col-12 text-end">
+        <button class="btn btn-primary" onclick="guardarPdfTemplate()">
+          <i class="bi bi-save"></i> Guardar configuración de plantilla
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- tab-content -->
+
+
+<!-- ── Modal Tarifa ── -->
+<div class="modal fade" id="modalTarifa" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTarifaTitle">Tarifa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="t-id">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+            <input type="text" id="t-codigo" class="form-control text-uppercase" maxlength="10" placeholder="HOV">
+          </div>
+          <div class="col-md-9">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" id="t-nombre" class="form-control" placeholder="Nombre del tipo de trabajo">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Subcategoría</label>
+            <select id="t-subcategoria" class="form-select">
+              <option value="">Sin categoría</option>
+              <option value="Reforma vehículo">Reforma vehículo</option>
+              <option value="Documentación">Documentación</option>
+              <option value="Ingeniería">Ingeniería</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Precio base (€) <span class="text-danger">*</span></label>
+            <input type="number" id="t-precio" class="form-control" step="0.01" min="0" value="0">
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input type="checkbox" id="t-ensayos" class="form-check-input">
+              <label class="form-check-label" for="t-ensayos">Requiere ensayos</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descripción</label>
+            <input type="text" id="t-descripcion" class="form-control" placeholder="Descripción breve">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Notas de tarificación</label>
+            <textarea id="t-notas" class="form-control" rows="2"
+                      placeholder="Criterios de precio, condiciones especiales..."></textarea>
+          </div>
+
+          <!-- Actos reglamentarios -->
+          <div class="col-12">
+            <div class="border rounded p-2">
+              <div class="d-flex align-items-center justify-content-between mb-2" style="cursor:pointer"
+                   onclick="document.getElementById('actos-body').classList.toggle('d-none')">
+                <span class="fw-semibold small">
+                  <i class="bi bi-list-check text-primary"></i>
+                  Actos reglamentarios habituales
+                  <span id="t-actos-badge" class="badge bg-primary ms-1">0</span>
+                </span>
+                <i class="bi bi-chevron-down small text-muted"></i>
+              </div>
+              <div id="actos-body" class="d-none">
+                <p class="text-muted small mb-2">Marca los actos reglamentarios que suele implicar este tipo de trabajo.</p>
+                <div class="row g-0" id="actos-grupos">
+                  {% for gid, grupo in grupos_reforma.items() %}
+                  <div class="col-12 mb-2">
+                    <div class="fw-semibold small text-secondary mb-1 border-bottom pb-1">
+                      {{ gid }}. {{ grupo.nombre }}
+                    </div>
+                    <div class="row g-1">
+                      {% for item in grupo.codigos %}
+                      <div class="col-md-6">
+                        <div class="form-check form-check-sm">
+                          <input class="form-check-input acto-check" type="checkbox"
+                                 id="acto-{{ item.codigo }}" value="{{ item.codigo }}"
+                                 onchange="actualizarBadgeActos()">
+                          <label class="form-check-label small" for="acto-{{ item.codigo }}">
+                            <span class="font-monospace fw-bold me-1">{{ item.codigo }}</span>
+                            <span class="text-muted" title="{{ item.descripcion }}"
+                                  style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;display:inline-block;vertical-align:bottom">
+                              {{ item.descripcion[:60] }}{% if item.descripcion|length > 60 %}…{% endif %}
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarTarifa()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Modal Ensayo ── -->
+<div class="modal fade" id="modalEnsayo" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEnsayoTitle">Ensayo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="e-id">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+            <input type="text" id="e-codigo" class="form-control text-uppercase" maxlength="20" placeholder="ENS-FREN">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" id="e-nombre" class="form-control" placeholder="Nombre del ensayo">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descripción</label>
+            <input type="text" id="e-descripcion" class="form-control" placeholder="Descripción breve">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Normativa de referencia</label>
+            <input type="text" id="e-normativa" class="form-control" placeholder="71/320/CEE · R13">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Organismo habitual</label>
+            <input type="text" id="e-organismo" class="form-control" placeholder="ITV / Laboratorio acreditado">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Precio estimado (€)</label>
+            <input type="number" id="e-precio" class="form-control" step="0.01" min="0" value="0">
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input type="checkbox" id="e-activo" class="form-check-input" checked>
+              <label class="form-check-label" for="e-activo">Activo</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarEnsayo()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modalTarifa = new bootstrap.Modal(document.getElementById('modalTarifa'));
+const modalEnsayo = new bootstrap.Modal(document.getElementById('modalEnsayo'));
+
+function showToast(msg, tipo) {
+  const el = document.getElementById('toastMsg');
+  const body = document.getElementById('toastBody');
+  body.textContent = msg;
+  el.className = 'toast align-items-center text-white border-0 bg-' + (tipo === 'success' ? 'success' : 'danger');
+  const t = new bootstrap.Toast(el, {delay: 3000});
+  t.show();
+}
+
+// ── Tarifas ──────────────────────────────────────────────────────
+
+function _setActosChecks(activos) {
+  // activos: array de códigos, e.g. ["5.1", "8.1"]
+  document.querySelectorAll('.acto-check').forEach(cb => {
+    cb.checked = activos.includes(cb.value);
+  });
+  actualizarBadgeActos();
+}
+
+function actualizarBadgeActos() {
+  const n = document.querySelectorAll('.acto-check:checked').length;
+  document.getElementById('t-actos-badge').textContent = n;
+  document.getElementById('t-actos-badge').className =
+    'badge ms-1 ' + (n > 0 ? 'bg-primary' : 'bg-secondary');
+}
+
+function abrirModalTarifa(wt) {
+  // Resetear sección de actos
+  document.getElementById('actos-body').classList.add('d-none');
+
+  if (wt) {
+    document.getElementById('modalTarifaTitle').textContent = 'Editar tarifa: ' + wt.codigo;
+    document.getElementById('t-id').value = wt.id;
+    document.getElementById('t-codigo').value = wt.codigo;
+    document.getElementById('t-codigo').readOnly = true;
+    document.getElementById('t-nombre').value = wt.nombre || '';
+    document.getElementById('t-subcategoria').value = wt.subcategoria || '';
+    document.getElementById('t-precio').value = wt.precio_base || 0;
+    document.getElementById('t-ensayos').checked = !!wt.requiere_ensayos;
+    document.getElementById('t-descripcion').value = wt.descripcion || '';
+    document.getElementById('t-notas').value = wt.notas_tarificacion || '';
+    // Actos reglamentarios
+    let actos = wt.actos_aplicables || [];
+    if (typeof actos === 'string') { try { actos = JSON.parse(actos); } catch(e) { actos = []; } }
+    _setActosChecks(actos);
+  } else {
+    document.getElementById('modalTarifaTitle').textContent = 'Nueva tarifa';
+    document.getElementById('t-id').value = '';
+    document.getElementById('t-codigo').value = '';
+    document.getElementById('t-codigo').readOnly = false;
+    document.getElementById('t-nombre').value = '';
+    document.getElementById('t-subcategoria').value = '';
+    document.getElementById('t-precio').value = 0;
+    document.getElementById('t-ensayos').checked = false;
+    document.getElementById('t-descripcion').value = '';
+    document.getElementById('t-notas').value = '';
+    _setActosChecks([]);
+  }
+  modalTarifa.show();
+}
+
+function guardarTarifa() {
+  const id = document.getElementById('t-id').value;
+  const actosSeleccionados = Array.from(
+    document.querySelectorAll('.acto-check:checked')
+  ).map(cb => cb.value);
+
+  const payload = {
+    codigo:              document.getElementById('t-codigo').value.trim().toUpperCase(),
+    nombre:              document.getElementById('t-nombre').value.trim(),
+    subcategoria:        document.getElementById('t-subcategoria').value,
+    precio_base:         parseFloat(document.getElementById('t-precio').value) || 0,
+    requiere_ensayos:    document.getElementById('t-ensayos').checked ? 1 : 0,
+    descripcion:         document.getElementById('t-descripcion').value.trim(),
+    notas_tarificacion:  document.getElementById('t-notas').value.trim(),
+    actos_aplicables:    actosSeleccionados,
+    activo:              1,
+  };
+  if (!payload.nombre) { alert('El nombre es obligatorio.'); return; }
+
+  const url  = id ? `/crm/configuracion/tarifa/${id}` : '/crm/configuracion/tarifa';
+  const meth = id ? 'PUT' : 'POST';
+
+  fetch(url, {
+    method: meth,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      showToast('Tarifa guardada correctamente.', 'success');
+      modalTarifa.hide();
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast('Error: ' + (d.error || 'desconocido'), 'danger');
+    }
+  })
+  .catch(() => showToast('Error de red.', 'danger'));
+}
+
+function toggleActivoTarifa(id, activo) {
+  const nuevoActivo = activo ? 0 : 1;
+  fetch(`/crm/configuracion/tarifa/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({activo: nuevoActivo}),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      showToast(nuevoActivo ? 'Tarifa activada.' : 'Tarifa desactivada.', 'success');
+      setTimeout(() => location.reload(), 600);
+    }
+  });
+}
+
+function editarPrecioRapido(td, tid, currentVal) {
+  if (td.querySelector('input')) return; // ya está en edición
+  const orig = td.textContent.trim();
+  td.innerHTML = `<input type="number" step="0.01" min="0" value="${currentVal}"
+                  class="form-control form-control-sm text-end" style="width:110px">`;
+  const inp = td.querySelector('input');
+  inp.focus();
+  inp.select();
+
+  function guardar() {
+    const val = parseFloat(inp.value);
+    if (isNaN(val) || val < 0) { td.textContent = orig; return; }
+    fetch(`/crm/configuracion/tarifa/${tid}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({precio_base: val}),
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        td.textContent = val.toFixed(2) + ' €';
+        td.ondblclick = () => editarPrecioRapido(td, tid, val);
+        showToast('Precio actualizado ✓', 'success');
+      } else {
+        td.textContent = orig;
+        showToast('Error al guardar.', 'danger');
+      }
+    })
+    .catch(() => { td.textContent = orig; showToast('Error de red.', 'danger'); });
+  }
+
+  inp.addEventListener('blur', guardar);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { td.textContent = orig; }
+  });
+}
+
+// ── Ensayos ──────────────────────────────────────────────────────
+
+function abrirModalEnsayo(et) {
+  if (et) {
+    document.getElementById('modalEnsayoTitle').textContent = 'Editar ensayo: ' + et.codigo;
+    document.getElementById('e-id').value = et.id;
+    document.getElementById('e-codigo').value = et.codigo;
+    document.getElementById('e-codigo').readOnly = true;
+    document.getElementById('e-nombre').value = et.nombre || '';
+    document.getElementById('e-descripcion').value = et.descripcion || '';
+    document.getElementById('e-normativa').value = et.normativa || '';
+    document.getElementById('e-organismo').value = et.organismo || '';
+    document.getElementById('e-precio').value = et.precio_estimado || 0;
+    document.getElementById('e-activo').checked = !!et.activo;
+  } else {
+    document.getElementById('modalEnsayoTitle').textContent = 'Nuevo ensayo';
+    document.getElementById('e-id').value = '';
+    document.getElementById('e-codigo').value = '';
+    document.getElementById('e-codigo').readOnly = false;
+    document.getElementById('e-nombre').value = '';
+    document.getElementById('e-descripcion').value = '';
+    document.getElementById('e-normativa').value = '';
+    document.getElementById('e-organismo').value = '';
+    document.getElementById('e-precio').value = 0;
+    document.getElementById('e-activo').checked = true;
+  }
+  modalEnsayo.show();
+}
+
+function guardarEnsayo() {
+  const id = document.getElementById('e-id').value;
+  const payload = {
+    codigo:          document.getElementById('e-codigo').value.trim().toUpperCase(),
+    nombre:          document.getElementById('e-nombre').value.trim(),
+    descripcion:     document.getElementById('e-descripcion').value.trim(),
+    normativa:       document.getElementById('e-normativa').value.trim(),
+    organismo:       document.getElementById('e-organismo').value.trim(),
+    precio_estimado: parseFloat(document.getElementById('e-precio').value) || 0,
+    activo:          document.getElementById('e-activo').checked ? 1 : 0,
+  };
+  if (!payload.nombre) { alert('El nombre es obligatorio.'); return; }
+
+  const url  = id ? `/crm/configuracion/ensayo/${id}` : '/crm/configuracion/ensayo';
+  const meth = id ? 'PUT' : 'POST';
+
+  fetch(url, {
+    method: meth,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      showToast('Ensayo guardado correctamente.', 'success');
+      modalEnsayo.hide();
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast('Error: ' + (d.error || 'desconocido'), 'danger');
+    }
+  })
+  .catch(() => showToast('Error de red.', 'danger'));
+}
+
+function toggleActivoEnsayo(id, activo) {
+  const nuevoActivo = activo ? 0 : 1;
+  fetch(`/crm/configuracion/ensayo/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({activo: nuevoActivo}),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      showToast(nuevoActivo ? 'Ensayo activado.' : 'Ensayo desactivado.', 'success');
+      setTimeout(() => location.reload(), 600);
+    }
+  });
+}
+
+// ── Plantilla PDF ─────────────────────────────────────────────────
+
+function actualizarPreviewWM() {
+  const activa  = document.getElementById('pdf-wm-activa').checked;
+  const texto   = document.getElementById('pdf-wm-texto').value || 'BORRADOR';
+  const color   = document.getElementById('pdf-wm-color').value;
+  const opPct   = parseInt(document.getElementById('pdf-wm-opacidad').value) || 15;
+  const angulo  = parseInt(document.getElementById('pdf-wm-angulo').value) || 45;
+
+  const span = document.getElementById('wm-preview-text');
+  span.textContent = texto.toUpperCase();
+  span.style.color = color;
+  span.style.opacity = activa ? (opPct / 100) : 0;
+  span.style.transform = `rotate(-${angulo}deg)`;
+}
+
+function guardarPdfTemplate() {
+  const payload = {
+    empresa_nombre:    document.getElementById('pdf-empresa-nombre').value.trim(),
+    empresa_subtitulo: document.getElementById('pdf-empresa-subtitulo').value.trim(),
+    empresa_direccion: document.getElementById('pdf-empresa-dir').value.trim(),
+    empresa_tel:       document.getElementById('pdf-empresa-tel').value.trim(),
+    empresa_email:     document.getElementById('pdf-empresa-email').value.trim(),
+    empresa_cif:       document.getElementById('pdf-empresa-cif').value.trim(),
+    watermark_activa:  document.getElementById('pdf-wm-activa').checked ? 1 : 0,
+    watermark_texto:   document.getElementById('pdf-wm-texto').value.trim(),
+    watermark_color:   document.getElementById('pdf-wm-color').value,
+    watermark_opacidad: parseInt(document.getElementById('pdf-wm-opacidad').value) / 100,
+    watermark_angulo:  parseInt(document.getElementById('pdf-wm-angulo').value),
+    pdf_notas_pie:     document.getElementById('pdf-notas-pie').value.trim(),
+  };
+
+  fetch('/crm/configuracion/pdf-template', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) showToast('Plantilla PDF guardada correctamente.', 'success');
+    else showToast('Error: ' + (d.error || 'desconocido'), 'danger');
+  })
+  .catch(() => showToast('Error de red.', 'danger'));
+}
+
+// Inicializar preview al cargar
+document.addEventListener('DOMContentLoaded', actualizarPreviewWM);
+</script>
+{% endblock %}

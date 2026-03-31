@@ -1,0 +1,49 @@
+{
+  "empresa": {
+    "nombre": "PHICAN INGENIEROS",
+    "subtitulo": "ESTUDIO DE INGENIERÍA",
+    "direccion": "C/ RAMBLA DOCTOR PÉREZ, 5 - LOCAL 22 - 38390 SANTA URSULA (SANTA CRUZ DE TENERIFE)",
+    "logo_path": ""
+  },
+  "proyecto": {
+    "titulo": "PROYECTO DE REFORMA DE VEHÍCULO",
+    "vehiculo": "Citroen / Capron - V66",
+    "matricula": "6378LZD",
+    "expediente": "PH_006/2025",
+    "fecha": "1/10/2025",
+    "escala": "A4 - S/E",
+    "unidades": "Medidas en mm."
+  },
+  "personas": {
+    "dibujado": "Roberto García Gutiérrez",
+    "peticionario": "Agustín Regalado García",
+    "ingeniero": "Roberto García Gutiérrez",
+    "colegiado": "1816",
+    "firma_path": ""
+  },
+  "planos": [
+    {
+      "contenido": "Antes de la Reforma",
+      "imagen_path": "",
+      "extras": {}
+    },
+    {
+      "contenido": "Después de la Reforma",
+      "imagen_path": "",
+      "extras": {
+        "MASA REAL": "3015 Kg",
+        "TARA": "2940 Kg"
+      }
+    },
+    {
+      "contenido": "Balonas de suspensión",
+      "imagen_path": "",
+      "extras": {}
+    },
+    {
+      "contenido": "Compresor",
+      "imagen_path": "",
+      "extras": {}
+    }
+  ]
+}

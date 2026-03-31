@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "phican-gestor"
+version = "1.0.0"
+description = "Gestor de Trabajos y CRM — Phican Ingenieros"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=3.0.0",
+    "reportlab>=4.0.0",
+    "python-docx>=1.1.0",
+]
+
+[project.scripts]
+phican-gestor = "tracker.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tracker*"]
+
+[tool.setuptools.package-data]
+"tracker" = ["templates/**/*.html", "*.json"]

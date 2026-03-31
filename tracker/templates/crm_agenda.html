@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+{% block title %}Agenda — Phican Ingenieros{% endblock %}
+
+{% block extra_head %}
+<!-- FullCalendar v6 -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<style>
+  #calendar-wrap { background:#fff; border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,0.07); padding:1rem; }
+  .fc .fc-button-primary { background:#1565c0!important; border-color:#1565c0!important; }
+  .fc .fc-button-primary:hover { background:#0d47a1!important; }
+  .fc .fc-button-primary:not(:disabled).fc-button-active { background:#0d47a1!important; }
+  .fc-event { cursor:pointer; font-size:.78rem; }
+  .fc-day-today { background:#e3f2fd!important; }
+
+  /* Panel lateral */
+  #panel-lateral .seccion-titulo {
+    font-size:.7rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:1px; color:#9e9e9e; margin:.75rem 0 .3rem;
+  }
+  .item-agenda {
+    background:#fff; border-radius:6px; padding:.5rem .65rem;
+    margin-bottom:.35rem; box-shadow:0 1px 3px rgba(0,0,0,.06);
+    border-left:3px solid #ccc; font-size:.82rem;
+  }
+  .item-agenda.prio-alta   { border-color:#c62828; }
+  .item-agenda.prio-media  { border-color:#f57c00; }
+  .item-agenda.prio-baja   { border-color:#388e3c; }
+  .item-agenda.tipo-oferta { border-color:#7b1fa2; }
+  .dias-restantes { font-size:.72rem; color:#9e9e9e; }
+  .dias-restantes.vence-hoy   { color:#c62828; font-weight:700; }
+  .dias-restantes.vence-pronto { color:#f57c00; font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-calendar3 text-primary"></i> Agenda</h2>
+  <button class="btn btn-primary btn-sm" onclick="abrirModalEvento(null, null)">
+    <i class="bi bi-plus-lg"></i> Nuevo evento
+  </button>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toastMsg" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">OK</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- Calendario -->
+  <div class="col-lg-9">
+    <div id="calendar-wrap">
+      <div id="calendar"></div>
+    </div>
+  </div>
+
+  <!-- Panel lateral -->
+  <div class="col-lg-3" id="panel-lateral">
+
+    <!-- Día seleccionado -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold py-2">
+        <i class="bi bi-calendar-day text-primary"></i>
+        <span id="panel-dia-titulo">Hoy</span>
+      </div>
+      <div class="card-body p-2" id="panel-dia-contenido">
+        <p class="text-muted small text-center mt-2">Haz clic en un día para ver sus eventos.</p>
+      </div>
+    </div>
+
+    <!-- Próximas entregas -->
+    <div class="card">
+      <div class="card-header fw-semibold py-2">
+        <i class="bi bi-clock-history text-warning"></i> Próximos vencimientos
+      </div>
+      <div class="card-body p-2">
+        {% if proximas_tareas %}
+        <div class="seccion-titulo">Tareas</div>
+        {% for t in proximas_tareas %}
+          {% set dias = t.fecha_limite[:10] | diasrestantes %}
+          <div class="item-agenda prio-{{ t.prioridad }}">
+            <div class="fw-semibold">{{ t.titulo[:35] }}{% if t.titulo|length > 35 %}…{% endif %}</div>
+            {% if t.oferta_ref %}<div class="text-muted" style="font-size:.72rem">{{ t.oferta_ref }}</div>{% endif %}
+            <div class="dias-restantes {% if dias == 0 %}vence-hoy{% elif dias <= 3 %}vence-pronto{% endif %}">
+              <i class="bi bi-calendar3"></i> {{ t.fecha_limite[:10] }}
+              {% if dias == 0 %} · ¡HOY!
+              {% elif dias == 1 %} · Mañana
+              {% elif dias > 0 %} · {{ dias }}d
+              {% else %} · <span class="text-danger">Vencida ({{ dias|abs }}d)</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if proximas_ofertas %}
+        <div class="seccion-titulo">Ofertas</div>
+        {% for o in proximas_ofertas %}
+          {% set dias = o.fecha_vencimiento[:10] | diasrestantes %}
+          <div class="item-agenda tipo-oferta">
+            <div class="fw-semibold">{{ o.referencia }}</div>
+            {% if o.titulo %}<div class="text-muted" style="font-size:.72rem">{{ o.titulo[:30] }}</div>{% endif %}
+            <div class="dias-restantes {% if dias == 0 %}vence-hoy{% elif dias <= 3 %}vence-pronto{% endif %}">
+              <i class="bi bi-calendar3"></i> {{ o.fecha_vencimiento[:10] }}
+              {% if dias == 0 %} · ¡HOY!
+              {% elif dias == 1 %} · Mañana
+              {% elif dias > 0 %} · {{ dias }}d
+              {% else %} · <span class="text-danger">Vencida</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if not proximas_tareas and not proximas_ofertas %}
+          <p class="text-muted small text-center mt-2">Sin vencimientos próximos 🎉</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Modal evento -->
+<div class="modal fade" id="modalEvento" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEventoTitle">Nuevo evento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ev-id">
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Título <span class="text-danger">*</span></label>
+          <input type="text" id="ev-titulo" class="form-control">
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Descripción / notas</label>
+          <textarea id="ev-desc" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col">
+            <label class="form-label fw-semibold">Tipo</label>
+            <select id="ev-tipo" class="form-select" onchange="actualizarColorTipo()">
+              <option value="evento">📅 Evento</option>
+              <option value="cita">🤝 Cita / reunión</option>
+              <option value="disponible">✅ Hueco disponible</option>
+              <option value="bloqueo">🚫 No disponible</option>
+              <option value="entrega">📦 Entrega</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label fw-semibold">Color</label>
+            <input type="color" id="ev-color" class="form-control form-control-color" style="width:50px;height:38px">
+          </div>
+        </div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="ev-todo-dia" checked
+                 onchange="toggleHoras()">
+          <label class="form-check-label" for="ev-todo-dia">Todo el día</label>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col">
+            <label class="form-label fw-semibold">Inicio</label>
+            <input type="date" id="ev-inicio" class="form-control">
+          </div>
+          <div class="col" id="col-hora-inicio" style="display:none">
+            <label class="form-label fw-semibold">Hora inicio</label>
+            <input type="time" id="ev-hora-inicio" class="form-control" value="09:00">
+          </div>
+        </div>
+        <div class="row g-2" id="row-fin">
+          <div class="col">
+            <label class="form-label fw-semibold">Fin (opcional)</label>
+            <input type="date" id="ev-fin" class="form-control">
+          </div>
+          <div class="col" id="col-hora-fin" style="display:none">
+            <label class="form-label fw-semibold">Hora fin</label>
+            <input type="time" id="ev-hora-fin" class="form-control" value="10:00">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <button class="btn btn-outline-danger btn-sm" id="btn-eliminar-ev"
+                onclick="eliminarEvento()" style="display:none">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+        <div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarEvento()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modalEvento = new bootstrap.Modal(document.getElementById('modalEvento'));
+let calendar;
+
+const TIPO_COLORES = {
+  evento:     '#1565c0',
+  cita:       '#6a1b9a',
+  disponible: '#2e7d32',
+  bloqueo:    '#757575',
+  entrega:    '#e65100',
+};
+
+function showToast(msg, tipo) {
+  const el = document.getElementById('toastMsg');
+  el.className = 'toast align-items-center text-white border-0 bg-' + (tipo === 'success' ? 'success' : 'danger');
+  document.getElementById('toastBody').textContent = msg;
+  new bootstrap.Toast(el, {delay: 2500}).show();
+}
+
+// ── Calendario ────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', function () {
+  const calEl = document.getElementById('calendar');
+  calendar = new FullCalendar.Calendar(calEl, {
+    locale: 'es',
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+      left:   'prev,next today',
+      center: 'title',
+      right:  'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+    },
+    buttonText: {
+      today:    'Hoy',
+      month:    'Mes',
+      week:     'Semana',
+      day:      'Día',
+      list:     'Lista',
+    },
+    height: 'auto',
+    firstDay: 1,   // Lunes
+    nowIndicator: true,
+    selectable: true,
+    eventSources: [{
+      url: '/crm/api/agenda-eventos',
+      failure: () => showToast('Error al cargar eventos', 'danger'),
+    }],
+
+    // Click en día vacío → abrir modal con fecha precargada
+    dateClick: function(info) {
+      mostrarPanelDia(info.dateStr);
+      abrirModalEvento(null, info.dateStr);
+    },
+
+    // Click en evento → mostrar detalle o editar
+    eventClick: function(info) {
+      const props = info.event.extendedProps;
+      if (props.tipo === 'tarea') {
+        window.location.href = '/crm/tareas';
+        return;
+      }
+      if (props.tipo === 'oferta') {
+        window.location.href = '/crm/ofertas/' + props.offer_id;
+        return;
+      }
+      if (props.editable) {
+        abrirModalEvento({
+          id:          props.evento_id,
+          titulo:      info.event.title,
+          descripcion: props.descripcion || '',
+          tipo:        props.tipo || 'evento',
+          color:       info.event.backgroundColor || '#1565c0',
+          fecha_inicio: info.event.startStr,
+          fecha_fin:    info.event.endStr || '',
+          todo_el_dia:  info.event.allDay ? 1 : 0,
+        }, null);
+      }
+    },
+
+    // Arrastrar evento para cambiar fecha
+    editable: true,
+    eventDrop: function(info) {
+      const props = info.event.extendedProps;
+      if (!props.editable) { info.revert(); return; }
+      fetch(`/crm/agenda/evento/${props.evento_id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          fecha_inicio: info.event.startStr,
+          fecha_fin: info.event.endStr || '',
+        }),
+      });
+    },
+
+    // Seleccionar rango → abrir con fechas prellenadas
+    select: function(info) {
+      abrirModalEvento(null, info.startStr, info.endStr);
+      calendar.unselect();
+    },
+  });
+
+  calendar.render();
+  mostrarPanelDia(new Date().toISOString().slice(0, 10));
+});
+
+
+// ── Panel lateral de día ──────────────────────────────────────────
+
+function mostrarPanelDia(fechaStr) {
+  const fecha = new Date(fechaStr + 'T00:00:00');
+  const opciones = { weekday: 'long', day: 'numeric', month: 'long' };
+  document.getElementById('panel-dia-titulo').textContent =
+    fecha.toLocaleDateString('es-ES', opciones);
+
+  // Buscar eventos de ese día en el calendar
+  const eventosDelDia = calendar ? calendar.getEvents().filter(e => {
+    const start = e.startStr ? e.startStr.slice(0, 10) : '';
+    return start === fechaStr;
+  }) : [];
+
+  const cont = document.getElementById('panel-dia-contenido');
+  if (eventosDelDia.length === 0) {
+    cont.innerHTML = '<p class="text-muted small text-center mt-2">Sin eventos este día.<br><button class="btn btn-sm btn-outline-primary mt-2" onclick="abrirModalEvento(null,\''+fechaStr+'\')"><i class="bi bi-plus"></i> Añadir</button></p>';
+    return;
+  }
+  const ICONOS = { tarea:'⏰', oferta:'📋', evento:'📅', cita:'🤝', disponible:'✅', bloqueo:'🚫', entrega:'📦' };
+  cont.innerHTML = eventosDelDia.map(e => {
+    const tipo = e.extendedProps.tipo || 'evento';
+    const icono = ICONOS[tipo] || '📅';
+    const hora = e.allDay ? '' : `<span class="text-muted" style="font-size:.72rem">${e.startStr.slice(11,16)}</span> `;
+    return `<div class="item-agenda" style="border-color:${e.backgroundColor||'#1565c0'}">
+      ${hora}${icono} <span class="fw-semibold">${e.title}</span>
+    </div>`;
+  }).join('');
+}
+
+
+// ── Modal evento ──────────────────────────────────────────────────
+
+function actualizarColorTipo() {
+  const tipo = document.getElementById('ev-tipo').value;
+  document.getElementById('ev-color').value = TIPO_COLORES[tipo] || '#1565c0';
+}
+
+function toggleHoras() {
+  const todoElDia = document.getElementById('ev-todo-dia').checked;
+  document.getElementById('col-hora-inicio').style.display = todoElDia ? 'none' : '';
+  document.getElementById('col-hora-fin').style.display    = todoElDia ? 'none' : '';
+}
+
+function abrirModalEvento(ev, fechaStr, fechaFinStr) {
+  document.getElementById('ev-id').value       = ev ? ev.id : '';
+  document.getElementById('ev-titulo').value   = ev ? ev.titulo : '';
+  document.getElementById('ev-desc').value     = ev ? (ev.descripcion || '') : '';
+  document.getElementById('ev-tipo').value     = ev ? (ev.tipo || 'evento') : 'evento';
+  document.getElementById('ev-color').value    = ev ? (ev.color || '#1565c0') : '#1565c0';
+  document.getElementById('ev-inicio').value   = ev ? (ev.fecha_inicio || '').slice(0, 10) : (fechaStr || '');
+  document.getElementById('ev-fin').value      = ev ? (ev.fecha_fin || '').slice(0, 10)    : (fechaFinStr ? fechaFinStr.slice(0,10) : '');
+  document.getElementById('ev-todo-dia').checked = ev ? !!ev.todo_el_dia : true;
+
+  actualizarColorTipo();
+  if (ev) {
+    // Modo edición: no sobreescribir color si es personalizado
+    document.getElementById('ev-color').value = ev.color || TIPO_COLORES[ev.tipo] || '#1565c0';
+  }
+  toggleHoras();
+
+  document.getElementById('modalEventoTitle').textContent = ev ? 'Editar evento' : 'Nuevo evento';
+  document.getElementById('btn-eliminar-ev').style.display = ev ? '' : 'none';
+  modalEvento.show();
+}
+
+function guardarEvento() {
+  const id       = document.getElementById('ev-id').value;
+  const todoElDia = document.getElementById('ev-todo-dia').checked;
+  let inicio = document.getElementById('ev-inicio').value;
+  let fin    = document.getElementById('ev-fin').value;
+
+  if (!todoElDia) {
+    const hi = document.getElementById('ev-hora-inicio').value;
+    const hf = document.getElementById('ev-hora-fin').value;
+    if (hi) inicio = inicio + 'T' + hi + ':00';
+    if (fin && hf) fin = fin + 'T' + hf + ':00';
+  }
+
+  const payload = {
+    titulo:      document.getElementById('ev-titulo').value.trim(),
+    descripcion: document.getElementById('ev-desc').value.trim(),
+    tipo:        document.getElementById('ev-tipo').value,
+    color:       document.getElementById('ev-color').value,
+    fecha_inicio: inicio,
+    fecha_fin:   fin,
+    todo_el_dia: todoElDia ? 1 : 0,
+  };
+  if (!payload.titulo) { alert('El título es obligatorio.'); return; }
+
+  const url    = id ? `/crm/agenda/evento/${id}` : '/crm/agenda/evento';
+  const method = id ? 'PUT' : 'POST';
+
+  fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        modalEvento.hide();
+        calendar.refetchEvents();
+        showToast('Evento guardado.', 'success');
+      } else showToast('Error: ' + (d.error||'?'), 'danger');
+    });
+}
+
+function eliminarEvento() {
+  const id = document.getElementById('ev-id').value;
+  if (!id || !confirm('¿Eliminar este evento?')) return;
+  fetch(`/crm/agenda/evento/${id}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        modalEvento.hide();
+        calendar.refetchEvents();
+        showToast('Evento eliminado.', 'success');
+      }
+    });
+}
+</script>
+{% endblock %}

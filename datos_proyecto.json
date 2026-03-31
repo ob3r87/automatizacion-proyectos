@@ -1,0 +1,34 @@
+{
+  "_comentario": "Rellena estos campos para generar un nuevo proyecto de reforma de vehículo",
+
+  "REFERENCIA":              "PH.006/2025-0",
+  "MES_ANIO":                "OCTUBRE 2025",
+
+  "PETICIONARIO_NOMBRE":     "Agustín",
+  "PETICIONARIO_APELLIDOS":  "Regalado García",
+  "PETICIONARIO_PROVINCIA":  "Santa Cruz de Tenerife",
+
+  "MARCA_PORTADA":           "Citroën / Capron",
+  "MARCA":                   "Citroen / Capron",
+  "MODELO":                  "V66",
+  "TIPO_VEHICULO":           "Y-GBPAU-JBCS10",
+  "VERSION_VEHICULO":        "CRG3 - A1F2 - H10VBLD7EK1144V660",
+  "NUM_BASTIDOR":            "VF7YGBPAU12U76353",
+  "PARTE_FIJA_VIN":          "VF7YGBPAU",
+  "MATRICULA":               "6378LZD",
+
+  "MARCA_COMPRESOR":         "DRIVERITE",
+  "MODELO_COMPRESOR":        "120 PSI",
+  "MARCA_BALONAS":           "FIRESTONE",
+  "PRESION_BALONAS":         "7",
+  "MARCA_SOPORTE":           "DRIVERITE",
+
+  "PESO_KIT_KG":             "12",
+  "TARA_VEHICULO_KG":        "2561",
+  "DIAMETRO_TORNILLO":       "M14",
+  "CALIDAD_TORNILLO":        "8.8",
+  "FUERZA_CALCULO_N":        "16677.00",
+
+  "LUGAR_FIRMA":             "Santa Úrsula",
+  "FECHA_FIRMA":             "1 de octubre de 2025"
+}

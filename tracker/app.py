@@ -18,14 +18,33 @@ except ImportError:
     from flask import (Flask, render_template, request, jsonify,
                        redirect, url_for, send_file)
 
-from db import init_db, init_crm_db, init_work_types_defaults, query, execute, get_db
+from db import init_db, init_crm_db, init_work_types_defaults, init_ensayo_types_defaults, query, execute, get_db
 from project_scanner import scan_projects, get_project_files, get_project_datos
+from config import FLASK_PORT, FLASK_HOST, FLASK_DEBUG, DB_PATH, PROJECT_ROOT, TRACKER_DIR
 
-BASE_DIR = Path(__file__).parent
-PROJECT_ROOT = BASE_DIR.parent
+BASE_DIR = TRACKER_DIR
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "phican-crm-secret-2024")
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    _secret_file = BASE_DIR / ".secret_key"
+    if _secret_file.exists():
+        _secret = _secret_file.read_text().strip()
+    else:
+        import secrets as _secrets
+        _secret = _secrets.token_hex(32)
+        _secret_file.write_text(_secret)
+app.secret_key = _secret
+
+from datetime import date as _date
+
+@app.template_filter('diasrestantes')
+def _diasrestantes(fecha_str):
+    try:
+        d = _date.fromisoformat(str(fecha_str)[:10])
+        return (d - _date.today()).days
+    except Exception:
+        return 999
 
 from crm_routes import crm_bp
 app.register_blueprint(crm_bp)
@@ -484,5 +503,6 @@ if __name__ == "__main__":
     init_db()
     init_crm_db()
     init_work_types_defaults()
-    print("Tracker disponible en http://localhost:5050")
-    app.run(host="127.0.0.1", port=5050, debug=True)
+    init_ensayo_types_defaults()
+    print(f"Tracker disponible en http://{FLASK_HOST}:{FLASK_PORT}")
+    app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)

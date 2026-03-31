@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Tareas — Phican Ingenieros{% endblock %}
+
+{% block extra_head %}
+<style>
+.kanban-col { min-height: 400px; }
+.tarea-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  padding: .75rem;
+  margin-bottom: .5rem;
+  cursor: default;
+  transition: box-shadow .15s;
+}
+.tarea-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.13); }
+.prio-alta  { border-left: 3px solid #c62828; }
+.prio-media { border-left: 3px solid #f57c00; }
+.prio-baja  { border-left: 3px solid #388e3c; }
+.col-pendiente  { background: #fafafa; border-top: 3px solid #9e9e9e; }
+.col-en_proceso { background: #fff8e1; border-top: 3px solid #f57c00; }
+.col-completado { background: #f1f8e9; border-top: 3px solid #43a047; }
+.kanban-header { font-weight: 700; font-size: .85rem; padding: .6rem .8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0"><i class="bi bi-kanban text-primary"></i> Tablero de Tareas</h2>
+  <button class="btn btn-primary btn-sm" onclick="abrirNuevaTarea()">
+    <i class="bi bi-plus-lg"></i> Nueva tarea
+  </button>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toastMsg" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">OK</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Kanban -->
+<div class="row g-3">
+
+  <!-- Pendiente -->
+  <div class="col-md-4">
+    <div class="rounded p-0 col-pendiente">
+      <div class="kanban-header d-flex align-items-center gap-2">
+        <i class="bi bi-circle text-secondary"></i> Pendiente
+        <span class="badge bg-secondary ms-auto">{{ pendientes | length }}</span>
+      </div>
+      <div class="p-2 kanban-col" id="col-pendiente">
+        {% for t in pendientes %}
+          {{ tarjeta(t) }}
+        {% endfor %}
+        {% if not pendientes %}
+          <p class="text-muted small text-center mt-3">Sin tareas pendientes</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- En proceso -->
+  <div class="col-md-4">
+    <div class="rounded p-0 col-en_proceso">
+      <div class="kanban-header d-flex align-items-center gap-2">
+        <i class="bi bi-arrow-clockwise text-warning"></i> En proceso
+        <span class="badge bg-warning text-dark ms-auto">{{ en_proceso | length }}</span>
+      </div>
+      <div class="p-2 kanban-col" id="col-en_proceso">
+        {% for t in en_proceso %}
+          {{ tarjeta(t) }}
+        {% endfor %}
+        {% if not en_proceso %}
+          <p class="text-muted small text-center mt-3">Nada en proceso</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Completado -->
+  <div class="col-md-4">
+    <div class="rounded p-0 col-completado">
+      <div class="kanban-header d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle text-success"></i> Completado
+        <span class="badge bg-success ms-auto">{{ completadas | length }}</span>
+      </div>
+      <div class="p-2 kanban-col" id="col-completado">
+        {% for t in completadas %}
+          {{ tarjeta(t) }}
+        {% endfor %}
+        {% if not completadas %}
+          <p class="text-muted small text-center mt-3">Nada completado aún</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Macro tarjeta -->
+{% macro tarjeta(t) %}
+<div class="tarea-card prio-{{ t.prioridad }}" id="tarea-{{ t.id }}">
+  <div class="d-flex align-items-start gap-1 mb-1">
+    <span class="flex-grow-1 fw-semibold small">{{ t.titulo }}</span>
+    {% if t.prioridad == 'alta' %}
+      <span class="badge bg-danger bg-opacity-10 text-danger" style="font-size:.65rem">Alta</span>
+    {% elif t.prioridad == 'media' %}
+      <span class="badge bg-warning bg-opacity-10 text-warning" style="font-size:.65rem">Media</span>
+    {% else %}
+      <span class="badge bg-success bg-opacity-10 text-success" style="font-size:.65rem">Baja</span>
+    {% endif %}
+  </div>
+  {% if t.oferta_ref %}
+  <div class="small text-muted mb-1">
+    <i class="bi bi-file-earmark-check"></i>
+    <a href="{{ url_for('crm.oferta_detalle', oid=t.offer_id) }}" class="text-muted text-decoration-none">
+      {{ t.oferta_ref }}{% if t.oferta_titulo %} — {{ t.oferta_titulo[:30] }}{% endif %}
+    </a>
+  </div>
+  {% endif %}
+  {% if t.descripcion and t.descripcion != t.oferta_ref %}
+  <div class="small text-muted mb-1">{{ t.descripcion[:60] }}</div>
+  {% endif %}
+  {% if t.fecha_limite %}
+  <div class="small text-muted"><i class="bi bi-calendar3"></i> {{ t.fecha_limite[:10] }}</div>
+  {% endif %}
+  <!-- Acciones -->
+  <div class="d-flex gap-1 mt-2 flex-wrap">
+    {% if t.estado != 'en_proceso' %}
+    <button class="btn btn-xs btn-outline-warning btn-sm py-0 px-1"
+            onclick="cambiarEstado({{ t.id }}, 'en_proceso')" title="Iniciar">
+      <i class="bi bi-play-fill"></i>
+    </button>
+    {% endif %}
+    {% if t.estado != 'completado' %}
+    <button class="btn btn-xs btn-outline-success btn-sm py-0 px-1"
+            onclick="cambiarEstado({{ t.id }}, 'completado')" title="Completar">
+      <i class="bi bi-check-lg"></i>
+    </button>
+    {% endif %}
+    {% if t.estado != 'pendiente' %}
+    <button class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1"
+            onclick="cambiarEstado({{ t.id }}, 'pendiente')" title="Volver a pendiente">
+      <i class="bi bi-arrow-counterclockwise"></i>
+    </button>
+    {% endif %}
+    <button class="btn btn-xs btn-outline-primary btn-sm py-0 px-1 ms-auto"
+            onclick='abrirEditarTarea({{ t | tojson }})' title="Editar">
+      <i class="bi bi-pencil"></i>
+    </button>
+    <button class="btn btn-xs btn-outline-danger btn-sm py-0 px-1"
+            onclick="eliminarTarea({{ t.id }})" title="Eliminar">
+      <i class="bi bi-trash"></i>
+    </button>
+  </div>
+</div>
+{% endmacro %}
+
+
+<!-- Modal nueva/editar tarea -->
+<div class="modal fade" id="modalTarea" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTareaTitle">Nueva tarea</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tt-id">
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Título <span class="text-danger">*</span></label>
+          <input type="text" id="tt-titulo" class="form-control" placeholder="Qué hay que hacer...">
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Descripción / notas</label>
+          <textarea id="tt-desc" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col">
+            <label class="form-label fw-semibold">Prioridad</label>
+            <select id="tt-prioridad" class="form-select">
+              <option value="alta">Alta</option>
+              <option value="media" selected>Media</option>
+              <option value="baja">Baja</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="form-label fw-semibold">Fecha límite</label>
+            <input type="date" id="tt-fecha" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarTarea()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modalTarea = new bootstrap.Modal(document.getElementById('modalTarea'));
+
+function showToast(msg, tipo) {
+  const el = document.getElementById('toastMsg');
+  el.className = 'toast align-items-center text-white border-0 bg-' + (tipo === 'success' ? 'success' : 'danger');
+  document.getElementById('toastBody').textContent = msg;
+  new bootstrap.Toast(el, {delay: 2500}).show();
+}
+
+function abrirNuevaTarea() {
+  document.getElementById('modalTareaTitle').textContent = 'Nueva tarea';
+  document.getElementById('tt-id').value = '';
+  document.getElementById('tt-titulo').value = '';
+  document.getElementById('tt-desc').value = '';
+  document.getElementById('tt-prioridad').value = 'media';
+  document.getElementById('tt-fecha').value = '';
+  modalTarea.show();
+}
+
+function abrirEditarTarea(t) {
+  document.getElementById('modalTareaTitle').textContent = 'Editar tarea';
+  document.getElementById('tt-id').value = t.id;
+  document.getElementById('tt-titulo').value = t.titulo || '';
+  document.getElementById('tt-desc').value = t.descripcion || '';
+  document.getElementById('tt-prioridad').value = t.prioridad || 'media';
+  document.getElementById('tt-fecha').value = (t.fecha_limite || '').slice(0, 10);
+  modalTarea.show();
+}
+
+function guardarTarea() {
+  const id = document.getElementById('tt-id').value;
+  const payload = {
+    titulo:       document.getElementById('tt-titulo').value.trim(),
+    descripcion:  document.getElementById('tt-desc').value.trim(),
+    prioridad:    document.getElementById('tt-prioridad').value,
+    fecha_limite: document.getElementById('tt-fecha').value,
+  };
+  if (!payload.titulo) { alert('El título es obligatorio.'); return; }
+
+  const url    = id ? `/crm/tareas/${id}` : '/crm/tareas';
+  const method = id ? 'PUT' : 'POST';
+
+  fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) { modalTarea.hide(); location.reload(); }
+      else showToast('Error: ' + (d.error || '?'), 'danger');
+    });
+}
+
+function cambiarEstado(id, nuevoEstado) {
+  fetch(`/crm/tareas/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ estado: nuevoEstado }),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) location.reload();
+    else showToast('Error al cambiar estado', 'danger');
+  });
+}
+
+function eliminarTarea(id) {
+  if (!confirm('¿Eliminar esta tarea?')) return;
+  fetch(`/crm/tareas/${id}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) document.getElementById('tarea-' + id).remove();
+      else showToast('Error al eliminar', 'danger');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+<!-- Sección de ensayos de la oferta — incluir con {% include 'crm_oferta_ensayos.html' %} -->
+{% set work_type_obj = work_types | selectattr('codigo','equalto', oferta.tipo_trabajo) | first if work_types is defined else none %}
+{% set requiere = work_type_obj.requiere_ensayos if work_type_obj else false %}
+
+<div class="card mb-3" id="card-ensayos">
+  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+    <span>
+      <i class="bi bi-clipboard-check text-warning"></i> Ensayos asociados
+      {% if requiere %}
+        <span class="badge bg-warning text-dark ms-2" title="Este tipo de trabajo suele requerir ensayos">
+          <i class="bi bi-exclamation-triangle"></i> Requeridos
+        </span>
+      {% endif %}
+    </span>
+    <button class="btn btn-sm btn-outline-primary" onclick="abrirPanelEnsayos()">
+      <i class="bi bi-plus-circle"></i> Gestionar ensayos
+    </button>
+  </div>
+  <div class="card-body p-0" id="ensayos-lista-container">
+    {% if offer_ensayos %}
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Ensayo</th>
+          <th>Normativa</th>
+          <th>Organismo</th>
+          <th class="text-center">Estado</th>
+          <th class="text-end">Precio</th>
+          <th class="text-center">Incluido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in offer_ensayos %}
+        <tr>
+          <td class="fw-semibold">{{ e.nombre }}</td>
+          <td class="small text-muted">{{ e.normativa or '—' }}</td>
+          <td class="small text-muted">{{ e.organismo or '—' }}</td>
+          <td class="text-center">
+            {% if e.estado == 'realizado' %}
+              <span class="badge bg-success">Realizado</span>
+            {% elif e.estado == 'en_proceso' %}
+              <span class="badge bg-warning text-dark">En proceso</span>
+            {% else %}
+              <span class="badge bg-secondary">Pendiente</span>
+            {% endif %}
+          </td>
+          <td class="text-end">{{ "%.2f"|format(e.precio) }} €</td>
+          <td class="text-center">
+            {% if e.incluido_oferta %}
+              <i class="bi bi-check-circle-fill text-success"></i>
+            {% else %}
+              <i class="bi bi-x-circle text-muted"></i>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="4" class="text-end fw-semibold">Total ensayos:</td>
+          <td class="text-end fw-bold">
+            {{ "%.2f"|format(offer_ensayos | sum(attribute='precio')) }} €
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+    <div class="text-center text-muted py-3 small">
+      <i class="bi bi-clipboard-x"></i> Sin ensayos asociados a esta oferta.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Panel de gestión de ensayos (offcanvas) -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasEnsayos" style="width:550px">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title"><i class="bi bi-clipboard-check"></i> Gestionar ensayos</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <p class="text-muted small">Selecciona ensayos del catálogo o añade uno personalizado. Guarda para actualizar la oferta.</p>
+
+    <!-- Ensayos actuales editables -->
+    <div id="ensayos-edit-list"></div>
+
+    <!-- Añadir del catálogo -->
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">Añadir del catálogo</label>
+      <select id="sel-ensayo-catalogo" class="form-select form-select-sm">
+        <option value="">— Seleccionar ensayo —</option>
+        {% for et in ensayo_types %}
+        <option value="{{ et.id }}"
+                data-nombre="{{ et.nombre }}"
+                data-normativa="{{ et.normativa }}"
+                data-organismo="{{ et.organismo }}"
+                data-precio="{{ et.precio_estimado }}">
+          {{ et.codigo }} — {{ et.nombre }}
+        </option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-outline-secondary mt-1" onclick="agregarDelCatalogo()">
+        <i class="bi bi-plus"></i> Añadir
+      </button>
+    </div>
+
+    <!-- Añadir personalizado -->
+    <details class="mb-3">
+      <summary class="small text-muted" style="cursor:pointer">+ Añadir ensayo personalizado</summary>
+      <div class="row g-2 mt-1">
+        <div class="col-12">
+          <input type="text" id="ens-custom-nombre" class="form-control form-control-sm" placeholder="Nombre del ensayo *">
+        </div>
+        <div class="col-6">
+          <input type="text" id="ens-custom-normativa" class="form-control form-control-sm" placeholder="Normativa">
+        </div>
+        <div class="col-6">
+          <input type="text" id="ens-custom-organismo" class="form-control form-control-sm" placeholder="Organismo">
+        </div>
+        <div class="col-4">
+          <input type="number" id="ens-custom-precio" class="form-control form-control-sm" placeholder="Precio €" step="0.01" value="0">
+        </div>
+        <div class="col-8 d-flex align-items-center">
+          <button class="btn btn-sm btn-outline-primary" onclick="agregarPersonalizado()">
+            <i class="bi bi-plus-circle"></i> Añadir personalizado
+          </button>
+        </div>
+      </div>
+    </details>
+
+    <hr>
+    <div class="d-flex justify-content-between align-items-center">
+      <strong class="small">Total: <span id="total-ensayos">0,00 €</span></strong>
+      <button class="btn btn-primary btn-sm" onclick="guardarEnsayosOferta()">
+        <i class="bi bi-save"></i> Guardar ensayos
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const ofertaId = {{ oferta.id }};
+  let ensayos = {{ offer_ensayos | tojson }};
+
+  const offcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasEnsayos'));
+
+  window.abrirPanelEnsayos = function() {
+    renderizarEnsayosEdit();
+    offcanvas.show();
+  };
+
+  function renderizarEnsayosEdit() {
+    const container = document.getElementById('ensayos-edit-list');
+    if (!ensayos.length) {
+      container.innerHTML = '<p class="text-muted small">Sin ensayos. Añade uno del catálogo.</p>';
+      actualizarTotal();
+      return;
+    }
+    let html = '<table class="table table-sm table-bordered"><thead class="table-light"><tr>'
+      + '<th>Ensayo</th><th style="width:80px">Precio</th><th style="width:80px">Estado</th>'
+      + '<th style="width:40px">Incl.</th><th style="width:30px"></th></tr></thead><tbody>';
+    ensayos.forEach((e, idx) => {
+      html += `<tr>
+        <td class="small">${e.nombre}</td>
+        <td><input type="number" class="form-control form-control-sm p-0 px-1" step="0.01"
+             value="${e.precio || 0}" onchange="actualizarCampoEnsayo(${idx},'precio',this.value)"></td>
+        <td>
+          <select class="form-select form-select-sm p-0 px-1"
+                  onchange="actualizarCampoEnsayo(${idx},'estado',this.value)">
+            <option value="pendiente" ${e.estado==='pendiente'?'selected':''}>Pendiente</option>
+            <option value="en_proceso" ${e.estado==='en_proceso'?'selected':''}>En proceso</option>
+            <option value="realizado" ${e.estado==='realizado'?'selected':''}>Realizado</option>
+          </select>
+        </td>
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input" ${e.incluido_oferta?'checked':''}
+                 onchange="actualizarCampoEnsayo(${idx},'incluido_oferta',this.checked?1:0)">
+        </td>
+        <td>
+          <button class="btn btn-xs btn-outline-danger btn-sm py-0 px-1"
+                  onclick="eliminarEnsayo(${idx})"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    actualizarTotal();
+  }
+
+  window.actualizarCampoEnsayo = function(idx, campo, valor) {
+    if (campo === 'precio') ensayos[idx].precio = parseFloat(valor) || 0;
+    else ensayos[idx][campo] = valor;
+    actualizarTotal();
+  };
+
+  window.eliminarEnsayo = function(idx) {
+    ensayos.splice(idx, 1);
+    renderizarEnsayosEdit();
+  };
+
+  function actualizarTotal() {
+    const total = ensayos.reduce((s, e) => s + (parseFloat(e.precio) || 0), 0);
+    document.getElementById('total-ensayos').textContent = total.toFixed(2) + ' €';
+  }
+
+  window.agregarDelCatalogo = function() {
+    const sel = document.getElementById('sel-ensayo-catalogo');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+    ensayos.push({
+      ensayo_type_id: parseInt(opt.value),
+      nombre:         opt.dataset.nombre,
+      normativa:      opt.dataset.normativa,
+      organismo:      opt.dataset.organismo,
+      precio:         parseFloat(opt.dataset.precio) || 0,
+      incluido_oferta: 1,
+      estado:         'pendiente',
+      notas:          '',
+    });
+    sel.value = '';
+    renderizarEnsayosEdit();
+  };
+
+  window.agregarPersonalizado = function() {
+    const nombre = document.getElementById('ens-custom-nombre').value.trim();
+    if (!nombre) { alert('El nombre es obligatorio.'); return; }
+    ensayos.push({
+      ensayo_type_id: null,
+      nombre:         nombre,
+      normativa:      document.getElementById('ens-custom-normativa').value.trim(),
+      organismo:      document.getElementById('ens-custom-organismo').value.trim(),
+      precio:         parseFloat(document.getElementById('ens-custom-precio').value) || 0,
+      incluido_oferta: 1,
+      estado:         'pendiente',
+      notas:          '',
+    });
+    document.getElementById('ens-custom-nombre').value = '';
+    document.getElementById('ens-custom-normativa').value = '';
+    document.getElementById('ens-custom-organismo').value = '';
+    document.getElementById('ens-custom-precio').value = 0;
+    renderizarEnsayosEdit();
+  };
+
+  window.guardarEnsayosOferta = function() {
+    fetch(`/crm/ofertas/${ofertaId}/ensayos`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(ensayos),
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        offcanvas.hide();
+        setTimeout(() => location.reload(), 400);
+      } else {
+        alert('Error al guardar: ' + (d.error || 'desconocido'));
+      }
+    })
+    .catch(() => alert('Error de red.'));
+  };
+})();
+</script>

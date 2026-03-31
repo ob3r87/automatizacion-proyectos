@@ -183,20 +183,85 @@ CREATE TABLE IF NOT EXISTS offer_hov_data (
     notas_tecnicas TEXT DEFAULT '',
     FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS ensayo_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL,
+    descripcion TEXT DEFAULT '',
+    normativa TEXT DEFAULT '',
+    organismo TEXT DEFAULT '',
+    precio_estimado REAL DEFAULT 0,
+    activo INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS offer_ensayos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    offer_id INTEGER NOT NULL,
+    ensayo_type_id INTEGER,
+    nombre TEXT NOT NULL,
+    normativa TEXT DEFAULT '',
+    organismo TEXT DEFAULT '',
+    precio REAL DEFAULT 0,
+    incluido_oferta INTEGER DEFAULT 1,
+    estado TEXT DEFAULT 'pendiente',
+    notas TEXT DEFAULT '',
+    FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE,
+    FOREIGN KEY (ensayo_type_id) REFERENCES ensayo_types(id)
+);
 """
 
 WORK_TYPES_DEFAULT = [
-    ("HOV", "Homologación de Reforma de Vehículo", "Proyecto técnico + tramitación ITV", 650.0),
-    ("PT",  "Proyecto Técnico", "Redacción de proyecto técnico", 500.0),
-    ("CFO", "Certificado Final de Obra", "Emisión de CFO para reforma", 180.0),
-    ("CT",  "Certificado de Taller", "Certificado de instalador autorizado", 120.0),
-    ("IT",  "Inspección Técnica", "Visita e informe de inspección", 200.0),
-    ("DT",  "Dictamen Técnico", "Dictamen o informe técnico", 350.0),
-    ("CON", "Consultoría Técnica", "Asesoramiento técnico por horas", 90.0),
-    ("EST", "Estudio Técnico", "Estudio de viabilidad o análisis", 400.0),
-    ("DIR", "Dirección de Obra", "Dirección facultativa de obra", 600.0),
-    ("CAL", "Cálculo Estructural", "Cálculo y memoria de estructuras", 300.0),
-    ("OTR", "Otro", "Trabajo no categorizado", 0.0),
+    # (codigo, nombre, descripcion, precio_base, subcategoria, requiere_ensayos)
+    # ── Homologaciones de reforma ──────────────────────────────────────────────
+    ("HOV",  "Homologación de Reforma de Vehículo",
+     "Proyecto técnico + tramitación ITV", 650.0, "Reforma vehículo", 0),
+    ("VIV",  "Conversión a furgón vivienda (camper)",
+     "Reforma 7.1/7.3 — habilitación interior como vivienda", 850.0, "Reforma vehículo", 0),
+    ("FRIG", "Conversión furgoneta frigorífica",
+     "Reforma 7.1 — instalación equipo frío / carrocería isotérmica", 750.0, "Reforma vehículo", 0),
+    ("CARG", "Instalación grúa autocargante",
+     "Reforma 5.1 — montaje grúa Palfinger / Hiab / Atlas", 900.0, "Reforma vehículo", 1),
+    ("PLAT", "Instalación plataforma elevadora",
+     "Reforma 4.6 — plataforma hidráulica para accesibilidad PMR", 750.0, "Reforma vehículo", 0),
+    ("CARC", "Quita de carrocería con modificación de suspensión",
+     "Reforma 7.1 + 4.1 — quita de caja y adecuación suspensión", 1100.0, "Reforma vehículo", 1),
+    ("REMO", "Acondicionamiento para remolque",
+     "Reforma 9.1 — instalación enganche y verificación MMA conjunto", 450.0, "Reforma vehículo", 0),
+    ("MMA",  "Modificación MMA (aumento de masa)",
+     "Reforma 8.1 — justificación y tramitación aumento MMA", 550.0, "Reforma vehículo", 1),
+    ("ELEC", "Conversión a vehículo eléctrico / híbrido",
+     "Reforma 2.11 — sustitución grupo motopropulsor", 1500.0, "Reforma vehículo", 1),
+    ("CARC2","Extensión de carrocería (alargamiento)",
+     "Reforma 7.1 + 8.2 — prolongación bastidor y carrocería", 1200.0, "Reforma vehículo", 1),
+    ("SUSP", "Modificación sistema de suspensión",
+     "Reforma 4.1 — sustitución o modificación suspensión neumática/mecánica", 600.0, "Reforma vehículo", 1),
+    ("COMB", "Transformación a GLP / GNC",
+     "Reforma 2.2 — instalación sistema combustible alternativo", 700.0, "Reforma vehículo", 0),
+    # ── Documentación técnica ─────────────────────────────────────────────────
+    ("PT",   "Proyecto Técnico",
+     "Redacción de proyecto técnico", 500.0, "Documentación", 0),
+    ("CFO",  "Certificado Final de Obra",
+     "Emisión de CFO para reforma", 180.0, "Documentación", 0),
+    ("CT",   "Certificado de Taller",
+     "Certificado de instalador autorizado", 120.0, "Documentación", 0),
+    ("DT",   "Dictamen Técnico",
+     "Dictamen o informe técnico para tramitación", 350.0, "Documentación", 0),
+    ("EST",  "Estudio Técnico",
+     "Estudio de viabilidad o análisis previo", 400.0, "Documentación", 0),
+    # ── Servicios de ingeniería ───────────────────────────────────────────────
+    ("IT",   "Inspección Técnica",
+     "Visita e informe de inspección", 200.0, "Ingeniería", 0),
+    ("CAL",  "Cálculo Estructural",
+     "Cálculo y memoria de estructuras", 300.0, "Ingeniería", 0),
+    ("DIR",  "Dirección de Obra",
+     "Dirección facultativa de obra", 600.0, "Ingeniería", 0),
+    ("CON",  "Consultoría Técnica",
+     "Asesoramiento técnico por horas", 90.0, "Ingeniería", 0),
+    # ── Otros ─────────────────────────────────────────────────────────────────
+    ("OTR",  "Otro",
+     "Trabajo no categorizado", 0.0, "", 0),
 ]
 
 
@@ -232,17 +297,272 @@ def init_crm_db():
     notas_tecnicas TEXT DEFAULT '',
     FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE
 )""")
+        # Migración: añadir columnas extra a work_types si no existen
+        wt_cols = [r[1] for r in db.execute("PRAGMA table_info(work_types)").fetchall()]
+        if "subcategoria" not in wt_cols:
+            db.execute("ALTER TABLE work_types ADD COLUMN subcategoria TEXT DEFAULT ''")
+        if "notas_tarificacion" not in wt_cols:
+            db.execute("ALTER TABLE work_types ADD COLUMN notas_tarificacion TEXT DEFAULT ''")
+        if "requiere_ensayos" not in wt_cols:
+            db.execute("ALTER TABLE work_types ADD COLUMN requiere_ensayos INTEGER DEFAULT 0")
+        if "actos_aplicables" not in wt_cols:
+            db.execute("ALTER TABLE work_types ADD COLUMN actos_aplicables TEXT DEFAULT '[]'")
+        # Migración: crear ensayo_types y offer_ensayos si no existen
+        db.execute("""CREATE TABLE IF NOT EXISTS ensayo_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL,
+    descripcion TEXT DEFAULT '',
+    normativa TEXT DEFAULT '',
+    organismo TEXT DEFAULT '',
+    precio_estimado REAL DEFAULT 0,
+    activo INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL
+)""")
+        db.execute("""CREATE TABLE IF NOT EXISTS offer_ensayos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    offer_id INTEGER NOT NULL,
+    ensayo_type_id INTEGER,
+    nombre TEXT NOT NULL,
+    normativa TEXT DEFAULT '',
+    organismo TEXT DEFAULT '',
+    precio REAL DEFAULT 0,
+    incluido_oferta INTEGER DEFAULT 1,
+    estado TEXT DEFAULT 'pendiente',
+    notas TEXT DEFAULT '',
+    FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE,
+    FOREIGN KEY (ensayo_type_id) REFERENCES ensayo_types(id)
+)""")
+        # pdf_template_settings (fila única id=1)
+        db.execute("""CREATE TABLE IF NOT EXISTS pdf_template_settings (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            empresa_nombre TEXT DEFAULT 'PHICAN INGENIEROS',
+            empresa_subtitulo TEXT DEFAULT 'Ingeniería Técnica',
+            empresa_direccion TEXT DEFAULT '',
+            empresa_tel TEXT DEFAULT '',
+            empresa_email TEXT DEFAULT '',
+            empresa_cif TEXT DEFAULT '',
+            empresa_logo_path TEXT DEFAULT '',
+            watermark_activa INTEGER DEFAULT 0,
+            watermark_texto TEXT DEFAULT 'BORRADOR',
+            watermark_color TEXT DEFAULT '#CC0000',
+            watermark_opacidad REAL DEFAULT 0.15,
+            watermark_angulo INTEGER DEFAULT 45,
+            pdf_notas_pie TEXT DEFAULT '',
+            updated_at TEXT DEFAULT ''
+        )""")
+        # Insertar fila por defecto si no existe
+        db.execute("INSERT OR IGNORE INTO pdf_template_settings (id) VALUES (1)")
+        # Tabla de tareas
+        db.execute("""CREATE TABLE IF NOT EXISTS tareas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            offer_id INTEGER,
+            titulo TEXT NOT NULL,
+            descripcion TEXT DEFAULT '',
+            tipo TEXT DEFAULT 'manual',
+            estado TEXT DEFAULT 'pendiente',
+            prioridad TEXT DEFAULT 'media',
+            fecha_limite TEXT DEFAULT '',
+            fecha_completado TEXT DEFAULT '',
+            orden INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT DEFAULT '',
+            FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE SET NULL
+        )""")
+        # Tabla de eventos de agenda
+        db.execute("""CREATE TABLE IF NOT EXISTS agenda_eventos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL,
+            descripcion TEXT DEFAULT '',
+            fecha_inicio TEXT NOT NULL,
+            fecha_fin TEXT DEFAULT '',
+            todo_el_dia INTEGER DEFAULT 1,
+            tipo TEXT DEFAULT 'evento',
+            color TEXT DEFAULT '#1565c0',
+            offer_id INTEGER,
+            tarea_id INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE SET NULL,
+            FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE SET NULL
+        )""")
 
 
 def init_work_types_defaults():
-    """Inserta los tipos de trabajo predeterminados si la tabla está vacía."""
-    count = query("SELECT COUNT(*) as c FROM work_types", one=True)
-    if count and count["c"] == 0:
-        now = __import__("datetime").datetime.now().isoformat()
-        for codigo, nombre, descripcion, precio_base in WORK_TYPES_DEFAULT:
+    """Inserta o actualiza los tipos de trabajo predeterminados.
+
+    - Si la tabla está vacía, inserta todos.
+    - Si ya hay registros, inserta los que falten y actualiza subcategoria/requiere_ensayos
+      de los existentes para que reflejen la definición canónica.
+    """
+    now = __import__("datetime").datetime.now().isoformat()
+    existing_rows = query("SELECT codigo FROM work_types")
+    existing = {r["codigo"] for r in existing_rows}
+    for item in WORK_TYPES_DEFAULT:
+        codigo, nombre, descripcion, precio_base = item[0], item[1], item[2], item[3]
+        subcategoria = item[4] if len(item) > 4 else ""
+        requiere_ensayos = item[5] if len(item) > 5 else 0
+        if codigo in existing:
+            execute(
+                "UPDATE work_types SET subcategoria=?, requiere_ensayos=? WHERE codigo=?",
+                (subcategoria, requiere_ensayos, codigo),
+            )
+        else:
             execute(
                 """INSERT INTO work_types
-                   (codigo, nombre, descripcion, precio_base, unidad, activo, created_at)
-                   VALUES (?, ?, ?, ?, 'ud', 1, ?)""",
-                (codigo, nombre, descripcion, precio_base, now),
+                   (codigo, nombre, descripcion, precio_base, unidad, activo,
+                    subcategoria, requiere_ensayos, created_at)
+                   VALUES (?, ?, ?, ?, 'ud', 1, ?, ?, ?)""",
+                (codigo, nombre, descripcion, precio_base,
+                 subcategoria, requiere_ensayos, now),
             )
+
+
+ENSAYO_TYPES_DEFAULT = [
+    ("ENS-FREN",  "Ensayo de eficacia de frenos",
+     "Verificación según Directiva 71/320/CEE / R13-H", "71/320/CEE · R13", "ITV / Laboratorio acreditado", 250.0),
+    ("ENS-EMIS",  "Ensayo de emisiones contaminantes",
+     "Medición emisiones motor según normativa Euro", "Euro VI · RD 2028/1986", "ITV / CITA", 180.0),
+    ("ENS-RUID",  "Ensayo de emisiones sonoras",
+     "Medición nivel sonoro exterior según R51", "R51 / ISO 362", "Laboratorio acreditado", 350.0),
+    ("ENS-ILUM",  "Ensayo de iluminación y señalización",
+     "Verificación fotometría y orientación faros", "R48 / R7", "ITV", 120.0),
+    ("ENS-ESTR",  "Ensayo de resistencia estructural",
+     "Prueba de carga o cálculo según EN 1993", "EN 1993-1-1 / EN 12999", "Laboratorio acreditado", 600.0),
+    ("ENS-ESTAB", "Ensayo de estabilidad lateral",
+     "Verificación coeficiente estabilidad η ≥ 0.3", "Manual Reformas DGT", "Técnico competente", 200.0),
+    ("ENS-GRU",   "Ensayo de grúa / equipo de carga",
+     "Prueba de carga y estabilidad grúa autocargante", "EN 12999 · FEM 1.001", "Laboratorio / fabricante", 450.0),
+    ("ENS-PROT",  "Ensayo de protección trasera",
+     "Verificación resistencia barra protección trasera", "Directiva 70/221/CEE", "Laboratorio acreditado", 300.0),
+    ("ENS-MASA",  "Pesaje oficial (distribución de masas)",
+     "Pesaje en báscula oficial para verificar MMA y distribución", "RD 2822/1998", "Báscula oficial", 150.0),
+    ("ENS-PMEC",  "Prueba de mecanismo (plataforma / elevador)",
+     "Verificación funcional y de seguridad plataforma PMR", "EN 1756 / R107", "Técnico competente", 200.0),
+    ("ENS-ELEC",  "Ensayo sistema eléctrico / baterías",
+     "Verificación instalación eléctrica e baterías vehículo eléctrico", "ECE R100 / IEC 62660", "Laboratorio acreditado", 500.0),
+]
+
+
+def init_ensayo_types_defaults():
+    """Inserta los tipos de ensayo predeterminados si la tabla está vacía."""
+    count = query("SELECT COUNT(*) as c FROM ensayo_types", one=True)
+    if count and count["c"] == 0:
+        now = __import__("datetime").datetime.now().isoformat()
+        for codigo, nombre, descripcion, normativa, organismo, precio in ENSAYO_TYPES_DEFAULT:
+            execute(
+                """INSERT INTO ensayo_types
+                   (codigo, nombre, descripcion, normativa, organismo, precio_estimado, activo, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, 1, ?)""",
+                (codigo, nombre, descripcion, normativa, organismo, precio, now),
+            )
+
+
+def get_pdf_settings() -> dict:
+    """Devuelve la configuración de plantilla PDF (fila única)."""
+    with get_db() as db:
+        row = db.execute("SELECT * FROM pdf_template_settings WHERE id=1").fetchone()
+        return dict(row) if row else {}
+
+
+def save_pdf_settings(data: dict) -> None:
+    """Guarda la configuración de plantilla PDF."""
+    allowed = [
+        "empresa_nombre", "empresa_subtitulo", "empresa_direccion",
+        "empresa_tel", "empresa_email", "empresa_cif", "empresa_logo_path",
+        "watermark_activa", "watermark_texto", "watermark_color",
+        "watermark_opacidad", "watermark_angulo", "pdf_notas_pie",
+    ]
+    cols, vals = [], []
+    for k in allowed:
+        if k in data:
+            cols.append(f"{k}=?")
+            vals.append(data[k])
+    if not cols:
+        return
+    from datetime import datetime
+    cols.append("updated_at=?")
+    vals.append(datetime.now().isoformat(timespec="seconds"))
+    vals.append(1)
+    with get_db() as db:
+        db.execute(f"UPDATE pdf_template_settings SET {', '.join(cols)} WHERE id=?", vals)
+
+
+# Plantillas de tareas por código de tipo de trabajo
+TAREA_PLANTILLAS = {
+    "HOV": [
+        ("Inspección previa del vehículo",            "alta"),
+        ("Redactar proyecto técnico de reforma",       "alta"),
+        ("Elaborar planos / esquemas técnicos",        "media"),
+        ("Solicitar cita en ITV / SITRAN",             "alta"),
+        ("Acompañar inspección en ITV",                "alta"),
+        ("Presentar documentación en organismos",      "media"),
+        ("Recoger certificado / informe final",        "baja"),
+        ("Entrega al cliente",                         "baja"),
+    ],
+    "VIV": [
+        ("Visita técnica al vehículo",                 "alta"),
+        ("Redactar memoria de habitabilidad",          "alta"),
+        ("Elaborar planos de distribución interior",   "alta"),
+        ("Solicitar inspección técnica",               "alta"),
+        ("Presentar en organismos",                    "media"),
+        ("Entrega documentación al cliente",           "baja"),
+    ],
+    "FRIG": [
+        ("Inspección instalación frigorífica",         "alta"),
+        ("Redactar memoria técnica",                   "alta"),
+        ("Solicitar inspección ITV",                   "alta"),
+        ("Entrega al cliente",                         "baja"),
+    ],
+    "CARG": [
+        ("Inspección grúa / autocargante",             "alta"),
+        ("Redactar proyecto de instalación",           "alta"),
+        ("Certificado fabricante / cálculos",          "alta"),
+        ("Solicitar inspección",                       "alta"),
+        ("Entrega documentación",                      "baja"),
+    ],
+    "CARC": [
+        ("Inspección previa carrocería",               "alta"),
+        ("Redactar proyecto de modificación",          "alta"),
+        ("Planos carrocería nueva",                    "media"),
+        ("Solicitar inspección ITV",                   "alta"),
+        ("Entrega al cliente",                         "baja"),
+    ],
+    "ELEC": [
+        ("Inspección instalación eléctrica",           "alta"),
+        ("Redactar proyecto eléctrico",                "alta"),
+        ("Solicitar inspección homologación",          "alta"),
+        ("Entrega documentación",                      "baja"),
+    ],
+    "MMA": [
+        ("Recopilar datos técnicos del vehículo",      "alta"),
+        ("Redactar informe de masa",                   "alta"),
+        ("Tramitar ante organismos",                   "media"),
+        ("Entrega al cliente",                         "baja"),
+    ],
+    "DEFAULT": [
+        ("Planificar y ejecutar trabajo",              "alta"),
+        ("Generar documentación técnica",              "media"),
+        ("Revisión y validación interna",              "media"),
+        ("Entrega al cliente",                         "baja"),
+    ],
+}
+
+
+def crear_tareas_oferta(offer_id: int, tipo_trabajo_codigo: str, referencia: str) -> int:
+    """Crea tareas automáticas para una oferta aceptada. Devuelve nº de tareas creadas."""
+    codigo = (tipo_trabajo_codigo or "").upper()
+    plantilla = TAREA_PLANTILLAS.get(codigo, TAREA_PLANTILLAS["DEFAULT"])
+    from datetime import datetime
+    now = datetime.now().isoformat(timespec="seconds")
+    creadas = 0
+    with get_db() as db:
+        for orden, (titulo, prioridad) in enumerate(plantilla):
+            desc = f"Oferta {referencia}" if referencia else ""
+            db.execute(
+                """INSERT INTO tareas
+                   (offer_id, titulo, descripcion, tipo, estado, prioridad, orden, created_at)
+                   VALUES (?, ?, ?, 'auto', 'pendiente', ?, ?, ?)""",
+                (offer_id, titulo, desc, prioridad, orden, now),
+            )
+            creadas += 1
+    return creadas

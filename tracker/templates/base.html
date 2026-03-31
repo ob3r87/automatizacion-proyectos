@@ -120,6 +120,15 @@
     <a href="{{ url_for('crm.ofertas_lista') }}" class="nav-link {% if request.endpoint in ['crm.ofertas_lista','crm.oferta_nueva','crm.oferta_detalle','crm.oferta_editar'] %}active{% endif %}">
       <i class="bi bi-file-earmark-check"></i> Ofertas
     </a>
+    <a href="{{ url_for('crm.agenda') }}" class="nav-link {% if request.endpoint == 'crm.agenda' %}active{% endif %}">
+      <i class="bi bi-calendar3"></i> Agenda
+    </a>
+    <a href="{{ url_for('crm.tareas_kanban') }}" class="nav-link {% if request.endpoint == 'crm.tareas_kanban' %}active{% endif %}">
+      <i class="bi bi-kanban"></i> Tareas
+      {% if tareas_pendientes_count and tareas_pendientes_count > 0 %}
+      <span class="badge bg-danger ms-auto" style="font-size:.65rem">{{ tareas_pendientes_count }}</span>
+      {% endif %}
+    </a>
     <a href="{{ url_for('crm.clientes_lista') }}" class="nav-link {% if request.endpoint in ['crm.clientes_lista','crm.cliente_nuevo','crm.cliente_editar'] %}active{% endif %}">
       <i class="bi bi-people"></i> Clientes
     </a>
@@ -127,8 +136,8 @@
 
   <div class="nav-section-label">Config</div>
   <nav class="nav flex-column">
-    <a href="{{ url_for('crm.tipos_trabajo') }}" class="nav-link {% if request.endpoint == 'crm.tipos_trabajo' %}active{% endif %}">
-      <i class="bi bi-tags"></i> Tipos de trabajo
+    <a href="{{ url_for('crm.configuracion') }}" class="nav-link {% if request.endpoint and 'configuracion' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-gear"></i> Configuración
     </a>
   </nav>
 

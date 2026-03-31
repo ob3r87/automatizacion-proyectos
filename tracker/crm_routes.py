@@ -12,7 +12,10 @@ from pathlib import Path
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, jsonify, send_file, flash)
 
-from db import query, execute, get_db, init_crm_db, init_work_types_defaults
+from db import (query, execute, get_db, init_crm_db, init_work_types_defaults,
+                init_ensayo_types_defaults, get_pdf_settings, save_pdf_settings,
+                crear_tareas_oferta, TAREA_PLANTILLAS)
+from pdf_generator import generar_pdf_oferta
 
 import json as _json_mod
 _CODIGOS_REFORMA = {}
@@ -46,6 +49,16 @@ def _precio_hov(n_actos: int) -> float:
 
 
 crm_bp = Blueprint("crm", __name__, url_prefix="/crm")
+
+
+@crm_bp.context_processor
+def _inject_tareas_count():
+    try:
+        r = query("SELECT COUNT(*) as c FROM tareas WHERE estado IN ('pendiente','en_proceso')", one=True)
+        return {"tareas_pendientes_count": r["c"] if r else 0}
+    except Exception:
+        return {"tareas_pendientes_count": 0}
+
 
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -367,6 +380,10 @@ def oferta_detalle(oid):
             except Exception:
                 hov_data["actos_lista"] = []
 
+    offer_ensayos_list = query("SELECT * FROM offer_ensayos WHERE offer_id=? ORDER BY id", (oid,))
+    ensayo_types_list = query("SELECT * FROM ensayo_types WHERE activo=1 ORDER BY codigo")
+    work_types_list = query("SELECT * FROM work_types WHERE activo=1 ORDER BY codigo")
+
     return render_template(
         "crm_oferta_detalle.html",
         oferta=oferta,
@@ -376,6 +393,9 @@ def oferta_detalle(oid):
         fmt_date=_fmt_date_es,
         hov_data=hov_data,
         codigos_reforma=_CODIGOS_REFORMA,
+        offer_ensayos=offer_ensayos_list,
+        ensayo_types=ensayo_types_list,
+        work_types=work_types_list,
     )
 
 
@@ -591,15 +611,17 @@ def oferta_cambiar_estado(oid):
         if pdf_path and Path(pdf_path).is_file():
             shutil.copy2(pdf_path, str(carpeta_dest / Path(pdf_path).name))
 
-        return jsonify({"ok": True, "carpeta": str(carpeta_dest)})
+        # Auto-generar tareas según tipo de trabajo
+        tipo_trabajo = oferta.get("tipo_trabajo", "")
+        n_tareas = crear_tareas_oferta(oid, tipo_trabajo, oferta.get("referencia", ""))
+
+        return jsonify({"ok": True, "carpeta": str(carpeta_dest), "tareas_creadas": n_tareas})
 
     return jsonify({"ok": True})
 
 
 @crm_bp.route("/ofertas/<int:oid>/pdf")
 def oferta_pdf(oid):
-    from pdf_generator import generar_pdf_oferta
-
     oferta = query("SELECT * FROM offers WHERE id = ?", (oid,), one=True)
     if not oferta:
         return jsonify({"error": "Oferta no encontrada"}), 404
@@ -618,7 +640,7 @@ def oferta_pdf(oid):
     ref_safe = oferta["referencia"].replace("/", "-").replace(".", "_")
     pdf_path = str(pdf_dir / f"presupuesto_{ref_safe}.pdf")
 
-    generar_pdf_oferta(dict(oferta), [dict(l) for l in lines], client_data, pdf_path)
+    generar_pdf_oferta(dict(oferta), [dict(l) for l in lines], client_data, pdf_path, pdf_settings=get_pdf_settings())
 
     # Actualizar ruta en BD
     execute("UPDATE offers SET pdf_path=?, updated_at=? WHERE id=?", (pdf_path, _now(), oid))
@@ -762,3 +784,385 @@ def api_clientes():
 def api_tipos_trabajo():
     tipos = query("SELECT * FROM work_types WHERE activo=1 ORDER BY codigo")
     return jsonify(tipos)
+
+
+# ─── Configuración ────────────────────────────────────────────────
+
+@crm_bp.route("/configuracion", methods=["GET"])
+def configuracion():
+    work_types = query("SELECT * FROM work_types ORDER BY subcategoria, codigo")
+    # Agrupar por subcategoría
+    grupos_tarifas = {}
+    for wt in work_types:
+        sub = wt.get("subcategoria") or "Sin categoría"
+        if sub not in grupos_tarifas:
+            grupos_tarifas[sub] = []
+        # Parsear actos_aplicables de JSON string a lista
+        try:
+            wt["actos_aplicables"] = json.loads(wt.get("actos_aplicables") or "[]")
+        except Exception:
+            wt["actos_aplicables"] = []
+        grupos_tarifas[sub].append(wt)
+    ensayo_types = query("SELECT * FROM ensayo_types ORDER BY codigo")
+    # Preparar grupos de actos reglamentarios para el modal
+    grupos_reforma = {}
+    for codigo, data in sorted(_CODIGOS_REFORMA.items(),
+                               key=lambda x: (int(x[1]["grupo"]), x[0])):
+        g = data["grupo"]
+        if g not in grupos_reforma:
+            grupos_reforma[g] = {"nombre": GRUPOS_REFORMA.get(g, f"Grupo {g}"), "codigos": []}
+        grupos_reforma[g]["codigos"].append({
+            "codigo": codigo,
+            "descripcion": data["descripcion"]
+        })
+    return render_template("crm_configuracion.html",
+                           grupos_tarifas=grupos_tarifas,
+                           ensayo_types=ensayo_types,
+                           work_types=work_types,
+                           grupos_reforma=grupos_reforma,
+                           pdf_settings=get_pdf_settings())
+
+
+@crm_bp.route("/configuracion/pdf-template", methods=["POST"])
+def config_pdf_template():
+    data = request.get_json() or {}
+    # Castings seguros
+    if "watermark_activa" in data:
+        data["watermark_activa"] = int(data["watermark_activa"])
+    if "watermark_opacidad" in data:
+        data["watermark_opacidad"] = float(data["watermark_opacidad"])
+    if "watermark_angulo" in data:
+        data["watermark_angulo"] = int(data["watermark_angulo"])
+    save_pdf_settings(data)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/configuracion/pdf-settings")
+def config_pdf_settings_get():
+    return jsonify(get_pdf_settings())
+
+
+@crm_bp.route("/configuracion/tarifa/<int:tid>", methods=["PUT"])
+def config_tarifa_editar(tid):
+    data = request.get_json() or {}
+    # Partial update: only touch the fields that were sent
+    allowed = {
+        "nombre": str, "descripcion": str, "precio_base": float,
+        "subcategoria": str, "notas_tarificacion": str,
+        "requiere_ensayos": int, "activo": int,
+    }
+    sets, vals = [], []
+    for col, cast in allowed.items():
+        if col in data:
+            sets.append(f"{col}=?")
+            vals.append(cast(data[col]) if data[col] not in (None, "") else (0 if cast in (int, float) else ""))
+    # actos_aplicables: se recibe como lista Python (JSON array)
+    if "actos_aplicables" in data:
+        sets.append("actos_aplicables=?")
+        val = data["actos_aplicables"]
+        vals.append(json.dumps(val) if isinstance(val, list) else str(val or "[]"))
+    if not sets:
+        return jsonify({"ok": True})
+    vals.append(tid)
+    execute(f"UPDATE work_types SET {', '.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/configuracion/tarifa", methods=["POST"])
+def config_tarifa_crear():
+    data = request.get_json() or {}
+    now = _now()
+    actos = data.get("actos_aplicables", [])
+    eid = execute("""INSERT INTO work_types
+                     (codigo, nombre, descripcion, precio_base, unidad, activo,
+                      subcategoria, notas_tarificacion, requiere_ensayos,
+                      actos_aplicables, created_at)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                  (data.get("codigo", "").upper(), data.get("nombre", ""),
+                   data.get("descripcion", ""), float(data.get("precio_base", 0) or 0),
+                   "ud", 1, data.get("subcategoria", ""),
+                   data.get("notas_tarificacion", ""),
+                   int(data.get("requiere_ensayos", 0)),
+                   json.dumps(actos) if isinstance(actos, list) else "[]",
+                   now))
+    return jsonify({"ok": True, "id": eid})
+
+
+@crm_bp.route("/configuracion/ensayo/<int:eid>", methods=["PUT"])
+def config_ensayo_editar(eid):
+    data = request.get_json() or {}
+    # Partial update: only touch the fields that were sent
+    allowed = {
+        "nombre": str, "descripcion": str, "normativa": str,
+        "organismo": str, "precio_estimado": float, "activo": int,
+    }
+    sets, vals = [], []
+    for col, cast in allowed.items():
+        if col in data:
+            sets.append(f"{col}=?")
+            vals.append(cast(data[col]) if data[col] not in (None, "") else (0 if cast in (int, float) else ""))
+    if not sets:
+        return jsonify({"ok": True})
+    vals.append(eid)
+    execute(f"UPDATE ensayo_types SET {', '.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/configuracion/ensayo", methods=["POST"])
+def config_ensayo_crear():
+    data = request.get_json() or {}
+    now = _now()
+    eid = execute("""INSERT INTO ensayo_types
+                     (codigo, nombre, descripcion, normativa, organismo,
+                      precio_estimado, activo, created_at)
+                     VALUES (?,?,?,?,?,?,1,?)""",
+                  (data.get("codigo", "").upper(), data.get("nombre", ""),
+                   data.get("descripcion", ""), data.get("normativa", ""),
+                   data.get("organismo", ""),
+                   float(data.get("precio_estimado", 0) or 0), now))
+    return jsonify({"ok": True, "id": eid})
+
+
+# ─── Ensayos en oferta ────────────────────────────────────────────
+
+@crm_bp.route("/ofertas/<int:oid>/ensayos", methods=["GET"])
+def oferta_ensayos(oid):
+    ensayos = query("SELECT * FROM offer_ensayos WHERE offer_id=? ORDER BY id", (oid,))
+    return jsonify(ensayos)
+
+
+@crm_bp.route("/ofertas/<int:oid>/ensayos", methods=["POST"])
+def oferta_ensayos_guardar(oid):
+    """Reemplaza todos los ensayos de la oferta."""
+    data = request.get_json() or []
+    execute("DELETE FROM offer_ensayos WHERE offer_id=?", (oid,))
+    for e in data:
+        execute("""INSERT INTO offer_ensayos
+                   (offer_id, ensayo_type_id, nombre, normativa, organismo,
+                    precio, incluido_oferta, estado, notas)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (oid, e.get("ensayo_type_id"), e.get("nombre", ""),
+                 e.get("normativa", ""), e.get("organismo", ""),
+                 float(e.get("precio", 0) or 0),
+                 int(e.get("incluido_oferta", 1)),
+                 e.get("estado", "pendiente"), e.get("notas", "")))
+    return jsonify({"ok": True})
+
+
+# ─── Tareas ────────────────────────────────────────────────────────
+
+@crm_bp.route("/tareas")
+def tareas_kanban():
+    pendientes  = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo
+                            FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
+                            WHERE t.estado = 'pendiente'
+                            ORDER BY CASE t.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, t.orden, t.id""")
+    en_proceso  = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo
+                            FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
+                            WHERE t.estado = 'en_proceso'
+                            ORDER BY CASE t.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, t.orden, t.id""")
+    completadas = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo
+                            FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
+                            WHERE t.estado = 'completado'
+                            ORDER BY t.fecha_completado DESC LIMIT 30""")
+    return render_template("crm_tareas.html",
+                           pendientes=pendientes,
+                           en_proceso=en_proceso,
+                           completadas=completadas)
+
+
+@crm_bp.route("/tareas", methods=["POST"])
+def tarea_crear():
+    data = request.get_json() or {}
+    now = _now()
+    tid = execute(
+        """INSERT INTO tareas (offer_id, titulo, descripcion, tipo, estado, prioridad, fecha_limite, created_at)
+           VALUES (?, ?, ?, 'manual', 'pendiente', ?, ?, ?)""",
+        (data.get("offer_id") or None, data.get("titulo", "").strip(),
+         data.get("descripcion", "").strip(), data.get("prioridad", "media"),
+         data.get("fecha_limite", ""), now),
+    )
+    return jsonify({"ok": True, "id": tid})
+
+
+@crm_bp.route("/tareas/<int:tid>", methods=["PUT"])
+def tarea_editar(tid):
+    data = request.get_json() or {}
+    allowed = {"titulo": str, "descripcion": str, "estado": str,
+               "prioridad": str, "fecha_limite": str}
+    sets, vals = [], []
+    for col, cast in allowed.items():
+        if col in data:
+            sets.append(f"{col}=?")
+            vals.append(cast(data[col]))
+    # Si se marca completado, guardar fecha
+    if data.get("estado") == "completado":
+        sets.append("fecha_completado=?")
+        vals.append(_today_iso())
+    elif data.get("estado") in ("pendiente", "en_proceso"):
+        sets.append("fecha_completado=?")
+        vals.append("")
+    sets.append("updated_at=?")
+    vals.append(_now())
+    vals.append(tid)
+    execute(f"UPDATE tareas SET {', '.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/tareas/<int:tid>", methods=["DELETE"])
+def tarea_eliminar(tid):
+    execute("DELETE FROM tareas WHERE id=?", (tid,))
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/api/tareas-pendientes-count")
+def api_tareas_count():
+    r = query("SELECT COUNT(*) as c FROM tareas WHERE estado IN ('pendiente','en_proceso')", one=True)
+    return jsonify({"count": r["c"] if r else 0})
+
+
+# ─── Agenda ────────────────────────────────────────────────────────
+
+@crm_bp.route("/agenda")
+def agenda():
+    # Próximas tareas con fecha límite (no completadas)
+    proximas_tareas = query("""
+        SELECT t.*, o.referencia as oferta_ref
+        FROM tareas t
+        LEFT JOIN offers o ON t.offer_id = o.id
+        WHERE t.fecha_limite != '' AND t.fecha_limite IS NOT NULL
+          AND t.estado != 'completado'
+        ORDER BY t.fecha_limite ASC
+        LIMIT 10
+    """)
+    # Ofertas aceptadas o pendientes con fecha de vencimiento
+    proximas_ofertas = query("""
+        SELECT id, referencia, titulo, tipo_trabajo, fecha_vencimiento, status
+        FROM offers
+        WHERE fecha_vencimiento != '' AND fecha_vencimiento IS NOT NULL
+          AND status IN ('pendiente','enviado','aceptado')
+        ORDER BY fecha_vencimiento ASC
+        LIMIT 10
+    """)
+    return render_template("crm_agenda.html",
+                           proximas_tareas=proximas_tareas,
+                           proximas_ofertas=proximas_ofertas)
+
+
+@crm_bp.route("/api/agenda-eventos")
+def api_agenda_eventos():
+    """Devuelve todos los eventos en formato FullCalendar."""
+    eventos = []
+
+    # 1) Eventos manuales de la tabla agenda_eventos
+    manuales = query("SELECT * FROM agenda_eventos ORDER BY fecha_inicio")
+    for e in manuales:
+        ev = {
+            "id": f"ev-{e['id']}",
+            "title": e["titulo"],
+            "start": e["fecha_inicio"],
+            "color": e.get("color") or "#1565c0",
+            "allDay": bool(e.get("todo_el_dia", 1)),
+            "extendedProps": {
+                "tipo": e.get("tipo", "evento"),
+                "descripcion": e.get("descripcion", ""),
+                "evento_id": e["id"],
+                "editable": True,
+            }
+        }
+        if e.get("fecha_fin"):
+            ev["end"] = e["fecha_fin"]
+        eventos.append(ev)
+
+    # 2) Tareas con fecha límite (no completadas)
+    tareas = query("""
+        SELECT t.id, t.titulo, t.fecha_limite, t.prioridad, t.estado, t.offer_id,
+               o.referencia as oferta_ref
+        FROM tareas t
+        LEFT JOIN offers o ON t.offer_id = o.id
+        WHERE t.fecha_limite != '' AND t.fecha_limite IS NOT NULL
+          AND t.estado != 'completado'
+    """)
+    color_prio = {"alta": "#c62828", "media": "#f57c00", "baja": "#388e3c"}
+    for t in tareas:
+        eventos.append({
+            "id": f"tarea-{t['id']}",
+            "title": f"⏰ {t['titulo']}" + (f" [{t['oferta_ref']}]" if t.get("oferta_ref") else ""),
+            "start": t["fecha_limite"][:10],
+            "color": color_prio.get(t.get("prioridad", "media"), "#f57c00"),
+            "allDay": True,
+            "extendedProps": {
+                "tipo": "tarea",
+                "tarea_id": t["id"],
+                "estado": t["estado"],
+                "editable": False,
+            }
+        })
+
+    # 3) Ofertas aceptadas con fecha de vencimiento
+    ofertas = query("""
+        SELECT id, referencia, titulo, tipo_trabajo, fecha_vencimiento, status
+        FROM offers
+        WHERE fecha_vencimiento != '' AND fecha_vencimiento IS NOT NULL
+          AND status IN ('pendiente','enviado','aceptado')
+    """)
+    for o in ofertas:
+        color = "#7b1fa2" if o["status"] == "aceptado" else "#0277bd"
+        eventos.append({
+            "id": f"oferta-{o['id']}",
+            "title": f"📋 {o['referencia']}" + (f" — {o['titulo'][:20]}" if o.get("titulo") else ""),
+            "start": o["fecha_vencimiento"][:10],
+            "color": color,
+            "allDay": True,
+            "extendedProps": {
+                "tipo": "oferta",
+                "offer_id": o["id"],
+                "status": o["status"],
+                "editable": False,
+            }
+        })
+
+    return jsonify(eventos)
+
+
+@crm_bp.route("/agenda/evento", methods=["POST"])
+def agenda_evento_crear():
+    data = request.get_json() or {}
+    now = _now()
+    eid = execute(
+        """INSERT INTO agenda_eventos
+           (titulo, descripcion, fecha_inicio, fecha_fin, todo_el_dia, tipo, color, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (data.get("titulo", "").strip(),
+         data.get("descripcion", "").strip(),
+         data.get("fecha_inicio", ""),
+         data.get("fecha_fin", ""),
+         int(data.get("todo_el_dia", 1)),
+         data.get("tipo", "evento"),
+         data.get("color", "#1565c0"),
+         now),
+    )
+    return jsonify({"ok": True, "id": eid})
+
+
+@crm_bp.route("/agenda/evento/<int:eid>", methods=["PUT"])
+def agenda_evento_editar(eid):
+    data = request.get_json() or {}
+    allowed = {"titulo": str, "descripcion": str, "fecha_inicio": str,
+               "fecha_fin": str, "todo_el_dia": int, "tipo": str, "color": str}
+    sets, vals = [], []
+    for col, cast in allowed.items():
+        if col in data:
+            sets.append(f"{col}=?")
+            vals.append(cast(data[col]))
+    if not sets:
+        return jsonify({"ok": True})
+    vals.append(eid)
+    execute(f"UPDATE agenda_eventos SET {', '.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/agenda/evento/<int:eid>", methods=["DELETE"])
+def agenda_evento_eliminar(eid):
+    execute("DELETE FROM agenda_eventos WHERE id=?", (eid,))
+    return jsonify({"ok": True})

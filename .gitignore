@@ -1,6 +1,7 @@
 # ─── Python ─────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+*.pyc
 *.pyo
 *.pyd
 .Python
@@ -17,6 +18,13 @@ env/
 tracker/tracker.db
 tracker/tracker.db-shm
 tracker/tracker.db-wal
+
+# ─── PDFs generados ──────────────────────────────────────────────
+tracker/pdfs/
+
+# ─── Secretos ────────────────────────────────────────────────────
+tracker/.secret_key
+.env
 
 # ─── Archivos temporales de Word ─────────────────────────────────
 ~$*

@@ -58,7 +58,7 @@ def _fmt_euro(valor):
         return "0,00 €"
 
 
-def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, output_path: str) -> str:
+def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, output_path: str, pdf_settings: dict = None) -> str:
     """
     Genera un PDF de presupuesto profesional.
 
@@ -73,6 +73,20 @@ def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, ou
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
+    cfg = pdf_settings or {}
+    empresa_nombre   = cfg.get("empresa_nombre")   or "PHICAN INGENIEROS"
+    empresa_subtitulo= cfg.get("empresa_subtitulo") or "Ingeniería Técnica"
+    empresa_dir      = cfg.get("empresa_direccion") or "C/ Ejemplo 1, Santa Úrsula, S/C de Tenerife"
+    empresa_tel      = cfg.get("empresa_tel")       or "922 000 000"
+    empresa_email    = cfg.get("empresa_email")     or "phican@phican.es"
+    empresa_cif      = cfg.get("empresa_cif")       or "B00000000"
+    wm_activa        = bool(int(cfg.get("watermark_activa", 0) or 0))
+    wm_texto         = cfg.get("watermark_texto")   or "BORRADOR"
+    wm_color_hex     = cfg.get("watermark_color")   or "#CC0000"
+    wm_opacidad      = float(cfg.get("watermark_opacidad", 0.15) or 0.15)
+    wm_angulo        = float(cfg.get("watermark_angulo", 45) or 45)
+    pdf_notas_pie    = cfg.get("pdf_notas_pie", "")
+
     doc = SimpleDocTemplate(
         output_path,
         pagesize=A4,
@@ -81,6 +95,24 @@ def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, ou
         topMargin=2 * cm,
         bottomMargin=2 * cm,
     )
+
+    # Callback de página para marca de agua
+    def _on_page(canvas, doc):
+        if wm_activa and wm_texto.strip():
+            from reportlab.lib.colors import HexColor
+            try:
+                color = HexColor(wm_color_hex)
+            except Exception:
+                color = colors.red
+            canvas.saveState()
+            canvas.setFillColor(color)
+            canvas.setFillAlpha(wm_opacidad)
+            canvas.setFont("Helvetica-Bold", 72)
+            w, h = A4
+            canvas.translate(w / 2, h / 2)
+            canvas.rotate(wm_angulo)
+            canvas.drawCentredString(0, 0, wm_texto.upper())
+            canvas.restoreState()
 
     styles = getSampleStyleSheet()
 
@@ -156,11 +188,11 @@ def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, ou
 
     # ── CABECERA ──────────────────────────────────────────────────
     logo_cell = [
-        Paragraph("PHICAN INGENIEROS", st_titulo_empresa),
-        Paragraph("Ingeniería Técnica", st_subtitulo_empresa),
+        Paragraph(empresa_nombre, st_titulo_empresa),
+        Paragraph(empresa_subtitulo, st_subtitulo_empresa),
         Paragraph(
-            "C/ Ejemplo 1, Santa Úrsula, S/C de Tenerife<br/>"
-            "Tel: 922 000 000 | phican@phican.es | CIF: B00000000",
+            f"{empresa_dir}<br/>"
+            f"Tel: {empresa_tel} | {empresa_email} | CIF: {empresa_cif}",
             st_datos_empresa,
         ),
     ]
@@ -425,5 +457,11 @@ def generar_pdf_oferta(offer_data: dict, lines_data: list, client_data: dict, ou
         st_pie,
     ))
 
-    doc.build(story)
+    # Notas de pie configurables
+    if pdf_notas_pie and pdf_notas_pie.strip():
+        story.append(Spacer(1, 0.3 * cm))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_TEXTO))
+        story.append(Paragraph(pdf_notas_pie, st_pie))
+
+    doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
     return output_path
