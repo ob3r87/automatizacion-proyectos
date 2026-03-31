@@ -85,8 +85,19 @@
         {% for t in proximas_tareas %}
           {% set dias = t.fecha_limite[:10] | diasrestantes %}
           <div class="item-agenda prio-{{ t.prioridad }}">
-            <div class="fw-semibold">{{ t.titulo[:35] }}{% if t.titulo|length > 35 %}…{% endif %}</div>
-            {% if t.oferta_ref %}<div class="text-muted" style="font-size:.72rem">{{ t.oferta_ref }}</div>{% endif %}
+            <div class="d-flex align-items-start gap-1">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ t.titulo[:35] }}{% if t.titulo|length > 35 %}…{% endif %}</div>
+                {% if t.oferta_ref %}<div class="text-muted" style="font-size:.72rem">{{ t.oferta_ref }}</div>{% endif %}
+              </div>
+              {% if t.codigo_proyecto %}
+              <button class="btn btn-xs btn-outline-secondary py-0 px-1 flex-shrink-0"
+                      onclick="abrirCarpeta('{{ t.codigo_proyecto }}')"
+                      title="Abrir expediente {{ t.codigo_proyecto }}">
+                <i class="bi bi-folder2-open"></i>
+              </button>
+              {% endif %}
+            </div>
             <div class="dias-restantes {% if dias == 0 %}vence-hoy{% elif dias <= 3 %}vence-pronto{% endif %}">
               <i class="bi bi-calendar3"></i> {{ t.fecha_limite[:10] }}
               {% if dias == 0 %} · ¡HOY!
@@ -104,8 +115,19 @@
         {% for o in proximas_ofertas %}
           {% set dias = o.fecha_vencimiento[:10] | diasrestantes %}
           <div class="item-agenda tipo-oferta">
-            <div class="fw-semibold">{{ o.referencia }}</div>
-            {% if o.titulo %}<div class="text-muted" style="font-size:.72rem">{{ o.titulo[:30] }}</div>{% endif %}
+            <div class="d-flex align-items-start gap-1">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ o.referencia }}</div>
+                {% if o.titulo %}<div class="text-muted" style="font-size:.72rem">{{ o.titulo[:30] }}</div>{% endif %}
+              </div>
+              {% if o.codigo_proyecto %}
+              <button class="btn btn-xs btn-outline-secondary py-0 px-1 flex-shrink-0"
+                      onclick="abrirCarpeta('{{ o.codigo_proyecto }}')"
+                      title="Abrir expediente {{ o.codigo_proyecto }}">
+                <i class="bi bi-folder2-open"></i>
+              </button>
+              {% endif %}
+            </div>
             <div class="dias-restantes {% if dias == 0 %}vence-hoy{% elif dias <= 3 %}vence-pronto{% endif %}">
               <i class="bi bi-calendar3"></i> {{ o.fecha_vencimiento[:10] }}
               {% if dias == 0 %} · ¡HOY!
@@ -412,6 +434,15 @@ function guardarEvento() {
         showToast('Evento guardado.', 'success');
       } else showToast('Error: ' + (d.error||'?'), 'danger');
     });
+}
+
+function abrirCarpeta(codigo) {
+  fetch(`/crm/api/abrir-carpeta?codigo=${encodeURIComponent(codigo)}`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) showToast('Carpeta no encontrada: ' + (d.error || codigo), 'warning');
+    })
+    .catch(() => showToast('Error al abrir la carpeta', 'danger'));
 }
 
 function eliminarEvento() {

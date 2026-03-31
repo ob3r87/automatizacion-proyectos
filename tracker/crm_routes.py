@@ -6,6 +6,7 @@ Gestión de clientes, ofertas/presupuestos y tipos de trabajo.
 import json
 import os
 import shutil
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -1039,15 +1040,15 @@ def oferta_ensayos_guardar(oid):
 
 @crm_bp.route("/tareas")
 def tareas_kanban():
-    pendientes  = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo
-                            FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
-                            WHERE t.estado = 'pendiente'
-                            ORDER BY CASE t.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, t.orden, t.id""")
-    en_proceso  = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo
-                            FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
-                            WHERE t.estado = 'en_proceso'
-                            ORDER BY CASE t.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, t.orden, t.id""")
-    completadas = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo
+    _q = """SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo,
+                   o.codigo_proyecto as codigo_proyecto
+            FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
+            WHERE t.estado = ?
+            ORDER BY CASE t.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, t.orden, t.id"""
+    pendientes  = query(_q, ("pendiente",))
+    en_proceso  = query(_q, ("en_proceso",))
+    completadas = query("""SELECT t.*, o.referencia as oferta_ref, o.titulo as oferta_titulo,
+                                   o.codigo_proyecto as codigo_proyecto
                             FROM tareas t LEFT JOIN offers o ON t.offer_id = o.id
                             WHERE t.estado = 'completado'
                             ORDER BY t.fecha_completado DESC LIMIT 30""")
@@ -1107,13 +1108,45 @@ def api_tareas_count():
     return jsonify({"count": r["c"] if r else 0})
 
 
+# ─── Abrir carpeta de expediente en el explorador ───────────────────
+@crm_bp.route("/api/abrir-carpeta")
+def api_abrir_carpeta():
+    """Abre la carpeta del proyecto en el explorador de Windows."""
+    import subprocess, os
+    codigo = request.args.get("codigo", "").strip()
+    ruta   = request.args.get("ruta",   "").strip()
+
+    # Resolver ruta: preferir ruta explícita, sino construir desde codigo
+    if not ruta and codigo:
+        base = get_app_setting("proyectos_base_path") or str(PROJECT_ROOT / "PROYECTOS")
+        ruta = str(Path(base) / codigo)
+
+    if not ruta:
+        return jsonify({"ok": False, "error": "Sin ruta de expediente"}), 400
+
+    carpeta = Path(ruta)
+    if not carpeta.exists():
+        return jsonify({"ok": False, "error": f"Carpeta no encontrada: {ruta}"}), 404
+
+    try:
+        if os.name == "nt":          # Windows
+            os.startfile(str(carpeta))
+        elif sys.platform == "darwin":  # macOS
+            subprocess.Popen(["open", str(carpeta)])
+        else:                           # Linux
+            subprocess.Popen(["xdg-open", str(carpeta)])
+        return jsonify({"ok": True, "ruta": str(carpeta)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # ─── Agenda ────────────────────────────────────────────────────────
 
 @crm_bp.route("/agenda")
 def agenda():
     # Próximas tareas con fecha límite (no completadas)
     proximas_tareas = query("""
-        SELECT t.*, o.referencia as oferta_ref
+        SELECT t.*, o.referencia as oferta_ref, o.codigo_proyecto as codigo_proyecto
         FROM tareas t
         LEFT JOIN offers o ON t.offer_id = o.id
         WHERE t.fecha_limite != '' AND t.fecha_limite IS NOT NULL
@@ -1123,7 +1156,7 @@ def agenda():
     """)
     # Ofertas aceptadas o pendientes con fecha de vencimiento
     proximas_ofertas = query("""
-        SELECT id, referencia, titulo, tipo_trabajo, fecha_vencimiento, status
+        SELECT id, referencia, titulo, tipo_trabajo, fecha_vencimiento, status, codigo_proyecto
         FROM offers
         WHERE fecha_vencimiento != '' AND fecha_vencimiento IS NOT NULL
           AND status IN ('pendiente','enviado','aceptado')

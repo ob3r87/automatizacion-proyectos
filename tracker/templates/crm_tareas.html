@@ -39,11 +39,18 @@
     {% endif %}
   </div>
   {% if t.oferta_ref %}
-  <div class="small text-muted mb-1">
+  <div class="small text-muted mb-1 d-flex align-items-center gap-1">
     <i class="bi bi-file-earmark-check"></i>
-    <a href="{{ url_for('crm.oferta_detalle', oid=t.offer_id) }}" class="text-muted text-decoration-none">
+    <a href="{{ url_for('crm.oferta_detalle', oid=t.offer_id) }}" class="text-muted text-decoration-none flex-grow-1">
       {{ t.oferta_ref }}{% if t.oferta_titulo %} — {{ t.oferta_titulo[:30] }}{% endif %}
     </a>
+    {% if t.codigo_proyecto %}
+    <button class="btn btn-xs btn-outline-secondary py-0 px-1"
+            onclick="abrirCarpeta('{{ t.codigo_proyecto }}')"
+            title="Abrir carpeta del expediente {{ t.codigo_proyecto }}">
+      <i class="bi bi-folder2-open"></i>
+    </button>
+    {% endif %}
   </div>
   {% endif %}
   {% if t.descripcion and t.descripcion != t.oferta_ref %}
@@ -278,6 +285,15 @@ function eliminarTarea(id) {
       if (d.ok) document.getElementById('tarea-' + id).remove();
       else showToast('Error al eliminar', 'danger');
     });
+}
+
+function abrirCarpeta(codigo) {
+  fetch(`/crm/api/abrir-carpeta?codigo=${encodeURIComponent(codigo)}`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) showToast('No se encontró la carpeta: ' + (d.error || codigo), 'warning');
+    })
+    .catch(() => showToast('Error al abrir la carpeta', 'danger'));
 }
 </script>
 {% endblock %}
