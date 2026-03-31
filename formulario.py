@@ -2226,6 +2226,7 @@ class FormularioProyecto(tk.Tk):
         self.title("Generador de Proyectos — Phican Ingenieros")
         self.configure(bg=GRIS_BG)
         self.resizable(True, True)
+        self.minsize(860, 680)   # garantiza que los botones siempre sean visibles
 
         self.entries = {}
         self._reforma_rows  = []
@@ -2261,6 +2262,11 @@ class FormularioProyecto(tk.Tk):
                   background=[("selected", BLANCO), ("", GRIS_BG)],
                   foreground=[("selected", AZUL),   ("", "#444")])
 
+        # Barra inferior: se empaca PRIMERO con side="bottom" para que el
+        # notebook con expand=True no la oculte en pantallas pequeñas
+        bottom = tk.Frame(self, bg=GRIS_BG, pady=4)
+        bottom.pack(side="bottom", fill="x", padx=16, pady=(4, 10))
+
         self.nb = ttk.Notebook(self)
         self.nb.pack(fill="both", expand=True, padx=14, pady=(10, 0))
 
@@ -2271,10 +2277,6 @@ class FormularioProyecto(tk.Tk):
         self._tab_cfo()
         self._tab_reforma()
         self._tab_configuracion()
-
-        # Barra inferior: estado + botón generar
-        bottom = tk.Frame(self, bg=GRIS_BG)
-        bottom.pack(fill="x", padx=16, pady=(6, 14))
 
         self.estado_var = tk.StringVar(value="")
         self.lbl_estado = tk.Label(
@@ -4364,8 +4366,16 @@ class FormularioProyecto(tk.Tk):
             lambda e, cv=canvas: cv.configure(scrollregion=cv.bbox("all")))
         canvas.bind("<Configure>",
             lambda e, cv=canvas, wid=win_id: cv.itemconfig(wid, width=e.width))
-        canvas.bind_all("<MouseWheel>",
-            lambda e, cv=canvas: cv.yview_scroll(int(-1*(e.delta/120)), "units"))
+
+        # Scroll solo cuando el ratón está sobre este canvas (no bind_all global)
+        def _on_enter(e, cv=canvas):
+            cv.bind_all("<MouseWheel>",
+                lambda ev, c=cv: c.yview_scroll(int(-1*(ev.delta/120)), "units"))
+        def _on_leave(e, cv=canvas):
+            cv.unbind_all("<MouseWheel>")
+
+        canvas.bind("<Enter>", _on_enter)
+        canvas.bind("<Leave>", _on_leave)
 
         return inner, canvas
 
