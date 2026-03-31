@@ -547,41 +547,166 @@ SILUETAS = {
 }
 
 
+def _svg_a_png_pil(svg_content: str, out_path: Path, w: int = 600, h: int = 225):
+    """
+    Convierte SVG a PNG usando PIL + xml.etree (sin Cairo).
+    Renderiza: rect, circle, line, polyline, polygon (no path curves).
+    Suficiente para las siluetas geométricas de vehículos.
+    """
+    try:
+        from PIL import Image, ImageDraw
+        import xml.etree.ElementTree as ET
+        import re
+
+        NS = "http://www.w3.org/2000/svg"
+        root = ET.fromstring(svg_content.strip())
+
+        # Leer viewBox original para escalar
+        vb = root.get("viewBox", "0 0 800 300").split()
+        vb_w, vb_h = float(vb[2]), float(vb[3])
+        sx, sy = w / vb_w, h / vb_h
+
+        img = Image.new("RGBA", (w, h), (248, 248, 248, 255))
+        draw = ImageDraw.Draw(img)
+
+        def parse_color(c, default=(26, 26, 26)):
+            if not c or c == "none":
+                return None
+            c = c.strip()
+            if c.startswith("#"):
+                c = c.lstrip("#")
+                if len(c) == 3:
+                    c = "".join(x*2 for x in c)
+                return tuple(int(c[i:i+2], 16) for i in (0, 2, 4))
+            named = {"white": (255,255,255), "black": (0,0,0),
+                     "#f8f8f8": (248,248,248), "#f5f5f5": (245,245,245),
+                     "#f0f0f0": (240,240,240), "#e0e0e0": (224,224,224),
+                     "#d8d8d8": (216,216,216), "#e8e8e8": (232,232,232),
+                     "#d0e8f0": (208,232,240), "#d0d0d0": (208,208,208),
+                     "#ccc": (204,204,204), "#aaa": (170,170,170),
+                     "#999": (153,153,153), "#888": (136,136,136),
+                     "#666": (102,102,102), "#555": (85,85,85),
+                     "#1a1a1a": (26,26,26), "#eee": (238,238,238),
+                     "#ddd": (221,221,221), "#bbb": (187,187,187)}
+            return named.get(c, default)
+
+        def sw(s):
+            try:
+                return max(1, int(float(s or 1) * min(sx, sy)))
+            except Exception:
+                return 1
+
+        def sc(x, y):
+            return (x * sx, y * sy)
+
+        def draw_elem(elem):
+            tag = elem.tag.replace(f"{{{NS}}}", "")
+            fill  = parse_color(elem.get("fill",  "white"))
+            stroke= parse_color(elem.get("stroke","none"))
+            lw    = sw(elem.get("stroke-width", "1"))
+
+            if tag == "rect":
+                x,y = float(elem.get("x",0))*sx, float(elem.get("y",0))*sy
+                rw, rh = float(elem.get("width",0))*sx, float(elem.get("height",0))*sy
+                box = [x, y, x+rw, y+rh]
+                if fill: draw.rectangle(box, fill=fill)
+                if stroke: draw.rectangle(box, outline=stroke, width=lw)
+
+            elif tag == "circle":
+                cx,cy = float(elem.get("cx",0))*sx, float(elem.get("cy",0))*sy
+                r = float(elem.get("r",0)) * min(sx,sy)
+                box = [cx-r, cy-r, cx+r, cy+r]
+                if fill: draw.ellipse(box, fill=fill)
+                if stroke: draw.ellipse(box, outline=stroke, width=lw)
+
+            elif tag == "line":
+                x1,y1 = float(elem.get("x1",0))*sx, float(elem.get("y1",0))*sy
+                x2,y2 = float(elem.get("x2",0))*sx, float(elem.get("y2",0))*sy
+                if stroke: draw.line([x1,y1,x2,y2], fill=stroke, width=lw)
+
+            elif tag == "polyline" or tag == "polygon":
+                pts_str = elem.get("points","")
+                nums = [float(n) for n in re.findall(r"[\d.+-]+", pts_str)]
+                pts = [(nums[i]*sx, nums[i+1]*sy) for i in range(0,len(nums)-1,2)]
+                if len(pts) >= 2:
+                    if fill and tag == "polygon": draw.polygon(pts, fill=fill)
+                    if stroke: draw.line(pts + ([pts[0]] if tag == "polygon" else []),
+                                        fill=stroke, width=lw)
+
+            elif tag == "path":
+                # Renderizar paths simples: extraer coordenadas de M L Q Z
+                d = elem.get("d","")
+                nums = re.findall(r"[-+]?\d*\.?\d+", d)
+                if len(nums) >= 4:
+                    pts = []
+                    for i in range(0, len(nums)-1, 2):
+                        try:
+                            pts.append((float(nums[i])*sx, float(nums[i+1])*sy))
+                        except Exception:
+                            break
+                    if len(pts) >= 2:
+                        if fill and len(pts) >= 3:
+                            draw.polygon(pts, fill=fill)
+                        if stroke:
+                            draw.line(pts + [pts[0]], fill=stroke, width=lw)
+
+        # Dibujar todos los elementos
+        for child in root.iter():
+            try:
+                draw_elem(child)
+            except Exception:
+                pass
+
+        img.save(str(out_path), "PNG")
+        return True
+    except Exception as e:
+        print(f"    [PNG warn] {e}")
+        return False
+
+
 def generar_catalogo():
-    """Genera todos los SVGs y el archivo de índice."""
+    """Genera SVGs + PNGs de preview y el archivo de índice."""
+    import unicodedata
     SALIDA.mkdir(parents=True, exist_ok=True)
     index = []
     total = 0
 
     for clave, datos in SILUETAS.items():
         cat  = datos["categoria"]
-        import unicodedata
         tipo_raw = datos["tipo"].replace("/", "-").replace(" ", "_")
-        tipo = "".join(c for c in unicodedata.normalize("NFD", tipo_raw) if unicodedata.category(c) != "Mn")
+        tipo = "".join(c for c in unicodedata.normalize("NFD", tipo_raw)
+                       if unicodedata.category(c) != "Mn")
         carpeta = SALIDA / cat / tipo
         carpeta.mkdir(parents=True, exist_ok=True)
 
         for vista_nombre, svg_content in datos["vistas"].items():
-            filename = f"{clave}_{vista_nombre}.svg"
-            filepath = carpeta / filename
-            filepath.write_text(svg_content, encoding="utf-8")
+            # ── SVG ──
+            svg_file = carpeta / f"{clave}_{vista_nombre}.svg"
+            svg_file.write_text(svg_content, encoding="utf-8")
+
+            # ── PNG preview ──
+            png_file = carpeta / f"{clave}_{vista_nombre}_preview.png"
+            ok_png = _svg_a_png_pil(svg_content, png_file, w=600, h=225)
+
             total += 1
-            print(f"  OK  {cat}/{tipo}/{filename}")
+            print(f"  OK  {cat}/{tipo}/{svg_file.name}"
+                  + ("  +PNG" if ok_png else "  (sin PNG)"))
 
             index.append({
-                "clave": clave,
-                "nombre": datos["nombre"],
-                "categoria": cat,
-                "tipo": datos["tipo"],
+                "clave":       clave,
+                "nombre":      datos["nombre"],
+                "categoria":   cat,
+                "tipo":        datos["tipo"],
                 "descripcion": datos["descripcion"],
-                "vista": vista_nombre,
-                "archivo": str(filepath.relative_to(SALIDA)),
+                "vista":       vista_nombre,
+                "archivo":     str(svg_file.relative_to(SALIDA)),
+                "preview":     str(png_file.relative_to(SALIDA)) if ok_png else "",
             })
 
-    # Guardar índice JSON
     idx_path = SALIDA / "indice.json"
-    idx_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nGenerados {total} SVGs en: {SALIDA}")
+    idx_path.write_text(json.dumps(index, ensure_ascii=False, indent=2),
+                        encoding="utf-8")
+    print(f"\nGenerados {total} SVGs (+PNGs) en: {SALIDA}")
     print(f"Indice guardado en: {idx_path}")
     return total, index
 

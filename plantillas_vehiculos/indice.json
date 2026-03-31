@@ -6,7 +6,8 @@
     "tipo": "Berlina",
     "descripcion": "Turismo de 3 volúmenes con maletero diferenciado",
     "vista": "lateral",
-    "archivo": "M1\\Berlina\\M1_BERLINA_lateral.svg"
+    "archivo": "M1\\Berlina\\M1_BERLINA_lateral.svg",
+    "preview": "M1\\Berlina\\M1_BERLINA_lateral_preview.png"
   },
   {
     "clave": "M1_HATCHBACK",
@@ -15,7 +16,8 @@
     "tipo": "Hatchback",
     "descripcion": "Turismo compacto de 2 volúmenes, 5 puertas",
     "vista": "lateral",
-    "archivo": "M1\\Hatchback\\M1_HATCHBACK_lateral.svg"
+    "archivo": "M1\\Hatchback\\M1_HATCHBACK_lateral.svg",
+    "preview": "M1\\Hatchback\\M1_HATCHBACK_lateral_preview.png"
   },
   {
     "clave": "M1_SUV",
@@ -24,7 +26,8 @@
     "tipo": "SUV",
     "descripcion": "Vehículo todoterreno o SUV de altura elevada",
     "vista": "lateral",
-    "archivo": "M1\\SUV\\M1_SUV_lateral.svg"
+    "archivo": "M1\\SUV\\M1_SUV_lateral.svg",
+    "preview": "M1\\SUV\\M1_SUV_lateral_preview.png"
   },
   {
     "clave": "M1_MONOVOLUMEN",
@@ -33,7 +36,8 @@
     "tipo": "Monovolumen",
     "descripcion": "Vehículo familiar monovolumen o minivan",
     "vista": "lateral",
-    "archivo": "M1\\Monovolumen\\M1_MONOVOLUMEN_lateral.svg"
+    "archivo": "M1\\Monovolumen\\M1_MONOVOLUMEN_lateral.svg",
+    "preview": "M1\\Monovolumen\\M1_MONOVOLUMEN_lateral_preview.png"
   },
   {
     "clave": "M1_CABRIO",
@@ -42,7 +46,8 @@
     "tipo": "Cabrio",
     "descripcion": "Turismo descapotable con capota baja",
     "vista": "lateral",
-    "archivo": "M1\\Cabrio\\M1_CABRIO_lateral.svg"
+    "archivo": "M1\\Cabrio\\M1_CABRIO_lateral.svg",
+    "preview": "M1\\Cabrio\\M1_CABRIO_lateral_preview.png"
   },
   {
     "clave": "N1_FURGONETA_PEQUENA",
@@ -51,7 +56,8 @@
     "tipo": "Furgoneta compacta",
     "descripcion": "Vehículo comercial ligero de carrocería integral, < 3.5t",
     "vista": "lateral",
-    "archivo": "N1\\Furgoneta_compacta\\N1_FURGONETA_PEQUENA_lateral.svg"
+    "archivo": "N1\\Furgoneta_compacta\\N1_FURGONETA_PEQUENA_lateral.svg",
+    "preview": "N1\\Furgoneta_compacta\\N1_FURGONETA_PEQUENA_lateral_preview.png"
   },
   {
     "clave": "N1_FURGONETA_GRANDE",
@@ -60,7 +66,8 @@
     "tipo": "Furgoneta grande",
     "descripcion": "Vehículo comercial ligero de gran capacidad, < 3.5t",
     "vista": "lateral",
-    "archivo": "N1\\Furgoneta_grande\\N1_FURGONETA_GRANDE_lateral.svg"
+    "archivo": "N1\\Furgoneta_grande\\N1_FURGONETA_GRANDE_lateral.svg",
+    "preview": "N1\\Furgoneta_grande\\N1_FURGONETA_GRANDE_lateral_preview.png"
   },
   {
     "clave": "N1_PICKUP",
@@ -69,7 +76,8 @@
     "tipo": "Pickup",
     "descripcion": "Vehículo comercial ligero con caja abierta de carga",
     "vista": "lateral",
-    "archivo": "N1\\Pickup\\N1_PICKUP_lateral.svg"
+    "archivo": "N1\\Pickup\\N1_PICKUP_lateral.svg",
+    "preview": "N1\\Pickup\\N1_PICKUP_lateral_preview.png"
   },
   {
     "clave": "N2_CAMION_RIGIDO",
@@ -78,7 +86,8 @@
     "tipo": "Camion_rigido",
     "descripcion": "Camión de reparto / distribución hasta 12 toneladas",
     "vista": "lateral",
-    "archivo": "N2\\Camion_rigido\\N2_CAMION_RIGIDO_lateral.svg"
+    "archivo": "N2\\Camion_rigido\\N2_CAMION_RIGIDO_lateral.svg",
+    "preview": "N2\\Camion_rigido\\N2_CAMION_RIGIDO_lateral_preview.png"
   },
   {
     "clave": "N3_CAMION_ARTICULADO",
@@ -87,7 +96,8 @@
     "tipo": "Articulado",
     "descripcion": "Tractora + semirremolque, masa total > 12t",
     "vista": "lateral",
-    "archivo": "N3\\Articulado\\N3_CAMION_ARTICULADO_lateral.svg"
+    "archivo": "N3\\Articulado\\N3_CAMION_ARTICULADO_lateral.svg",
+    "preview": "N3\\Articulado\\N3_CAMION_ARTICULADO_lateral_preview.png"
   },
   {
     "clave": "M2_MICROBUS",
@@ -96,7 +106,8 @@
     "tipo": "Microbus",
     "descripcion": "Microbús para transporte de viajeros, hasta 5 toneladas",
     "vista": "lateral",
-    "archivo": "M2\\Microbus\\M2_MICROBUS_lateral.svg"
+    "archivo": "M2\\Microbus\\M2_MICROBUS_lateral.svg",
+    "preview": "M2\\Microbus\\M2_MICROBUS_lateral_preview.png"
   },
   {
     "clave": "L3E_MOTOCICLETA",
@@ -105,7 +116,8 @@
     "tipo": "Motocicleta",
     "descripcion": "Motocicleta de 2 ruedas sin sidecar, cilindrada > 50cc",
     "vista": "lateral",
-    "archivo": "L3e\\Motocicleta\\L3E_MOTOCICLETA_lateral.svg"
+    "archivo": "L3e\\Motocicleta\\L3E_MOTOCICLETA_lateral.svg",
+    "preview": "L3e\\Motocicleta\\L3E_MOTOCICLETA_lateral_preview.png"
   },
   {
     "clave": "L1E_CICLOMOTOR",
@@ -114,6 +126,7 @@
     "tipo": "Ciclomotor",
     "descripcion": "Ciclomotor de 2 o 3 ruedas, < 50cc o < 4kW",
     "vista": "lateral",
-    "archivo": "L1e\\Ciclomotor\\L1E_CICLOMOTOR_lateral.svg"
+    "archivo": "L1e\\Ciclomotor\\L1E_CICLOMOTOR_lateral.svg",
+    "preview": "L1e\\Ciclomotor\\L1E_CICLOMOTOR_lateral_preview.png"
   }
 ]

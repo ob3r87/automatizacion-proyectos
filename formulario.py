@@ -2691,7 +2691,7 @@ class FormularioProyecto(tk.Tk):
             initial_model=modelo,
         )
 
-    def _aplicar_plano(self, path, result=None):
+    def _aplicar_plano(self, path, result=None, preview_path=None):
         """Actualiza UI con el plano seleccionado."""
         self._plano_path = path
         self.entries["PLANO_PATH"].set(str(path) if path else "")
@@ -2702,21 +2702,35 @@ class FormularioProyecto(tk.Tk):
                 info += f"  |  Año: {result.year}"
             self._lbl_plano_info.config(text=info, fg="#1a1a1a")
         elif path:
-            self._lbl_plano_info.config(text=str(path), fg="#1a1a1a")
+            p = Path(path)
+            self._lbl_plano_info.config(text=p.name, fg="#1a1a1a")
         else:
             self._lbl_plano_info.config(text="Sin plano seleccionado.", fg="#777")
 
-        # Preview
-        if path and _PIL_OK:
+        # Determinar imagen de preview: PNG explícito > PNG hermano del SVG > el propio archivo
+        img_path = None
+        if preview_path and Path(preview_path).exists():
+            img_path = Path(preview_path)
+        elif path:
+            p = Path(path)
+            # Buscar PNG hermano: mismo nombre con _preview.png
+            candidato = p.with_name(p.stem + "_preview.png")
+            if candidato.exists():
+                img_path = candidato
+            elif p.suffix.lower() in (".png", ".jpg", ".jpeg", ".bmp", ".gif"):
+                img_path = p
+
+        if img_path and _PIL_OK:
             try:
-                img = Image.open(path)
+                img = Image.open(img_path)
                 img.thumbnail((480, 220), Image.LANCZOS)
                 self._plano_img_tk = ImageTk.PhotoImage(img)
                 self._lbl_preview.config(image=self._plano_img_tk, text="", bg="#fafafa")
             except Exception:
-                self._lbl_preview.config(image="", text="No se puede previsualizar", bg="#fafafa")
+                self._lbl_preview.config(image="", text="No se puede previsualizar", bg="#fafafa", fg="#999")
         elif path:
             self._lbl_preview.config(image="", text=Path(path).name, bg="#fafafa", fg="#555")
+            self._plano_img_tk = None
         else:
             self._lbl_preview.config(image="", text="Vista previa del plano", bg="#fafafa", fg="#bbb")
             self._plano_img_tk = None
@@ -2739,12 +2753,18 @@ class FormularioProyecto(tk.Tk):
             try:
                 import json as _json
                 index = _json.loads(idx_path.read_text(encoding="utf-8"))
+                self._planos_previews = getattr(self, "_planos_previews", [])
+                self._planos_previews.clear()
                 for item in index:
                     ruta = PLANTILLAS_DIR / item["archivo"]
                     if ruta.exists():
                         etiqueta = f"[{item['categoria']}] {item['nombre']} — {item['vista']}"
                         self._lb_planos.insert("end", etiqueta)
                         self._planos_locales.append(str(ruta))
+                        # PNG de preview
+                        prev = item.get("preview", "")
+                        prev_path = str(PLANTILLAS_DIR / prev) if prev else ""
+                        self._planos_previews.append(prev_path)
             except Exception:
                 pass
 
@@ -2768,7 +2788,9 @@ class FormularioProyecto(tk.Tk):
         idx = sel[0]
         if hasattr(self, "_planos_locales") and idx < len(self._planos_locales):
             path = self._planos_locales[idx]
-            self._aplicar_plano(path)
+            previews = getattr(self, "_planos_previews", [])
+            prev = previews[idx] if idx < len(previews) else None
+            self._aplicar_plano(path, preview_path=prev)
 
     def _on_plano_usar(self, event=None):
         """Marca el plano seleccionado en lista como plano activo."""
