@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile formulario.py)",
+      "Bash(python -m py_compile generar_proyecto.py)",
+      "Bash(pdftotext C:/Users/ober_/Downloads/Manual_Teórico_sobre_Reformas_de_Vehículos.S.Baselga.pdf -)",
+      "Bash(\"/c/Program Files/PyManager/python.exe\" --version)"
+    ]
+  }
+}
