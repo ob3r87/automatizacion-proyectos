@@ -18,6 +18,22 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+# ── Selector de planos de vehículo (opcional) ─────────────────────────────────
+try:
+    sys.path.insert(0, str(Path(__file__).parent / "scripts"))
+    from vehiculo_blueprints.gui_selector import VehicleBlueprintSelector
+    from vehiculo_blueprints.downloader import DownloadManager
+    _PLANOS_OK = True
+except Exception:
+    _PLANOS_OK = False
+
+# ── PIL para preview de imágenes ──────────────────────────────────────────────
+try:
+    from PIL import Image, ImageTk
+    _PIL_OK = True
+except Exception:
+    _PIL_OK = False
+
 # ── Rutas ────────────────────────────────────────────────────────────────────
 BASE_DIR    = Path(__file__).parent
 SCRIPT_PY   = BASE_DIR / "generar_proyecto.py"
@@ -2272,6 +2288,7 @@ class FormularioProyecto(tk.Tk):
 
         self._tab_expediente()
         self._tab_vehiculo()
+        self._tab_planos()
         self._tab_ficha()
         self._tab_taller()
         self._tab_cfo()
@@ -2532,6 +2549,209 @@ class FormularioProyecto(tk.Tk):
                       ).pack(side="left")
             self.entries[clave_a] = var_a
             self.entries[clave_d] = var_d
+
+    # ── Pestaña Planos ────────────────────────────────────────────────────────
+    def _tab_planos(self):
+        frame, canvas = self._nueva_pestana("  Planos  ")
+
+        # Estado interno: plano seleccionado
+        self._plano_path = None
+        self._plano_img_tk = None
+        self.entries["PLANO_PATH"] = tk.StringVar(value="")
+
+        # ── Sección principal ─────────────────────────────────────────────────
+        frm = tk.LabelFrame(
+            frame, text="  Plano técnico del vehículo  ",
+            bg=BLANCO, fg=AZUL,
+            font=("Segoe UI", 10, "bold"),
+            relief="solid", bd=1, padx=14, pady=10
+        )
+        frm.pack(fill="x", padx=4, pady=(6, 4))
+
+        if not _PLANOS_OK:
+            tk.Label(
+                frm,
+                text="Modulo de planos no disponible.\nInstala las dependencias: pip install requests beautifulsoup4",
+                bg=BLANCO, fg="#c62828",
+                font=("Segoe UI", 9),
+                justify="left"
+            ).pack(anchor="w", pady=8)
+            return
+
+        # ── Botón buscar ──────────────────────────────────────────────────────
+        row_btn = tk.Frame(frm, bg=BLANCO)
+        row_btn.pack(fill="x", pady=(0, 8))
+
+        tk.Button(
+            row_btn,
+            text="  Buscar plano de vehículo...",
+            bg=AZUL, fg="white",
+            font=("Segoe UI", 10, "bold"),
+            relief="flat", cursor="hand2",
+            padx=16, pady=6,
+            command=self._abrir_selector_plano
+        ).pack(side="left")
+
+        tk.Button(
+            row_btn,
+            text="Limpiar",
+            bg="#f5f5f5", fg="#555",
+            font=("Segoe UI", 9),
+            relief="flat", cursor="hand2",
+            padx=10, pady=6,
+            command=self._limpiar_plano
+        ).pack(side="left", padx=(8, 0))
+
+        # ── Info del plano seleccionado ───────────────────────────────────────
+        self._lbl_plano_info = tk.Label(
+            frm,
+            text="Sin plano seleccionado.",
+            bg=BLANCO, fg="#777",
+            font=("Segoe UI", 9),
+            anchor="w", justify="left"
+        )
+        self._lbl_plano_info.pack(fill="x", pady=(0, 8))
+
+        # ── Preview de imagen ─────────────────────────────────────────────────
+        preview_outer = tk.Frame(frm, bg="#e0e0e0", bd=1, relief="solid")
+        preview_outer.pack(fill="both", expand=False, pady=(0, 4))
+
+        self._lbl_preview = tk.Label(
+            preview_outer,
+            text="Vista previa del plano",
+            bg="#fafafa", fg="#bbb",
+            font=("Segoe UI", 9),
+            width=60, height=14,
+            anchor="center"
+        )
+        self._lbl_preview.pack(padx=2, pady=2)
+
+        # ── Planos descargados locales ────────────────────────────────────────
+        frm2 = tk.LabelFrame(
+            frame, text="  Planos descargados  ",
+            bg=BLANCO, fg=AZUL,
+            font=("Segoe UI", 10, "bold"),
+            relief="solid", bd=1, padx=14, pady=8
+        )
+        frm2.pack(fill="both", expand=True, padx=4, pady=(4, 4))
+
+        # Lista con scrollbar
+        list_frame = tk.Frame(frm2, bg=BLANCO)
+        list_frame.pack(fill="both", expand=True)
+
+        sb = ttk.Scrollbar(list_frame, orient="vertical")
+        sb.pack(side="right", fill="y")
+
+        self._lb_planos = tk.Listbox(
+            list_frame,
+            bg=BLANCO, fg="#333",
+            font=("Segoe UI", 9),
+            selectbackground=AZUL, selectforeground="white",
+            relief="flat", bd=0,
+            yscrollcommand=sb.set
+        )
+        self._lb_planos.pack(side="left", fill="both", expand=True)
+        sb.config(command=self._lb_planos.yview)
+
+        self._lb_planos.bind("<<ListboxSelect>>", self._on_plano_lista_select)
+        self._lb_planos.bind("<Double-Button-1>", self._on_plano_usar)
+
+        btn_row2 = tk.Frame(frm2, bg=BLANCO)
+        btn_row2.pack(fill="x", pady=(6, 0))
+        tk.Button(
+            btn_row2, text="Usar seleccionado",
+            bg=AZUL, fg="white",
+            font=("Segoe UI", 9), relief="flat", cursor="hand2",
+            padx=10, pady=4,
+            command=self._on_plano_usar
+        ).pack(side="left")
+        tk.Button(
+            btn_row2, text="Actualizar lista",
+            bg="#f5f5f5", fg="#555",
+            font=("Segoe UI", 9), relief="flat", cursor="hand2",
+            padx=10, pady=4,
+            command=self._cargar_lista_planos
+        ).pack(side="left", padx=(8, 0))
+
+        # Cargar lista inicial
+        self._cargar_lista_planos()
+
+    def _abrir_selector_plano(self):
+        """Abre el diálogo de búsqueda de planos, pre-rellenando marca/modelo."""
+        marca  = self.entries.get("MARCA",  tk.StringVar()).get().strip()
+        modelo = self.entries.get("MODELO", tk.StringVar()).get().strip()
+
+        def _on_select(result, provider, local_path):
+            self._aplicar_plano(local_path, result)
+
+        VehicleBlueprintSelector(
+            self,
+            on_select_callback=_on_select,
+            initial_make=marca,
+            initial_model=modelo,
+        )
+
+    def _aplicar_plano(self, path, result=None):
+        """Actualiza UI con el plano seleccionado."""
+        self._plano_path = path
+        self.entries["PLANO_PATH"].set(str(path) if path else "")
+
+        if result:
+            info = f"Marca: {getattr(result, 'make', '')}  |  Modelo: {getattr(result, 'model', '')}  |  Vista: {getattr(result, 'view_type', '')}"
+            if getattr(result, 'year', None):
+                info += f"  |  Año: {result.year}"
+            self._lbl_plano_info.config(text=info, fg="#1a1a1a")
+        elif path:
+            self._lbl_plano_info.config(text=str(path), fg="#1a1a1a")
+        else:
+            self._lbl_plano_info.config(text="Sin plano seleccionado.", fg="#777")
+
+        # Preview
+        if path and _PIL_OK:
+            try:
+                img = Image.open(path)
+                img.thumbnail((480, 220), Image.LANCZOS)
+                self._plano_img_tk = ImageTk.PhotoImage(img)
+                self._lbl_preview.config(image=self._plano_img_tk, text="", bg="#fafafa")
+            except Exception:
+                self._lbl_preview.config(image="", text="No se puede previsualizar", bg="#fafafa")
+        elif path:
+            self._lbl_preview.config(image="", text=Path(path).name, bg="#fafafa", fg="#555")
+        else:
+            self._lbl_preview.config(image="", text="Vista previa del plano", bg="#fafafa", fg="#bbb")
+            self._plano_img_tk = None
+
+        self._cargar_lista_planos()
+
+    def _limpiar_plano(self):
+        self._aplicar_plano(None)
+
+    def _cargar_lista_planos(self):
+        """Rellena el listbox con los planos descargados localmente."""
+        self._lb_planos.delete(0, "end")
+        try:
+            dm = DownloadManager()
+            locales = dm.get_local_blueprints()
+            self._planos_locales = locales
+            for p in locales:
+                nombre = Path(p).name if isinstance(p, (str, Path)) else str(p)
+                self._lb_planos.insert("end", nombre)
+        except Exception:
+            self._planos_locales = []
+
+    def _on_plano_lista_select(self, event=None):
+        """Preview al seleccionar de la lista."""
+        sel = self._lb_planos.curselection()
+        if not sel:
+            return
+        idx = sel[0]
+        if hasattr(self, "_planos_locales") and idx < len(self._planos_locales):
+            path = self._planos_locales[idx]
+            self._aplicar_plano(path)
+
+    def _on_plano_usar(self, event=None):
+        """Marca el plano seleccionado en lista como plano activo."""
+        self._on_plano_lista_select()
 
     def _tab_ficha(self):
         frame, _ = self._nueva_pestana("  Ficha  ")
