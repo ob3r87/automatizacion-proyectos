@@ -132,6 +132,9 @@
     <a href="{{ url_for('crm.clientes_lista') }}" class="nav-link {% if request.endpoint in ['crm.clientes_lista','crm.cliente_nuevo','crm.cliente_editar'] %}active{% endif %}">
       <i class="bi bi-people"></i> Clientes
     </a>
+    <a href="{{ url_for('crm.planos_lista') }}" class="nav-link {% if request.endpoint in ['crm.planos_lista','crm.oferta_plano'] %}active{% endif %}">
+      <i class="bi bi-rulers"></i> Planos
+    </a>
   </nav>
 
   <div class="nav-section-label">Config</div>

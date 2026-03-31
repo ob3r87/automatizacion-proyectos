@@ -1166,3 +1166,178 @@ def agenda_evento_editar(eid):
 def agenda_evento_eliminar(eid):
     execute("DELETE FROM agenda_eventos WHERE id=?", (eid,))
     return jsonify({"ok": True})
+
+
+# =========================================================================
+# PLANOS TÉCNICOS DE VEHÍCULOS
+# =========================================================================
+
+@crm_bp.route("/ofertas/<int:oid>/plano", methods=["GET", "POST"])
+def oferta_plano(oid):
+    """Formulario y generación de planos técnicos para una oferta."""
+    import sys
+    scripts_dir = str(BASE_DIR.parent / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+
+    oferta = query("SELECT * FROM offers WHERE id = ?", (oid,), one=True)
+    if not oferta:
+        flash("Oferta no encontrada.", "danger")
+        return redirect(url_for("crm.ofertas_lista"))
+
+    # Obtener datos HOV si disponibles
+    hov_data = None
+    if oferta.get("tipo_trabajo") == "HOV":
+        hov_data = query("SELECT * FROM offer_hov_data WHERE offer_id=?",
+                         (oid,), one=True)
+
+    # Obtener datos del cliente
+    client = {}
+    if oferta.get("client_id"):
+        client = query("SELECT * FROM clients WHERE id=?",
+                        (oferta["client_id"],), one=True) or {}
+
+    # PDF settings de empresa
+    pdf_s = get_pdf_settings()
+
+    if request.method == "POST":
+        f = request.form
+
+        # Construir configuración del plano desde el formulario
+        config = {
+            "empresa": {
+                "nombre": f.get("emp_nombre", pdf_s.get("empresa_nombre", "PHICAN INGENIEROS")),
+                "subtitulo": f.get("emp_subtitulo", pdf_s.get("empresa_subtitulo", "ESTUDIO DE INGENIERÍA")),
+                "direccion": f.get("emp_direccion", pdf_s.get("empresa_direccion", "")),
+                "logo_path": f.get("emp_logo", ""),
+            },
+            "proyecto": {
+                "titulo": f.get("proy_titulo", "PROYECTO DE REFORMA DE VEHÍCULO"),
+                "vehiculo": f.get("proy_vehiculo", ""),
+                "matricula": f.get("proy_matricula", ""),
+                "expediente": f.get("proy_expediente", oferta.get("referencia", "")),
+                "fecha": f.get("proy_fecha", _now()[:10]),
+                "escala": f.get("proy_escala", "A4 - S/E"),
+                "unidades": f.get("proy_unidades", "Medidas en mm."),
+            },
+            "personas": {
+                "dibujado": f.get("pers_dibujado", ""),
+                "peticionario": f.get("pers_peticionario", client.get("nombre", "")),
+                "ingeniero": f.get("pers_ingeniero", pdf_s.get("empresa_nombre", "")),
+                "colegiado": f.get("pers_colegiado", ""),
+                "firma_path": "",
+            },
+            "planos": [],
+        }
+
+        # Recoger planos dinámicos
+        i = 0
+        while f.get(f"plano_{i}_contenido") is not None:
+            extras = {}
+            extras_raw = f.get(f"plano_{i}_extras", "").strip()
+            if extras_raw:
+                for part in extras_raw.split(","):
+                    if ":" in part:
+                        k, v = part.split(":", 1)
+                        extras[k.strip()] = v.strip()
+
+            config["planos"].append({
+                "contenido": f.get(f"plano_{i}_contenido", ""),
+                "imagen_path": f.get(f"plano_{i}_imagen", ""),
+                "extras": extras,
+            })
+            i += 1
+
+        # Si no se definieron planos, crear los básicos
+        if not config["planos"]:
+            config["planos"] = [
+                {"contenido": "Antes de la Reforma", "imagen_path": "", "extras": {}},
+                {"contenido": "Después de la Reforma", "imagen_path": "", "extras": {}},
+            ]
+
+        # Generar PDF
+        try:
+            from plano_vehiculo_template import PlanoVehiculoTemplate
+
+            pdf_dir = BASE_DIR / "pdfs"
+            pdf_dir.mkdir(exist_ok=True)
+            ref_safe = oferta["referencia"].replace("/", "-").replace(".", "_")
+            pdf_path = str(pdf_dir / f"plano_{ref_safe}.pdf")
+
+            template = PlanoVehiculoTemplate(config)
+            template.generar(pdf_path)
+
+            return send_file(
+                pdf_path,
+                as_attachment=True,
+                download_name=f"Plano_{oferta['referencia'].replace('/', '-')}.pdf",
+                mimetype="application/pdf",
+            )
+        except Exception as e:
+            flash(f"Error al generar plano: {e}", "danger")
+            return redirect(url_for("crm.oferta_plano", oid=oid))
+
+    # GET: mostrar formulario
+    # Pre-rellenar con datos de la oferta/HOV
+    prefill = {
+        "emp_nombre": pdf_s.get("empresa_nombre", "PHICAN INGENIEROS"),
+        "emp_subtitulo": pdf_s.get("empresa_subtitulo", "ESTUDIO DE INGENIERÍA"),
+        "emp_direccion": pdf_s.get("empresa_direccion", ""),
+        "proy_titulo": "PROYECTO DE REFORMA DE VEHÍCULO",
+        "proy_vehiculo": "",
+        "proy_matricula": "",
+        "proy_expediente": oferta.get("referencia", ""),
+        "proy_fecha": _now()[:10].replace("-", "/"),
+        "pers_peticionario": client.get("nombre", ""),
+        "pers_ingeniero": pdf_s.get("empresa_nombre", ""),
+    }
+
+    if hov_data:
+        marca = hov_data.get("marca", "")
+        modelo = hov_data.get("modelo", "")
+        prefill["proy_vehiculo"] = f"{marca} / {modelo}" if marca else ""
+        prefill["proy_matricula"] = hov_data.get("matricula", "")
+
+    # Marcas del catálogo para el selector
+    marcas_catalogo = []
+    try:
+        from vehiculo_blueprints.providers.carquery import CATALOGO_MARCAS
+        marcas_catalogo = sorted(CATALOGO_MARCAS.keys())
+    except ImportError:
+        pass
+
+    return render_template("crm_plano_form.html",
+                           oferta=oferta, hov_data=hov_data,
+                           prefill=prefill, marcas=marcas_catalogo)
+
+
+@crm_bp.route("/api/vehiculo-modelos/<marca>")
+def api_vehiculo_modelos(marca):
+    """API: devuelve modelos para una marca del catálogo."""
+    try:
+        import sys
+        scripts_dir = str(BASE_DIR.parent / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from vehiculo_blueprints.providers.carquery import CATALOGO_MARCAS
+        modelos = CATALOGO_MARCAS.get(marca.upper(), [])
+        return jsonify(sorted(modelos))
+    except ImportError:
+        return jsonify([])
+
+
+@crm_bp.route("/planos")
+def planos_lista():
+    """Lista de todos los planos generados."""
+    pdf_dir = BASE_DIR / "pdfs"
+    planos = []
+    if pdf_dir.exists():
+        for f in sorted(pdf_dir.glob("plano_*.pdf"), reverse=True):
+            planos.append({
+                "nombre": f.name,
+                "tamaño": f"{f.stat().st_size / 1024:.0f} KB",
+                "fecha": datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m/%Y %H:%M"),
+                "ruta": f.name,
+            })
+
+    return render_template("crm_planos_lista.html", planos=planos)

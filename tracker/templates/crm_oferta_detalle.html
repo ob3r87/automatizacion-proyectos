@@ -20,6 +20,9 @@
     <a href="{{ url_for('crm.oferta_pdf', oid=oferta.id) }}" class="btn btn-outline-danger btn-sm" target="_blank">
       <i class="bi bi-file-pdf"></i> Generar PDF
     </a>
+    <a href="{{ url_for('crm.oferta_plano', oid=oferta.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-rulers"></i> Generar Plano
+    </a>
     <form method="POST" action="{{ url_for('crm.oferta_duplicar', oid=oferta.id) }}" class="d-inline">
       <button type="button" class="btn btn-outline-info btn-sm" onclick="duplicarOferta()">
         <i class="bi bi-files"></i> Duplicar
