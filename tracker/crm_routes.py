@@ -1140,6 +1140,49 @@ def api_abrir_carpeta():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ─── Lanzar formulario desde el CRM ─────────────────────────────────────────
+@crm_bp.route("/api/lanzar-formulario")
+def api_lanzar_formulario():
+    """Lanza formulario.py como proceso independiente, opcionalmente pre-rellenado."""
+    import subprocess, tempfile, json as _json
+    offer_id = request.args.get("offer_id", "").strip()
+
+    formulario_path = str(PROJECT_ROOT / "formulario.py")
+    args = [sys.executable, formulario_path]
+
+    if offer_id:
+        oferta = query(
+            """SELECT o.*, c.nombre as cliente_nombre, c.email as cliente_email,
+                      c.telefono as cliente_telefono
+               FROM offers o LEFT JOIN clients c ON o.client_id = c.id
+               WHERE o.id = ?""",
+            (offer_id,), one=True,
+        )
+        if oferta:
+            prefill = {}
+            if oferta.get("referencia"):
+                prefill["REFERENCIA"] = oferta["referencia"]
+            if oferta.get("cliente_nombre"):
+                prefill["PETICIONARIO_NOMBRE"] = oferta["cliente_nombre"]
+            if prefill:
+                try:
+                    tmp = tempfile.NamedTemporaryFile(
+                        mode="w", suffix=".json", delete=False,
+                        encoding="utf-8", prefix="phican_prefill_",
+                    )
+                    _json.dump(prefill, tmp, ensure_ascii=False)
+                    tmp.close()
+                    args += ["--prefill", tmp.name]
+                except Exception:
+                    pass
+
+    try:
+        subprocess.Popen(args, cwd=str(PROJECT_ROOT))
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # ─── Agenda ────────────────────────────────────────────────────────
 
 @crm_bp.route("/agenda")

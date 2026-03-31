@@ -40,6 +40,57 @@ AZUL    = "#1565c0"
 AZUL_L  = "#e8eef7"
 ROJO    = "#c62828"
 
+# ── Configuración de siluetas de vehículo ────────────────────────────────────
+# (xr, yr) ratios sobre (W, H) del canvas; road_y = 0.88*H, wheel_y = 0.74*H
+_SIL_TIPOS = [
+    ("M1 — Turismo",            "turismo"),
+    ("M1 — SUV / Todo terreno", "suv"),
+    ("M1 — Monovolumen / MPV",  "mono"),
+    ("M2 — Minibús",            "minibus"),
+    ("M3 — Autobús",            "autobus"),
+    ("N1 — Furgoneta",          "furgoneta"),
+    ("N2/N3 — Camión",          "camion"),
+    ("L — Motocicleta",         "moto"),
+]
+# Colores de la silueta
+_SIL_COL = {
+    "body_fill":   "#d6e4f7",
+    "body_out":    "#1565c0",
+    "wheel_fill":  "#37474f",
+    "wheel_out":   "#263238",
+    "win_fill":    "#90caf9",
+    "win_out":     "#1565c0",
+    "seat_fill":   "#ff8f00",
+    "road":        "#bdbdbd",
+    "ground":      "#e0e0e0",
+    "shadow":      "#cfd8dc",
+    "truck_box":   "#b0bec5",
+    "truck_cabin": "#d6e4f7",
+}
+# Posiciones X normalizadas para las cotas (deben coincidir con _sil_* draw fns)
+# bx: (frontal, trasero)  wx: lista de centros de rueda en orden frontal→trasero
+_SIL_DIMS = {
+    "turismo":   {"bx": (0.050, 0.950), "wx": [0.220, 0.780]},
+    "suv":       {"bx": (0.045, 0.955), "wx": [0.215, 0.785]},
+    "mono":      {"bx": (0.040, 0.960), "wx": [0.200, 0.800]},
+    "minibus":   {"bx": (0.040, 0.960), "wx": [0.180, 0.820]},
+    "autobus":   {"bx": (0.025, 0.975), "wx": [0.160, 0.500, 0.840]},
+    "furgoneta": {"bx": (0.038, 0.958), "wx": [0.190, 0.790]},
+    "camion":    {"bx": (0.030, 0.968), "wx": [0.175, 0.740, 0.850]},
+    "moto":      {"bx": (0.240, 0.760), "wx": [0.270, 0.730]},
+}
+# Centro X normalizado de cada fila de pasajeros (coincide con _sil_* draw fns)
+_SIL_SEAT_ROWS = {
+    "turismo":   {1: [0.500],        2: [0.320, 0.620],        3: [0.280, 0.500, 0.700]},
+    "suv":       {1: [0.500],        2: [0.310, 0.630],        3: [0.270, 0.500, 0.710]},
+    "mono":      {1: [0.370],        2: [0.300, 0.580],        3: [0.260, 0.480, 0.680]},
+    "minibus":   {1: [0.300],        2: [0.300, 0.620],        3: [0.220, 0.460, 0.620]},
+    "autobus":   {1: [0.310],        2: [0.310, 0.710],        3: [0.220, 0.460, 0.710]},
+    "furgoneta": {1: [0.200],        2: [0.200, 0.650],        3: [0.180, 0.500, 0.750]},
+    "camion":    {1: [0.175],        2: [0.155, 0.240],        3: [0.140, 0.195, 0.250]},
+    "moto":      {1: [0.500],        2: [0.420, 0.580],        3: [0.380, 0.500, 0.620]},
+}
+
 # ── Meses en español ─────────────────────────────────────────────────────────
 MESES_ES = {
     1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
@@ -2241,6 +2292,14 @@ class FormularioProyecto(tk.Tk):
         # Cabecera
         header = tk.Frame(self, bg=AZUL, pady=14)
         header.pack(fill="x")
+        # Botón configuración — esquina superior derecha (pack ANTES de los labels fill="x")
+        tk.Button(
+            header,
+            text=" ⚙ ",
+            bg=AZUL, fg=BLANCO, activebackground="#0d47a1", activeforeground=BLANCO,
+            font=("Segoe UI", 12), relief="flat", bd=0, padx=10, pady=2,
+            cursor="hand2", command=self._abrir_ventana_configuracion
+        ).pack(side="right", padx=(0, 12))
         tk.Label(
             header,
             text="  GENERADOR DE PROYECTOS DE REFORMA DE VEHICULO",
@@ -2272,11 +2331,10 @@ class FormularioProyecto(tk.Tk):
 
         self._tab_expediente()
         self._tab_vehiculo()
-        self._tab_ficha()
-        self._tab_taller()
-        self._tab_cfo()
         self._tab_reforma()
-        self._tab_configuracion()
+        self._tab_calculos()
+        self._tab_cfo()
+        self._tab_taller()
 
         self.estado_var = tk.StringVar(value="")
         self.lbl_estado = tk.Label(
@@ -2441,8 +2499,9 @@ class FormularioProyecto(tk.Tk):
 
     # ── Pestaña 2: Categoría del vehículo ─────────────────────────────────────
     def _tab_vehiculo(self):
-        frame, canvas = self._nueva_pestana("  Vehiculo  ")
+        frame, canvas = self._nueva_pestana("  Vehículo  ")
         self._seccion_categoria(frame)
+        self._seccion_ficha(frame)
 
     def _seccion_categoria(self, parent):
         """Sección de categoría del vehículo con campos de la ficha técnica."""
@@ -2532,9 +2591,7 @@ class FormularioProyecto(tk.Tk):
                       ).pack(side="left")
             self.entries[clave_a] = var_a
             self.entries[clave_d] = var_d
-    def _tab_ficha(self):
-        frame, _ = self._nueva_pestana("  Ficha  ")
-
+    def _seccion_ficha(self, frame):
         tk.Label(frame,
                  text="Ficha Reducida de Características — dejar en blanco los campos que no apliquen",
                  bg=GRIS_BG, fg="#888", font=("Segoe UI", 8, "italic")
@@ -2954,9 +3011,60 @@ class FormularioProyecto(tk.Tk):
         ]
 
     # ── Pestaña Configuración ─────────────────────────────────────────────────
-    def _tab_configuracion(self):
+    def _abrir_ventana_configuracion(self):
+        """Abre la configuración como ventana flotante independiente."""
+        # Si ya está abierta, la trae al frente
+        if hasattr(self, '_win_config') and self._win_config.winfo_exists():
+            self._win_config.lift()
+            self._win_config.focus_set()
+            return
+
+        win = tk.Toplevel(self)
+        self._win_config = win
+        win.title("Configuración — Phican Ingenieros")
+        win.configure(bg=GRIS_BG)
+        win.resizable(True, True)
+        win.minsize(700, 500)
+
+        # Centrar en pantalla
+        self.update_idletasks()
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w, h = 780, 640
+        win.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+        # Cabecera azul
+        hdr = tk.Frame(win, bg=AZUL, pady=10)
+        hdr.pack(fill="x")
+        tk.Label(
+            hdr, text="  ⚙   Configuración",
+            bg=AZUL, fg=BLANCO, font=("Segoe UI", 13, "bold"), anchor="w"
+        ).pack(fill="x", padx=16)
+
+        # Área scrollable
+        outer = tk.Frame(win, bg=GRIS_BG)
+        outer.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(outer, bg=GRIS_BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        vsb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = tk.Frame(canvas, bg=GRIS_BG)
+        wid = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        inner.bind("<Configure>",
+                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",
+                    lambda e: canvas.itemconfig(wid, width=e.width))
+        canvas.bind("<Enter>", lambda e: canvas.bind_all(
+            "<MouseWheel>", lambda ev: canvas.yview_scroll(int(-1*(ev.delta/120)), "units")))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+
+        self._build_config_content(inner)
+
+    def _build_config_content(self, frame):
         from tkinter import filedialog
-        frame, canvas = self._nueva_pestana("  Configuración  ")
 
         # ── Ruta de guardado ─────────────────────────────────────────────────
         frm_ruta = tk.LabelFrame(
@@ -3245,11 +3353,934 @@ class FormularioProyecto(tk.Tk):
     def _tab_reforma(self):
         frame, canvas = self._nueva_pestana("  Reforma  ")
         self._seccion_reformas(frame)
+
+    def _tab_calculos(self):
+        frame, canvas = self._nueva_pestana("  Cálculos  ")
+        self._seccion_silueta_vehiculo(frame)
         self._seccion_calculos(frame)
+        # Crear un bloque por cada item de reforma individual ya existente
+        for fila in self._reforma_rows:
+            for item in fila.get("reforma_items", []):
+                self._add_calc_bloque()
+                item["calc_bloque"] = self._calc_bloques[-1]
+        self._actualizar_combos_reforma()
+        for fila in self._reforma_rows:
+            for item in fila.get("reforma_items", []):
+                self._sincronizar_calc_item(fila, item)
+
+    # ── Sección de silueta de vehículo ───────────────────────────────────────
+    def _seccion_silueta_vehiculo(self, parent):
+        """Sección visual con silueta lateral configurable del vehículo."""
+        frm = tk.LabelFrame(
+            parent,
+            text="  Representación del vehículo  ",
+            bg=BLANCO, fg=AZUL,
+            font=("Segoe UI", 10, "bold"),
+            relief="solid", bd=1, padx=10, pady=8,
+        )
+        frm.pack(fill="x", padx=4, pady=(6, 6))
+
+        content = tk.Frame(frm, bg=BLANCO)
+        content.pack(fill="x")
+
+        # ── Canvas de silueta + cotas (apilados verticalmente) ───────────
+        sil_frame = tk.Frame(content, bg=BLANCO)
+        sil_frame.pack(side="left", padx=(0, 14), pady=4)
+
+        self._sil_canvas = tk.Canvas(
+            sil_frame, width=540, height=210,
+            bg="#f0f4f8", highlightthickness=1,
+            highlightbackground="#b0bec5",
+        )
+        self._sil_canvas.pack()
+
+        # Canvas de barra de filas (entre silueta y cotas)
+        self._sil_row_canvas = tk.Canvas(
+            sil_frame, width=540, height=52,
+            bg="#fafafa", highlightthickness=1,
+            highlightbackground="#b0bec5",
+        )
+        self._sil_row_canvas.pack(pady=(2, 0))
+        self._sil_row_canvas.bind("<ButtonPress-1>",   self._sil_drag_start)
+        self._sil_row_canvas.bind("<B1-Motion>",       self._sil_drag_move)
+        self._sil_row_canvas.bind("<ButtonRelease-1>", self._sil_drag_end)
+        self._sil_row_canvas.config(cursor="sb_h_double_arrow")
+
+        # Canvas de cotas (debajo de la silueta, mismo ancho)
+        self._sil_dim_canvas = tk.Canvas(
+            sil_frame, width=540, height=82,
+            bg="#ffffff", highlightthickness=1,
+            highlightbackground="#b0bec5",
+        )
+        self._sil_dim_canvas.pack(pady=(2, 0))
+
+        # ── Panel de opciones (derecha) ───────────────────────────────────
+        opts = tk.Frame(content, bg=BLANCO)
+        opts.pack(side="left", fill="y", anchor="n", pady=4)
+
+        # Tipo de vehículo
+        tk.Label(opts, text="Tipo de vehículo:", bg=BLANCO, fg="#333",
+                 font=("Segoe UI", 8, "bold")).pack(anchor="w")
+
+        self._sil_tipo_var = tk.StringVar(value=_SIL_TIPOS[0][0])
+        for etiq, _ in _SIL_TIPOS:
+            tk.Radiobutton(
+                opts, text=etiq, variable=self._sil_tipo_var, value=etiq,
+                bg=BLANCO, activebackground=BLANCO, fg="#333",
+                font=("Segoe UI", 8), command=self._actualizar_silueta,
+            ).pack(anchor="w")
+
+        ttk.Separator(opts, orient="horizontal").pack(fill="x", pady=(8, 6))
+
+        # Filas de pasajeros
+        tk.Label(opts, text="Filas de pasajeros:", bg=BLANCO, fg="#333",
+                 font=("Segoe UI", 8, "bold")).pack(anchor="w")
+
+        self._sil_filas_var = tk.IntVar(value=2)
+        for n, txt in [(1, "1 fila"), (2, "2 filas"), (3, "3 filas")]:
+            tk.Radiobutton(
+                opts, text=txt, variable=self._sil_filas_var, value=n,
+                bg=BLANCO, activebackground=BLANCO, fg="#333",
+                font=("Segoe UI", 8), command=self._actualizar_silueta,
+            ).pack(anchor="w")
+
+        # ── Fila de datos dimensionales (debajo del canvas + opts) ───────
+        self._sil_longitud_var   = tk.StringVar()
+        self._sil_voladizo_var   = tk.StringVar()
+        self._sil_dist_ejes_var  = tk.StringVar()
+        self._sil_asientos_vars  = []       # se rellena en _seccion_datos_vehiculo
+        self._sil_asientos_frame = None     # Frame contenedor para reconstruirlo
+        self._sil_row_xnorm      = []       # posiciones normalizadas (0-1) de cada fila
+        self._sil_drag_idx       = None     # índice de la flecha arrastrada
+        self._sil_last_tipo      = None     # para detectar cambios de tipo/filas
+        self._sil_last_filas     = None
+
+        datos_frm = tk.Frame(frm, bg=BLANCO)
+        datos_frm.pack(fill="x", pady=(8, 2))
+        self._seccion_datos_vehiculo(datos_frm)
+
+        # Dibujo inicial
+        frm.after(50, self._actualizar_silueta)
+
+    def _actualizar_silueta(self, *_):
+        """Redibuja la silueta según las opciones actuales."""
+        etiq  = self._sil_tipo_var.get()
+        clave = next((k for l, k in _SIL_TIPOS if l == etiq), "turismo")
+        filas = self._sil_filas_var.get()
+        # Resetear posiciones de filas sólo cuando cambia tipo o nº de filas
+        if clave != self._sil_last_tipo or filas != self._sil_last_filas:
+            self._reset_row_positions(clave, filas)
+            self._sil_last_tipo  = clave
+            self._sil_last_filas = filas
+        self._dibujar_silueta(self._sil_canvas, clave, filas)
+        # Reconstruir campos de asientos por fila
+        self._rebuild_sil_asientos(filas)
+
+    # ── Posiciones de filas (drag & drop) ────────────────────────────────────
+
+    def _reset_row_positions(self, tipo, filas):
+        """Reinicia las posiciones de filas a los valores por defecto del tipo."""
+        rows_xr = _SIL_SEAT_ROWS.get(tipo, _SIL_SEAT_ROWS["turismo"])
+        posns   = rows_xr.get(filas, rows_xr.get(2, [0.5]))
+        self._sil_row_xnorm = list(posns)
+
+    def _sil_drag_start(self, event):
+        """Detecta la flecha más cercana al click y la marca para arrastrar."""
+        if not self._sil_row_xnorm:
+            return
+        cv  = self._sil_row_canvas
+        Wd  = cv.winfo_width() or 540
+        tipo = next((k for l, k in _SIL_TIPOS
+                     if l == self._sil_tipo_var.get()), "turismo")
+        dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
+        bx0  = Wd * dims["bx"][0]
+        bx1  = Wd * dims["bx"][1]
+        # Coordenadas de píxel de cada flecha
+        xs   = [bx0 + (bx1 - bx0) * xn for xn in self._sil_row_xnorm]
+        # Encontrar la más cercana dentro de un radio de 20 px
+        dists = [abs(event.x - x) for x in xs]
+        min_d = min(dists)
+        if min_d <= 20:
+            self._sil_drag_idx = dists.index(min_d)
+            cv.config(cursor="fleur")
+
+    def _sil_drag_move(self, event):
+        """Mueve la flecha arrastrada y redibuja."""
+        if self._sil_drag_idx is None:
+            return
+        cv   = self._sil_row_canvas
+        Wd   = cv.winfo_width() or 540
+        tipo = next((k for l, k in _SIL_TIPOS
+                     if l == self._sil_tipo_var.get()), "turismo")
+        dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
+        bx0  = dims["bx"][0]
+        bx1  = dims["bx"][1]
+        # Calcular nueva posición normalizada, restringida al cuerpo del vehículo
+        new_xn = max(bx0 + 0.01, min(bx1 - 0.01, event.x / Wd))
+        self._sil_row_xnorm[self._sil_drag_idx] = new_xn
+        filas = self._sil_filas_var.get()
+        # Redibujar barra de filas
+        self._sil_draw_row_bar(cv, Wd, tipo, filas)
+        # Redibujar silueta (asientos sincronizados)
+        if hasattr(self, "_sil_canvas"):
+            self._dibujar_silueta(self._sil_canvas, tipo, filas)
+
+    def _sil_drag_end(self, event):
+        """Finaliza el arrastre."""
+        self._sil_drag_idx = None
+        if hasattr(self, "_sil_row_canvas"):
+            self._sil_row_canvas.config(cursor="sb_h_double_arrow")
+
+    # ── Datos dimensionales del vehículo ─────────────────────────────────────
+
+    def _seccion_datos_vehiculo(self, parent):
+        """Crea la fila de campos de datos dimensionales bajo la silueta."""
+
+        # Helper: crea un grupo Label + Entry enlazado a campos de ficha
+        def _linked_group(master, col, label_text, local_var, ficha_keys):
+            """
+            Crea Label + Entry en `master` (columna `col`).
+            Si alguno de los campos de ficha (ficha_keys) tiene valor → Entry readonly.
+            Si todos están vacíos → Entry editable (local_var).
+            """
+            grp = tk.Frame(master, bg=BLANCO)
+            grp.grid(row=0, column=col, padx=(0, 16), sticky="w")
+
+            tk.Label(grp, text=label_text, bg=BLANCO, fg="#555",
+                     font=("Segoe UI", 8, "bold")).pack(anchor="w")
+
+            ent = ttk.Entry(grp, textvariable=local_var, width=14)
+            ent.pack(anchor="w")
+
+            hint = tk.Label(grp, text="", bg=BLANCO, fg="#888",
+                            font=("Segoe UI", 7))
+            hint.pack(anchor="w")
+
+            def _refresh_state(*_):
+                for key in ficha_keys:
+                    sv = self.entries.get(key)
+                    if sv:
+                        val = sv.get().strip()
+                        if val:
+                            local_var.set(val)
+                            ent.config(state="readonly")
+                            hint.config(text="(tomado de ficha)")
+                            return
+                ent.config(state="normal")
+                hint.config(text="(editable)")
+
+            # Trazar cada campo de ficha para reaccionar a cambios
+            for key in ficha_keys:
+                sv = self.entries.get(key)
+                if sv:
+                    sv.trace_add("write", _refresh_state)
+
+            # Estado inicial
+            _refresh_state()
+
+            # Redibujar dimensiones al cambiar valor local
+            local_var.trace_add(
+                "write",
+                lambda *_: (
+                    self._sil_dimensiones(self._sil_dim_canvas,
+                                         self._sil_dim_canvas.winfo_width() or 540,
+                                         next((k for l, k in _SIL_TIPOS
+                                               if l == self._sil_tipo_var.get()), "turismo"))
+                    if hasattr(self, "_sil_dim_canvas") else None
+                )
+            )
+
+        # ── Contenedor con grid de columnas ──────────────────────────────
+        row_frm = tk.Frame(parent, bg=BLANCO)
+        row_frm.pack(fill="x")
+
+        _linked_group(row_frm, 0, "Longitud total (mm)",
+                      self._sil_longitud_var,
+                      ["LONGITUD_VEH_POST", "LONGITUD_VEH"])
+
+        _linked_group(row_frm, 1, "Voladizo trasero (mm)",
+                      self._sil_voladizo_var,
+                      ["VOLADIZO_TRA_DESP_MM", "VOLADIZO_TRA_ANTES_MM"])
+
+        _linked_group(row_frm, 2, "Distancia entre ejes (mm)",
+                      self._sil_dist_ejes_var,
+                      ["DISTANCIA_EJES_POST", "DISTANCIA_EJES"])
+
+        # Contenedor de asientos por fila (reconstruible)
+        self._sil_asientos_frame = tk.Frame(row_frm, bg=BLANCO)
+        self._sil_asientos_frame.grid(row=0, column=3, padx=(0, 0), sticky="w")
+
+        tk.Label(self._sil_asientos_frame, text="Asientos por fila",
+                 bg=BLANCO, fg="#555",
+                 font=("Segoe UI", 8, "bold")).pack(anchor="w")
+
+        self._sil_asientos_inner = tk.Frame(self._sil_asientos_frame, bg=BLANCO)
+        self._sil_asientos_inner.pack(anchor="w")
+
+        # Construir con el valor inicial de filas
+        self._rebuild_sil_asientos(self._sil_filas_var.get())
+
+    def _rebuild_sil_asientos(self, filas):
+        """Reconstruye las entradas de asientos por fila según el número de filas."""
+        if not hasattr(self, "_sil_asientos_inner"):
+            return
+        inner = self._sil_asientos_inner
+        for w in inner.winfo_children():
+            w.destroy()
+
+        # Ajustar lista de StringVars: conservar existentes, añadir nuevas
+        while len(self._sil_asientos_vars) < filas:
+            self._sil_asientos_vars.append(tk.StringVar(value=""))
+        # No eliminar los de más (guardan valores si se baja y sube el nº de filas)
+
+        COLORES_FILA = ["#1565c0", "#c62828", "#2e7d32"]
+        for i in range(filas):
+            col_frm = tk.Frame(inner, bg=BLANCO)
+            col_frm.pack(side="left", padx=(0, 6))
+            color = COLORES_FILA[i % len(COLORES_FILA)]
+            tk.Label(col_frm, text=f"F{i + 1}:", bg=BLANCO, fg=color,
+                     font=("Segoe UI", 8, "bold")).pack(side="left")
+            ttk.Entry(col_frm, textvariable=self._sil_asientos_vars[i],
+                      width=3).pack(side="left")
+
+    def _dibujar_silueta(self, cv, tipo, filas):
+        """Dibuja la silueta lateral del vehículo sobre el canvas."""
+        # Garantizar que las posiciones de filas estén inicializadas
+        if not self._sil_row_xnorm or len(self._sil_row_xnorm) != filas:
+            self._reset_row_positions(tipo, filas)
+
+        cv.delete("all")
+        W = cv.winfo_width()  or 540
+        H = cv.winfo_height() or 210
+        C = _SIL_COL
+
+        # Fondo degradado simulado
+        cv.create_rectangle(0, 0, W, H, fill="#f0f4f8", outline="")
+
+        # Suelo / sombra
+        road_y = int(H * 0.88)
+        cv.create_line(10, road_y + 4, W - 10, road_y + 4,
+                       fill=C["shadow"], width=6)
+        cv.create_line(10, road_y, W - 10, road_y,
+                       fill=C["road"], width=2)
+
+        # Dispatch por tipo
+        draw = {
+            "turismo":   self._sil_turismo,
+            "suv":       self._sil_suv,
+            "mono":      self._sil_mono,
+            "minibus":   self._sil_minibus,
+            "autobus":   self._sil_autobus,
+            "furgoneta": self._sil_furgoneta,
+            "camion":    self._sil_camion,
+            "moto":      self._sil_moto,
+        }.get(tipo, self._sil_turismo)
+        draw(cv, W, H, road_y, filas)
+
+        # Dibujar barra de filas de pasajeros
+        if hasattr(self, "_sil_row_canvas"):
+            self._sil_draw_row_bar(self._sil_row_canvas, W, tipo, filas)
+
+        # Dibujar barra de cotas en el canvas inferior
+        if hasattr(self, "_sil_dim_canvas"):
+            self._sil_dimensiones(self._sil_dim_canvas, W, tipo)
+
+    # ── helpers de dibujo ────────────────────────────────────────────────────
+
+    def _sil_rueda(self, cv, cx, cy, r):
+        C = _SIL_COL
+        cv.create_oval(cx - r, cy - r, cx + r, cy + r,
+                       fill=C["wheel_fill"], outline=C["wheel_out"], width=2)
+        cv.create_oval(cx - r * 0.45, cy - r * 0.45,
+                       cx + r * 0.45, cy + r * 0.45,
+                       fill="#607d8b", outline=C["wheel_out"], width=1)
+
+    def _sil_poly(self, cv, pts, fill, outline, width=2):
+        flat = [v for p in pts for v in p]
+        cv.create_polygon(flat, fill=fill, outline=outline,
+                          width=width, smooth=False)
+
+    def _sil_ventana(self, cv, pts):
+        flat = [v for p in pts for v in p]
+        cv.create_polygon(flat, fill=_SIL_COL["win_fill"],
+                          outline=_SIL_COL["win_out"], width=1)
+
+    def _sil_asiento(self, cv, cx, cy, w=14, h=18):
+        """Dibuja un icono de asiento (rectángulo + respaldo)."""
+        # Base
+        cv.create_rectangle(cx - w // 2, cy,
+                             cx + w // 2, cy + h * 0.55,
+                             fill=_SIL_COL["seat_fill"], outline="", width=0)
+        # Respaldo
+        cv.create_rectangle(cx - w // 2, cy - h * 0.55,
+                             cx + w // 2, cy,
+                             fill=_SIL_COL["seat_fill"], outline="", width=0)
+
+    def _sil_fila(self, cv, xs, cy, w=13, h=16):
+        """Dibuja una fila de asientos en posiciones x dadas."""
+        for x in xs:
+            self._sil_asiento(cv, int(x), int(cy), w, h)
+
+    # ── Barra de filas de pasajeros ──────────────────────────────────────────
+
+    def _sil_draw_row_bar(self, cv, W, tipo, filas):
+        """Barra horizontal con una flecha por cada fila de pasajeros (arrastrables)."""
+        cv.delete("all")
+        Wd = cv.winfo_width()  or W
+        H  = cv.winfo_height() or 52
+
+        cv.create_rectangle(0, 0, Wd, H, fill="#fafafa", outline="")
+
+        dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
+        bx0  = int(Wd * dims["bx"][0])
+        bx1  = int(Wd * dims["bx"][1])
+
+        # Usar posiciones actuales (ya en _sil_row_xnorm, normalizadas 0-1)
+        posns = self._sil_row_xnorm if self._sil_row_xnorm else [0.5]
+
+        # Convertir xnorm (0-1 del canvas) a píxel
+        def xnorm_to_px(xn):
+            return int(Wd * xn)
+
+        # ── Barra del vehículo ────────────────────────────────────────────
+        bar_y  = int(H * 0.72)
+        bar_h  = 8
+        cv.create_rectangle(bx0, bar_y, bx1, bar_y + bar_h,
+                            fill="#cfd8dc", outline="")
+        cv.create_rectangle(bx0, bar_y, bx1, bar_y + 3,
+                            fill="#b0bec5", outline="")
+        cv.create_rectangle(bx0, bar_y, bx1, bar_y + bar_h,
+                            fill="", outline="#78909c", width=1)
+        for bx in (bx0, bx1):
+            cv.create_rectangle(bx - 2, bar_y - 2,
+                                bx + 2, bar_y + bar_h + 2,
+                                fill="#78909c", outline="")
+
+        # ── Flechas arrastrables por fila ─────────────────────────────────
+        COLORES = ["#1565c0", "#c62828", "#2e7d32",
+                   "#6a1b9a", "#e65100", "#00695c"]
+        tip_y = bar_y - 1
+        sz    = 8
+
+        for i, xn in enumerate(posns):
+            x   = xnorm_to_px(xn)
+            col = COLORES[i % len(COLORES)]
+
+            # Línea vertical
+            cv.create_line(x, 6, x, bar_y, fill=col, width=2)
+
+            # Punta de flecha ▼ (relleno + borde resaltado si arrastrando)
+            outline_col = "#ffffff" if self._sil_drag_idx != i else "#ffeb3b"
+            cv.create_polygon(
+                x,      tip_y,
+                x - sz, tip_y - sz * 2,
+                x + sz, tip_y - sz * 2,
+                fill=col, outline=outline_col, width=1,
+            )
+
+            # Etiqueta
+            lbl_y = tip_y - sz * 2 - 3
+            cv.create_text(x, lbl_y, text=f"Fila {i + 1}",
+                           fill=col, font=("Segoe UI", 7, "bold"),
+                           anchor="s")
+
+    # ── Barra de cotas ───────────────────────────────────────────────────────
+
+    def _sil_dimensiones(self, cv, W, tipo):
+        """Dibuja las cotas de longitud total, distancia entre ejes y posición de ruedas."""
+        cv.delete("all")
+        Wd = cv.winfo_width()  or W
+        H  = cv.winfo_height() or 82
+
+        cv.create_rectangle(0, 0, Wd, H, fill="#ffffff", outline="")
+
+        dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
+        bx0  = int(Wd * dims["bx"][0])
+        bx1  = int(Wd * dims["bx"][1])
+        wxs  = [int(Wd * r) for r in dims["wx"]]
+
+        # Leer valores reales desde los entries de la ficha técnica;
+        # si no hay valor en ficha, se toma el valor del campo local de silueta
+        def _entry_val(*claves):
+            for c in claves:
+                v = self.entries.get(c)
+                if v:
+                    t = v.get().strip()
+                    if t:
+                        return t
+            return ""
+
+        long_val = _entry_val("LONGITUD_VEH_POST", "LONGITUD_VEH")
+        if not long_val and hasattr(self, "_sil_longitud_var"):
+            long_val = self._sil_longitud_var.get().strip()
+
+        dist_val = _entry_val("DISTANCIA_EJES_POST", "DISTANCIA_EJES")
+        if not dist_val and hasattr(self, "_sil_dist_ejes_var"):
+            dist_val = self._sil_dist_ejes_var.get().strip()
+
+        # ── Colores ──────────────────────────────────────────────────────────
+        COT_LONG  = "#c62828"   # rojo  → longitud total
+        COT_EJES  = "#1565c0"   # azul  → distancia entre ejes
+        COT_RUE   = "#37474f"   # gris  → posición ruedas
+        TICK_DASH  = (4, 3)
+
+        def flecha(x0, y, x1, col, lbl, y_lbl=None, sz=6):
+            """Línea de cota con flechas en los extremos y etiqueta centrada."""
+            if x1 <= x0 + 4:
+                return
+            # Línea principal
+            cv.create_line(x0, y, x1, y, fill=col, width=1)
+            # Flecha izquierda
+            cv.create_polygon(x0, y, x0 + sz, y - sz // 2, x0 + sz, y + sz // 2,
+                               fill=col, outline="")
+            # Flecha derecha
+            cv.create_polygon(x1, y, x1 - sz, y - sz // 2, x1 - sz, y + sz // 2,
+                               fill=col, outline="")
+            # Etiqueta
+            mid = (x0 + x1) // 2
+            yy  = y_lbl if y_lbl is not None else y - 7
+            cv.create_text(mid, yy, text=lbl, fill=col,
+                           font=("Segoe UI", 7, "bold"), anchor="s")
+
+        def tick_v(x, y0, y1, col=COT_RUE):
+            """Línea vertical punteada (proyección de rueda)."""
+            cv.create_line(x, y0, x, y1, fill=col, width=1, dash=TICK_DASH)
+
+        def tick_h(x, y, col=COT_RUE, h=6):
+            """Pequeña marca horizontal en el extremo de cota."""
+            cv.create_line(x, y - h, x, y + h, fill=col, width=1)
+
+        # ── Layout de Y ──────────────────────────────────────────────────────
+        # top padding
+        y_top   = 6
+        y_rue   = y_top + 12   # cota de posición de ruedas (entre sí)
+        y_ejes  = y_rue  + 22  # cota distancia entre ejes (primero y último)
+        y_long  = y_ejes + 22  # cota longitud total
+
+        # ── Líneas auxiliares verticales desde cada rueda ─────────────────
+        for wx in wxs:
+            tick_v(wx, y_top, y_long + 6, COT_RUE)
+        # Extremos del vehículo
+        tick_v(bx0, y_long - 8, y_long + 6, COT_LONG)
+        tick_v(bx1, y_long - 8, y_long + 6, COT_LONG)
+
+        # ── Marcas horizontales en el nivel de cada cota ─────────────────
+        for wx in wxs:
+            tick_h(wx, y_rue,  COT_RUE)
+            tick_h(wx, y_ejes, COT_EJES)
+        tick_h(bx0, y_long, COT_LONG)
+        tick_h(bx1, y_long, COT_LONG)
+
+        # ── Cota: posición de cada rueda entre sí (segmentos) ────────────
+        for i in range(len(wxs) - 1):
+            lbl = f"Eje {i + 1}→{i + 2}"
+            flecha(wxs[i], y_rue, wxs[i + 1], COT_RUE, lbl, sz=5)
+
+        # ── Cota: distancia entre ejes (primero→último) ─────────────────
+        if len(wxs) >= 2:
+            if dist_val:
+                lbl_eje = f"Dist. ejes: {dist_val} mm"
+            else:
+                lbl_eje = "Distancia entre ejes"
+            flecha(wxs[0], y_ejes, wxs[-1], COT_EJES, lbl_eje)
+
+        # ── Cota: longitud total del vehículo ────────────────────────────
+        if long_val:
+            lbl_long = f"Longitud total: {long_val} mm"
+        else:
+            lbl_long = "Longitud total"
+        flecha(bx0, y_long, bx1, COT_LONG, lbl_long)
+
+    # ── Perfiles ─────────────────────────────────────────────────────────────
+
+    def _sil_turismo(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.128)
+        wcy = road_y - wr
+        wx1 = int(W * 0.220)
+        wx2 = int(W * 0.780)
+
+        body = [
+            (int(W * 0.050), int(H * 0.740)),
+            (int(W * 0.065), int(H * 0.630)),
+            (int(W * 0.100), int(H * 0.565)),
+            (int(W * 0.175), int(H * 0.520)),
+            (int(W * 0.255), int(H * 0.390)),
+            (int(W * 0.320), int(H * 0.325)),
+            (int(W * 0.360), int(H * 0.305)),
+            (int(W * 0.640), int(H * 0.305)),
+            (int(W * 0.680), int(H * 0.325)),
+            (int(W * 0.745), int(H * 0.390)),
+            (int(W * 0.825), int(H * 0.520)),
+            (int(W * 0.900), int(H * 0.565)),
+            (int(W * 0.935), int(H * 0.630)),
+            (int(W * 0.950), int(H * 0.740)),
+        ]
+        self._sil_poly(cv, body, C["body_fill"], C["body_out"])
+
+        # Ventanas
+        self._sil_ventana(cv, [
+            (int(W * 0.263), int(H * 0.400)),
+            (int(W * 0.328), int(H * 0.330)),
+            (int(W * 0.490), int(H * 0.310)),
+            (int(W * 0.490), int(H * 0.420)),
+        ])
+        self._sil_ventana(cv, [
+            (int(W * 0.510), int(H * 0.310)),
+            (int(W * 0.672), int(H * 0.330)),
+            (int(W * 0.737), int(H * 0.400)),
+            (int(W * 0.510), int(H * 0.420)),
+        ])
+
+        self._sil_rueda(cv, wx1, wcy, wr)
+        self._sil_rueda(cv, wx2, wcy, wr)
+
+        # Asientos — posiciones tomadas de _sil_row_xnorm (arrastrables)
+        seat_y = int(H * 0.620)
+        for xn in self._sil_row_xnorm:
+            self._sil_fila(cv, [int(W * xn)], seat_y)
+
+    def _sil_suv(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.145)
+        wcy = road_y - wr
+        wx1 = int(W * 0.215)
+        wx2 = int(W * 0.785)
+
+        body = [
+            (int(W * 0.045), int(H * 0.740)),
+            (int(W * 0.055), int(H * 0.600)),
+            (int(W * 0.090), int(H * 0.530)),
+            (int(W * 0.155), int(H * 0.480)),
+            (int(W * 0.225), int(H * 0.360)),
+            (int(W * 0.285), int(H * 0.290)),
+            (int(W * 0.330), int(H * 0.270)),
+            (int(W * 0.670), int(H * 0.270)),
+            (int(W * 0.715), int(H * 0.290)),
+            (int(W * 0.775), int(H * 0.360)),
+            (int(W * 0.845), int(H * 0.480)),
+            (int(W * 0.910), int(H * 0.530)),
+            (int(W * 0.945), int(H * 0.600)),
+            (int(W * 0.955), int(H * 0.740)),
+        ]
+        self._sil_poly(cv, body, C["body_fill"], C["body_out"])
+
+        self._sil_ventana(cv, [
+            (int(W * 0.232), int(H * 0.370)),
+            (int(W * 0.292), int(H * 0.295)),
+            (int(W * 0.490), int(H * 0.278)),
+            (int(W * 0.490), int(H * 0.400)),
+        ])
+        self._sil_ventana(cv, [
+            (int(W * 0.510), int(H * 0.278)),
+            (int(W * 0.708), int(H * 0.295)),
+            (int(W * 0.768), int(H * 0.370)),
+            (int(W * 0.510), int(H * 0.400)),
+        ])
+
+        self._sil_rueda(cv, wx1, wcy, wr)
+        self._sil_rueda(cv, wx2, wcy, wr)
+
+        seat_y = int(H * 0.600)
+        for xn in self._sil_row_xnorm:
+            self._sil_fila(cv, [int(W * xn)], seat_y)
+
+    def _sil_mono(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.128)
+        wcy = road_y - wr
+        wx1 = int(W * 0.200)
+        wx2 = int(W * 0.800)
+
+        body = [
+            (int(W * 0.040), int(H * 0.740)),
+            (int(W * 0.050), int(H * 0.580)),
+            (int(W * 0.080), int(H * 0.480)),
+            (int(W * 0.140), int(H * 0.380)),
+            (int(W * 0.200), int(H * 0.285)),
+            (int(W * 0.250), int(H * 0.265)),
+            (int(W * 0.760), int(H * 0.265)),
+            (int(W * 0.820), int(H * 0.290)),
+            (int(W * 0.870), int(H * 0.380)),
+            (int(W * 0.920), int(H * 0.500)),
+            (int(W * 0.950), int(H * 0.600)),
+            (int(W * 0.960), int(H * 0.740)),
+        ]
+        self._sil_poly(cv, body, C["body_fill"], C["body_out"])
+
+        # 3 ventanas MPV
+        xs_win = [(0.205, 0.395), (0.405, 0.590), (0.600, 0.760)]
+        for x0r, x1r in xs_win:
+            self._sil_ventana(cv, [
+                (int(W * x0r),  int(H * 0.278)),
+                (int(W * x1r),  int(H * 0.278)),
+                (int(W * x1r),  int(H * 0.395)),
+                (int(W * x0r),  int(H * 0.395)),
+            ])
+
+        self._sil_rueda(cv, wx1, wcy, wr)
+        self._sil_rueda(cv, wx2, wcy, wr)
+
+        seat_y = int(H * 0.580)
+        for xn in self._sil_row_xnorm:
+            self._sil_fila(cv, [int(W * xn)], seat_y)
+
+    def _sil_minibus(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.130)
+        wcy = road_y - wr
+        wx1 = int(W * 0.180)
+        wx2 = int(W * 0.820)
+
+        body = [
+            (int(W * 0.040), int(H * 0.750)),
+            (int(W * 0.045), int(H * 0.420)),
+            (int(W * 0.060), int(H * 0.340)),
+            (int(W * 0.095), int(H * 0.265)),
+            (int(W * 0.140), int(H * 0.245)),
+            (int(W * 0.860), int(H * 0.245)),
+            (int(W * 0.905), int(H * 0.265)),
+            (int(W * 0.940), int(H * 0.340)),
+            (int(W * 0.955), int(H * 0.420)),
+            (int(W * 0.960), int(H * 0.750)),
+        ]
+        self._sil_poly(cv, body, C["body_fill"], C["body_out"])
+
+        # Ventanas uniformes
+        n_win = 4
+        gap   = 0.05
+        total = 0.86 - 0.14 - gap * (n_win - 1)
+        ww    = total / n_win
+        for i in range(n_win):
+            x0 = 0.14 + i * (ww + gap)
+            self._sil_ventana(cv, [
+                (int(W * x0),        int(H * 0.258)),
+                (int(W * (x0 + ww)), int(H * 0.258)),
+                (int(W * (x0 + ww)), int(H * 0.390)),
+                (int(W * x0),        int(H * 0.390)),
+            ])
+
+        self._sil_rueda(cv, wx1, wcy, wr)
+        self._sil_rueda(cv, wx2, wcy, wr)
+
+        # Asientos — dos asientos por fila centrados en la posición arrastrable
+        seat_y  = int(H * 0.560)
+        half_sp = int(W * 0.07)
+        for xn in self._sil_row_xnorm:
+            cx = int(W * xn)
+            self._sil_fila(cv, [cx - half_sp, cx + half_sp], seat_y)
+
+    def _sil_autobus(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.115)
+        wcy = road_y - wr
+        # Tres ejes: delantero, central, trasero
+        axles = [int(W * 0.160), int(W * 0.500), int(W * 0.840)]
+
+        body = [
+            (int(W * 0.025), int(H * 0.760)),
+            (int(W * 0.030), int(H * 0.360)),
+            (int(W * 0.045), int(H * 0.270)),
+            (int(W * 0.085), int(H * 0.220)),
+            (int(W * 0.130), int(H * 0.205)),
+            (int(W * 0.870), int(H * 0.205)),
+            (int(W * 0.915), int(H * 0.220)),
+            (int(W * 0.955), int(H * 0.270)),
+            (int(W * 0.970), int(H * 0.360)),
+            (int(W * 0.975), int(H * 0.760)),
+        ]
+        self._sil_poly(cv, body, C["body_fill"], C["body_out"])
+
+        # Banda de ventanas
+        n_win = 6
+        gap   = 0.02
+        total = 0.90 - 0.10 - gap * (n_win - 1)
+        ww    = total / n_win
+        for i in range(n_win):
+            x0 = 0.10 + i * (ww + gap)
+            self._sil_ventana(cv, [
+                (int(W * x0),        int(H * 0.218)),
+                (int(W * (x0 + ww)), int(H * 0.218)),
+                (int(W * (x0 + ww)), int(H * 0.350)),
+                (int(W * x0),        int(H * 0.350)),
+            ])
+
+        for ax in axles:
+            self._sil_rueda(cv, ax, wcy, wr)
+
+        # Asientos — dos asientos por fila centrados en la posición arrastrable
+        seat_y  = int(H * 0.530)
+        half_sp = int(W * 0.065)
+        for xn in self._sil_row_xnorm:
+            cx = int(W * xn)
+            self._sil_fila(cv, [cx - half_sp, cx + half_sp], seat_y)
+
+    def _sil_furgoneta(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.128)
+        wcy = road_y - wr
+        wx1 = int(W * 0.190)
+        wx2 = int(W * 0.790)
+
+        # Cabina
+        cabin = [
+            (int(W * 0.038), int(H * 0.750)),
+            (int(W * 0.040), int(H * 0.390)),
+            (int(W * 0.055), int(H * 0.290)),
+            (int(W * 0.090), int(H * 0.240)),
+            (int(W * 0.320), int(H * 0.240)),
+            (int(W * 0.350), int(H * 0.295)),
+            (int(W * 0.355), int(H * 0.750)),
+        ]
+        self._sil_poly(cv, cabin, C["body_fill"], C["body_out"])
+
+        # Caja de carga
+        cargo = [
+            (int(W * 0.355), int(H * 0.240)),
+            (int(W * 0.950), int(H * 0.240)),
+            (int(W * 0.958), int(H * 0.750)),
+            (int(W * 0.355), int(H * 0.750)),
+        ]
+        self._sil_poly(cv, cargo, C["body_fill"], C["body_out"])
+
+        # Ventana de cabina
+        self._sil_ventana(cv, [
+            (int(W * 0.060), int(H * 0.295)),
+            (int(W * 0.092), int(H * 0.250)),
+            (int(W * 0.310), int(H * 0.250)),
+            (int(W * 0.338), int(H * 0.305)),
+            (int(W * 0.338), int(H * 0.385)),
+            (int(W * 0.060), int(H * 0.385)),
+        ])
+
+        self._sil_rueda(cv, wx1, wcy, wr)
+        self._sil_rueda(cv, wx2, wcy, wr)
+
+        seat_y = int(H * 0.580)
+        rows = {
+            1: [[int(W * 0.200)]],
+            2: [[int(W * 0.180)], [int(W * 0.650)]],
+            3: [[int(W * 0.180)], [int(W * 0.500)], [int(W * 0.750)]],
+        }
+        for fila_xs in rows.get(filas, rows[1]):
+            self._sil_fila(cv, fila_xs, seat_y)
+
+    def _sil_camion(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.120)
+        wcy = road_y - wr
+
+        # Cabina (izquierda)
+        cabin = [
+            (int(W * 0.030), int(H * 0.755)),
+            (int(W * 0.032), int(H * 0.450)),
+            (int(W * 0.045), int(H * 0.320)),
+            (int(W * 0.080), int(H * 0.255)),
+            (int(W * 0.265), int(H * 0.255)),
+            (int(W * 0.300), int(H * 0.320)),
+            (int(W * 0.305), int(H * 0.755)),
+        ]
+        self._sil_poly(cv, cabin, C["truck_cabin"], C["body_out"])
+
+        # Remolque / caja (derecha)
+        trailer = [
+            (int(W * 0.315), int(H * 0.225)),
+            (int(W * 0.960), int(H * 0.225)),
+            (int(W * 0.968), int(H * 0.755)),
+            (int(W * 0.315), int(H * 0.755)),
+        ]
+        self._sil_poly(cv, trailer, C["truck_box"], C["body_out"])
+
+        # Ventana cabina
+        self._sil_ventana(cv, [
+            (int(W * 0.052), int(H * 0.325)),
+            (int(W * 0.082), int(H * 0.268)),
+            (int(W * 0.255), int(H * 0.268)),
+            (int(W * 0.285), int(H * 0.330)),
+            (int(W * 0.285), int(H * 0.420)),
+            (int(W * 0.052), int(H * 0.420)),
+        ])
+
+        # Ruedas: 2 delanteras, 4 traseras (doble)
+        cv_axles = [(int(W * 0.175), wr), (int(W * 0.740), wr),
+                    (int(W * 0.850), wr)]
+        for ax, r in cv_axles:
+            self._sil_rueda(cv, ax, wcy, r)
+
+        # Logotipo de carga
+        cx_t = int(W * 0.640)
+        cy_t = int(H * 0.490)
+        cv.create_text(cx_t, cy_t, text="▭  CARGA",
+                       fill="#78909c", font=("Segoe UI", 10, "bold"))
+
+        # Asientos (solo cabina) — posición arrastrable
+        seat_y = int(H * 0.570)
+        for xn in self._sil_row_xnorm:
+            self._sil_fila(cv, [int(W * xn)], seat_y, w=11, h=14)
+
+    def _sil_moto(self, cv, W, H, road_y, filas):
+        C   = _SIL_COL
+        wr  = int(H * 0.155)
+        wcy = road_y - wr
+        wx1 = int(W * 0.270)
+        wx2 = int(W * 0.730)
+
+        # Cuerpo / depósito
+        tank = [
+            (int(W * 0.320), int(H * 0.530)),
+            (int(W * 0.345), int(H * 0.420)),
+            (int(W * 0.395), int(H * 0.375)),
+            (int(W * 0.490), int(H * 0.360)),
+            (int(W * 0.590), int(H * 0.375)),
+            (int(W * 0.640), int(H * 0.420)),
+            (int(W * 0.660), int(H * 0.530)),
+            (int(W * 0.580), int(H * 0.560)),
+            (int(W * 0.400), int(H * 0.560)),
+        ]
+        self._sil_poly(cv, tank, C["body_fill"], C["body_out"])
+
+        # Manillar
+        cv.create_line(
+            int(W * 0.330), int(H * 0.380),
+            int(W * 0.285), int(H * 0.345),
+            fill=C["body_out"], width=3,
+        )
+        cv.create_line(
+            int(W * 0.285), int(H * 0.345),
+            int(W * 0.275), int(H * 0.380),
+            fill=C["body_out"], width=3,
+        )
+
+        # Sillín
+        cv.create_rectangle(
+            int(W * 0.430), int(H * 0.360),
+            int(W * 0.640), int(H * 0.380),
+            fill="#37474f", outline=C["body_out"], width=1,
+        )
+
+        # Chasis (línea)
+        cv.create_line(
+            int(W * 0.330), int(H * 0.530),
+            int(W * 0.680), int(H * 0.530),
+            fill=C["body_out"], width=3,
+        )
+
+        self._sil_rueda(cv, wx1, wcy, wr)
+        self._sil_rueda(cv, wx2, wcy, wr)
+
+        # Piloto
+        px = int(W * 0.530)
+        py = int(H * 0.360)
+        r_h = int(H * 0.060)
+        # Casco
+        cv.create_oval(px - r_h, py - r_h * 2,
+                       px + r_h, py,
+                       fill="#455a64", outline=C["body_out"], width=1)
+        # Nota: con moto no aplica filas de pasajeros
 
     # ── Sección de cálculos justificativos (dinámica) ────────────────────────
     def _seccion_calculos(self, parent):
-        """Crea la sección de cálculos justificativos con bloques dinámicos."""
+        """Crea el contenedor de cálculos justificativos (un bloque por cada acto reglamentario)."""
         self._frm_calculos_outer = tk.LabelFrame(
             parent,
             text="  Cálculos justificativos  ",
@@ -3259,21 +4290,14 @@ class FormularioProyecto(tk.Tk):
         )
         self._frm_calculos_outer.pack(fill="x", padx=4, pady=(10, 2))
 
+        tk.Label(
+            self._frm_calculos_outer,
+            text="Se genera un bloque de cálculo por cada acto reglamentario definido en la pestaña «Reforma».",
+            bg=BLANCO, fg="#777", font=("Segoe UI", 8, "italic")
+        ).pack(anchor="w", pady=(0, 6))
+
         self._calc_container = tk.Frame(self._frm_calculos_outer, bg=BLANCO)
         self._calc_container.pack(fill="x")
-
-        btn_add = tk.Button(
-            self._frm_calculos_outer,
-            text="  +  Añadir bloque de cálculo",
-            bg="#e3f2fd", fg=AZUL,
-            font=("Segoe UI", 9, "bold"),
-            relief="flat", padx=10, pady=5, cursor="hand2",
-            command=self._add_calc_bloque
-        )
-        btn_add.pack(anchor="w", pady=(10, 2))
-
-        # Un bloque por defecto
-        self._add_calc_bloque()
 
     def _add_calc_bloque(self):
         """Añade un bloque de cálculo justificativo."""
@@ -3371,6 +4395,12 @@ class FormularioProyecto(tk.Tk):
         tipo = bloque["tipo_var"].get()
         self._render_calc_campos(bloque["body_frame"], bloque["campos"],
                                  bloque["bg"], tipo)
+        # Notificar vistas espejo registradas (p.ej. panel inline de Reforma)
+        for _hook in bloque.get("_post_rebuild_hooks", []):
+            try:
+                _hook()
+            except Exception:
+                pass
         # Conectar autocalc según tipo
         if "Uniones atornilladas" in tipo:
             self._bind_tornillo_autocalc(bloque)
@@ -3476,7 +4506,13 @@ class FormularioProyecto(tk.Tk):
                      bg=bg, fg="#333", font=("Segoe UI", 9), anchor="w"
                      ).pack(anchor="w")
 
-            var = tk.StringVar(value=defecto)
+            # Reutilizar StringVar existente si ya está en campos_dict (vista espejo)
+            if clave in campos_dict:
+                var = campos_dict[clave]
+            else:
+                var = tk.StringVar(value=defecto)
+                campos_dict[clave] = var
+
             if widget_tipo == "combo":
                 ttk.Combobox(cell, textvariable=var, values=opciones,
                              width=26, font=("Segoe UI", 9),
@@ -3488,8 +4524,6 @@ class FormularioProyecto(tk.Tk):
             else:
                 ttk.Entry(cell, textvariable=var, width=26,
                           font=("Segoe UI", 9)).pack(fill="x")
-
-            campos_dict[clave] = var
 
             grid_col += 1
             if grid_col >= col_wrap:
@@ -4329,6 +5363,22 @@ class FormularioProyecto(tk.Tk):
             if actual not in opciones:
                 bloque["reforma_var"].set("— General —")
 
+    def _sincronizar_calc_item(self, fila_ref, item):
+        """Actualiza el combo 'Reforma asociada' del bloque de cálculo vinculado a este item."""
+        bloque = item.get("calc_bloque")
+        if not bloque:
+            return
+        cod  = fila_ref["codigo_var"].get().strip()
+        desc = fila_ref["desc_var"].get().strip()
+        if not cod:
+            return
+        etiqueta = f"CR {cod}"
+        if desc:
+            etiqueta += f" — {desc[:50]}"
+        opciones = bloque["cb_reforma"]["values"]
+        if etiqueta in opciones:
+            bloque["reforma_var"].set(etiqueta)
+
     def _recoger_calculos(self):
         """Recoge todos los bloques de cálculo como lista de dicts."""
         resultado = []
@@ -4509,11 +5559,14 @@ class FormularioProyecto(tk.Tk):
                 grupo_var.set("")
             self._actualizar_directivas_card(fila_ref)
             self._actualizar_combos_reforma()
+            for _item in fila_ref.get("reforma_items", []):
+                self._sincronizar_calc_item(fila_ref, _item)
 
         codigo_var.trace_add("write", on_codigo_change)
 
         # Un item de reforma por defecto
         self._add_reforma_item(fila_ref)
+
 
     # ── Item de reforma dentro de una tarjeta ─────────────────────────────────
     def _add_reforma_item(self, fila_ref):
@@ -4579,6 +5632,13 @@ class FormularioProyecto(tk.Tk):
 
         self._actualizar_btn_del_item(fila_ref)
 
+        # Auto-crear bloque de cálculo vinculado si la pestaña Cálculos ya está activa
+        if hasattr(self, "_calc_container") and self._calc_container.winfo_exists():
+            self._add_calc_bloque()
+            item["calc_bloque"] = self._calc_bloques[-1]
+            self._actualizar_combos_reforma()
+            self._sincronizar_calc_item(fila_ref, item)
+
     def _crear_detalle_item(self, parent, item, bg):
         """Crea el panel expandible de un item de reforma (descripción + cálculo)."""
         frm = tk.Frame(parent, bg=bg)
@@ -4610,7 +5670,13 @@ class FormularioProyecto(tk.Tk):
         tk.Label(tipo_row, text="Tipo:", bg=bg, fg="#444",
                  font=("Segoe UI", 9)).pack(side="left", padx=(0, 6))
 
-        tipo_calc_var = tk.StringVar(value="— Sin cálculo —")
+        # Si hay bloque vinculado, compartir su tipo_var y campos (vista espejo)
+        _bloque_vinc = item.get("calc_bloque")
+        if _bloque_vinc:
+            tipo_calc_var = _bloque_vinc["tipo_var"]
+        else:
+            tipo_calc_var = tk.StringVar(value="— Sin cálculo —")
+
         ttk.Combobox(tipo_row, textvariable=tipo_calc_var,
                      values=list(CALC_TIPOS.keys()),
                      width=44, font=("Segoe UI", 9),
@@ -4621,18 +5687,29 @@ class FormularioProyecto(tk.Tk):
 
         item["tipo_calc_var"] = tipo_calc_var
         item["calc_body"]     = calc_body
-        item["calc_campos"]   = {}
 
-        def rebuild_calc(*_):
+        def _rebuild_inline(*_):
             for w in calc_body.winfo_children():
                 w.destroy()
-            item["calc_campos"] = {}
-            bind_torn = self._render_calc_campos(
-                calc_body, item["calc_campos"], bg, tipo_calc_var.get())
-            if bind_torn:
-                self._bind_tornillo_autocalc({"campos": item["calc_campos"]})
+            if _bloque_vinc:
+                # Renderizar con los mismos StringVars del bloque de cálculo
+                self._render_calc_campos(
+                    calc_body, _bloque_vinc["campos"], bg, tipo_calc_var.get())
+                item["calc_campos"] = _bloque_vinc["campos"]
+            else:
+                item["calc_campos"] = {}
+                self._render_calc_campos(
+                    calc_body, item["calc_campos"], bg, tipo_calc_var.get())
 
-        tipo_calc_var.trace_add("write", rebuild_calc)
+        if _bloque_vinc:
+            # Registrar hook: se llama automáticamente cuando el bloque rebuilds
+            _bloque_vinc.setdefault("_post_rebuild_hooks", []).append(_rebuild_inline)
+        else:
+            # Sin bloque vinculado: trace propio
+            tipo_calc_var.trace_add("write", _rebuild_inline)
+
+        # Render inicial con el estado actual del bloque
+        _rebuild_inline()
 
         # ── Estado posterior (después del cálculo) ────────────────────────────
         ttk.Separator(frm, orient="horizontal").pack(fill="x", pady=(10, 4))
@@ -4645,6 +5722,14 @@ class FormularioProyecto(tk.Tk):
         """Elimina un item de reforma. Debe quedar al menos uno."""
         if len(fila_ref["reforma_items"]) <= 1:
             return
+        # Eliminar bloque de cálculo vinculado
+        bloque = item.get("calc_bloque")
+        if bloque:
+            try:
+                if bloque["frame"].winfo_exists():
+                    self._del_calc_bloque(bloque["frame"])
+            except Exception:
+                pass
         fila_ref["reforma_items"] = [it for it in fila_ref["reforma_items"]
                                       if it is not item]
         item["item_frame"].destroy()
@@ -4668,6 +5753,17 @@ class FormularioProyecto(tk.Tk):
         if len(self._reforma_rows) <= 1:
             messagebox.showinfo("Aviso", "Debe haber al menos un acto reglamentario.")
             return
+        # Eliminar los bloques de cálculo vinculados a cada item de la tarjeta
+        fila_a_borrar = next((r for r in self._reforma_rows if r["container"] is container), None)
+        if fila_a_borrar:
+            for _item in fila_a_borrar.get("reforma_items", []):
+                bloque = _item.get("calc_bloque")
+                if bloque:
+                    try:
+                        if bloque["frame"].winfo_exists():
+                            self._del_calc_bloque(bloque["frame"])
+                    except Exception:
+                        pass
         self._reforma_rows = [r for r in self._reforma_rows
                                if r["container"] is not container]
         container.destroy()
@@ -5035,5 +6131,30 @@ class FormularioProyecto(tk.Tk):
 
 
 if __name__ == "__main__":
+    import argparse as _argparse
+    import json as _json_args
+    import os as _os_args
+
+    _parser = _argparse.ArgumentParser(add_help=False)
+    _parser.add_argument("--prefill", metavar="JSON_PATH", default=None)
+    _known, _ = _parser.parse_known_args()
+
     app = FormularioProyecto()
+
+    # Pre-rellenar campos si se recibió un JSON de datos
+    if _known.prefill:
+        try:
+            with open(_known.prefill, encoding="utf-8") as _f:
+                _datos = _json_args.load(_f)
+            for _clave, _valor in _datos.items():
+                if _clave in app.entries:
+                    app.entries[_clave].set(str(_valor))
+        except Exception:
+            pass
+        finally:
+            try:
+                _os_args.unlink(_known.prefill)
+            except Exception:
+                pass
+
     app.mainloop()

@@ -51,6 +51,13 @@
       <i class="bi bi-folder2-open"></i>
     </button>
     {% endif %}
+    {% if t.offer_id %}
+    <button class="btn btn-xs btn-outline-info btn-sm py-0 px-1"
+            onclick="lanzarFormulario({{ t.offer_id }})"
+            title="Abrir formulario de expediente">
+      <i class="bi bi-file-earmark-plus"></i>
+    </button>
+    {% endif %}
   </div>
   {% endif %}
   {% if t.descripcion and t.descripcion != t.oferta_ref %}
@@ -294,6 +301,16 @@ function abrirCarpeta(codigo) {
       if (!d.ok) showToast('No se encontró la carpeta: ' + (d.error || codigo), 'warning');
     })
     .catch(() => showToast('Error al abrir la carpeta', 'danger'));
+}
+
+function lanzarFormulario(offerId) {
+  fetch(`/crm/api/lanzar-formulario?offer_id=${offerId}`)
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) showToast('Formulario abierto', 'success');
+      else showToast('Error al abrir el formulario: ' + (d.error || '?'), 'danger');
+    })
+    .catch(() => showToast('Error al abrir el formulario', 'danger'));
 }
 </script>
 {% endblock %}

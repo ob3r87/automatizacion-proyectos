@@ -97,6 +97,13 @@
                 <i class="bi bi-folder2-open"></i>
               </button>
               {% endif %}
+              {% if t.offer_id %}
+              <button class="btn btn-xs btn-outline-info py-0 px-1 flex-shrink-0"
+                      onclick="lanzarFormulario({{ t.offer_id }})"
+                      title="Abrir formulario de expediente">
+                <i class="bi bi-file-earmark-plus"></i>
+              </button>
+              {% endif %}
             </div>
             <div class="dias-restantes {% if dias == 0 %}vence-hoy{% elif dias <= 3 %}vence-pronto{% endif %}">
               <i class="bi bi-calendar3"></i> {{ t.fecha_limite[:10] }}
@@ -127,6 +134,11 @@
                 <i class="bi bi-folder2-open"></i>
               </button>
               {% endif %}
+              <button class="btn btn-xs btn-outline-info py-0 px-1 flex-shrink-0"
+                      onclick="lanzarFormulario({{ o.id }})"
+                      title="Abrir formulario de expediente">
+                <i class="bi bi-file-earmark-plus"></i>
+              </button>
             </div>
             <div class="dias-restantes {% if dias == 0 %}vence-hoy{% elif dias <= 3 %}vence-pronto{% endif %}">
               <i class="bi bi-calendar3"></i> {{ o.fecha_vencimiento[:10] }}
@@ -443,6 +455,16 @@ function abrirCarpeta(codigo) {
       if (!d.ok) showToast('Carpeta no encontrada: ' + (d.error || codigo), 'warning');
     })
     .catch(() => showToast('Error al abrir la carpeta', 'danger'));
+}
+
+function lanzarFormulario(offerId) {
+  fetch(`/crm/api/lanzar-formulario?offer_id=${offerId}`)
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) showToast('Formulario abierto', 'success');
+      else showToast('Error al abrir el formulario: ' + (d.error || '?'), 'danger');
+    })
+    .catch(() => showToast('Error al abrir el formulario', 'danger'));
 }
 
 function eliminarEvento() {
