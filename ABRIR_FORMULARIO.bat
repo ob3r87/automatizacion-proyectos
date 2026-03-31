@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 
-:: ─── Auto-actualizar desde GitHub ───────────────────────────────────────────
+:: Auto-actualizar desde GitHub
 where git >nul 2>&1
 if %errorlevel%==0 (
     echo Comprobando actualizaciones en GitHub...
@@ -9,17 +9,17 @@ if %errorlevel%==0 (
     if %errorlevel%==0 (
         echo OK - Codigo actualizado.
     ) else (
-        echo [AVISO] No se pudo actualizar desde GitHub (sin conexion o conflicto).
+        echo AVISO: No se pudo actualizar desde GitHub.
     )
 ) else (
-    echo [INFO] Git no esta instalado; omitiendo actualizacion automatica.
+    echo INFO: Git no instalado, omitiendo actualizacion.
 )
 echo.
 
-:: ─── Verificar Python ────────────────────────────────────────────────────────
+:: Verificar Python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Python no esta instalado o no esta en el PATH.
+    echo ERROR: Python no esta instalado o no esta en el PATH.
     echo.
     echo Instala Python desde https://www.python.org/downloads/
     echo Marca la opcion "Add Python to PATH" durante la instalacion.
@@ -27,5 +27,5 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: ─── Lanzar formulario (instala dependencias si faltan) ──────────────────────
+:: Lanzar formulario
 python formulario.py
