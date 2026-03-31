@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" width="800" height="300">
+  <title>M2 Microbús — Vista Lateral</title>
+  <rect width="800" height="300" fill="#f8f8f8"/>
+  <!-- Carrocería microbús -->
+  <path d="M 55,240 L 55,95 Q 68,75 105,68 L 180,55 L 660,55 Q 700,58 720,78 L 730,100 L 730,240 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Frente diferenciado -->
+  <path d="M 55,240 L 55,95 Q 68,75 105,68 L 180,55 L 210,55 L 210,240 Z"
+        fill="#f0f0f0" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Parabrisas grande -->
+  <path d="M 130,68 L 140,55 L 205,55 L 205,70 Q 185,72 130,68 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ventanas pasajeros (grandes) -->
+  <rect x="218" y="68" width="80" height="65" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <rect x="304" y="68" width="80" height="65" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <rect x="390" y="68" width="80" height="65" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <rect x="476" y="68" width="80" height="65" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <rect x="562" y="68" width="80" height="65" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Puerta delantera viajeros -->
+  <rect x="218" y="150" width="80" height="90" rx="2" fill="#f0f0f0" stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <!-- Ruedas -->
+  <circle cx="155" cy="242" r="50" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="155" cy="242" r="33" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="155" cy="242" r="12" fill="#888"/>
+  <circle cx="628" cy="242" r="50" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="628" cy="242" r="33" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="628" cy="242" r="12" fill="#888"/>
+  <!-- Suelo -->
+  <line x1="30" y1="292" x2="770" y2="292" stroke="#555" stroke-width="1.5" stroke-dasharray="8,6"/>
+</svg>

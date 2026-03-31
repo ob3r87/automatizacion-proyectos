@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 320" width="1100" height="320">
+  <title>N3 Articulado — Vista Lateral</title>
+  <rect width="1100" height="320" fill="#f8f8f8"/>
+  <!-- Cabina tractora -->
+  <path d="M 45,270 L 45,140 Q 58,112 100,100 L 175,82 Q 215,62 265,58 L 340,58 L 340,270 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Techo cabina con deflector aerodinámico -->
+  <path d="M 175,82 Q 215,50 270,45 L 340,45 L 340,58 L 265,58 Q 215,62 175,82 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
+  <!-- Deflector techo -->
+  <path d="M 340,45 Q 360,30 385,32 L 385,58 L 340,58 L 340,45 Z" fill="#eee" stroke="#aaa" stroke-width="1.5"/>
+  <!-- Parabrisas tractora -->
+  <path d="M 265,58 L 272,45 L 338,45 L 338,58 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ventana cabina -->
+  <rect x="145" y="115" width="125" height="80" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Chasis tractora -->
+  <rect x="45" y="240" width="350" height="20" fill="#e0e0e0" stroke="#999" stroke-width="1"/>
+  <!-- Quinta rueda -->
+  <rect x="320" y="228" width="60" height="16" rx="3" fill="#ccc" stroke="#888" stroke-width="1.5"/>
+  <!-- Semirremolque largo -->
+  <rect x="385" y="80" width="680" height="195" rx="5" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <!-- Estructura semirremolque -->
+  <line x1="500" y1="80" x2="500" y2="275" stroke="#ddd" stroke-width="1"/>
+  <line x1="620" y1="80" x2="620" y2="275" stroke="#ddd" stroke-width="1"/>
+  <line x1="740" y1="80" x2="740" y2="275" stroke="#ddd" stroke-width="1"/>
+  <line x1="860" y1="80" x2="860" y2="275" stroke="#ddd" stroke-width="1"/>
+  <line x1="980" y1="80" x2="980" y2="275" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Chasis remolque -->
+  <rect x="385" y="248" width="680" height="16" fill="#ddd" stroke="#999" stroke-width="1"/>
+  <!-- Ruedas tractora -->
+  <circle cx="140" cy="272" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="140" cy="272" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="140" cy="272" r="13" fill="#888"/>
+  <circle cx="248" cy="272" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="248" cy="272" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="248" cy="272" r="13" fill="#888"/>
+  <circle cx="330" cy="272" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="330" cy="272" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="330" cy="272" r="13" fill="#888"/>
+  <!-- Ruedas semirremolque -->
+  <circle cx="820" cy="272" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="820" cy="272" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="820" cy="272" r="13" fill="#888"/>
+  <circle cx="920" cy="272" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="920" cy="272" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="920" cy="272" r="13" fill="#888"/>
+  <!-- Suelo -->
+  <line x1="20" y1="308" x2="1080" y2="308" stroke="#555" stroke-width="1.5" stroke-dasharray="8,6"/>
+</svg>

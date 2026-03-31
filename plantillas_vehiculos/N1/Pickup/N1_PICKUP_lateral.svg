@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" width="800" height="300">
+  <title>N1 Pickup — Vista Lateral</title>
+  <rect width="800" height="300" fill="#f8f8f8"/>
+  <!-- Cabina pickup -->
+  <path d="M 80,230 L 80,185 Q 90,170 120,163 L 195,145 Q 228,118 280,112 L 420,112 L 420,230 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Techo cabina -->
+  <path d="M 195,145 Q 235,98 295,92 L 408,92 L 420,112 L 280,112 Q 228,118 195,145 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Parabrisas -->
+  <path d="M 280,112 L 296,92 L 380,91 L 380,112 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ventana trasera cabina -->
+  <rect x="384" y="95" width="28" height="42" rx="2" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Caja de carga abierta -->
+  <path d="M 425,155 L 425,230 L 720,230 L 720,155 Z" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <!-- Interior caja -->
+  <rect x="430" y="160" width="285" height="65" fill="#f0f0f0" stroke="#ccc" stroke-width="1"/>
+  <!-- Separador cabina-caja -->
+  <line x1="424" y1="130" x2="424" y2="230" stroke="#1a1a1a" stroke-width="3"/>
+  <!-- Compuerta trasera -->
+  <line x1="718" y1="155" x2="718" y2="230" stroke="#1a1a1a" stroke-width="3"/>
+  <!-- Rueda delantera -->
+  <circle cx="175" cy="232" r="44" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="175" cy="232" r="29" fill="#e0e0e0" stroke="#555" stroke-width="1.5"/>
+  <circle cx="175" cy="232" r="11" fill="#999"/>
+  <!-- Rueda trasera -->
+  <circle cx="618" cy="232" r="44" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="618" cy="232" r="29" fill="#e0e0e0" stroke="#555" stroke-width="1.5"/>
+  <circle cx="618" cy="232" r="11" fill="#999"/>
+  <!-- Suelo -->
+  <line x1="40" y1="276" x2="760" y2="276" stroke="#555" stroke-width="1.5" stroke-dasharray="8,6"/>
+</svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" width="800" height="320">
+  <title>N1 Furgoneta Grande — Vista Lateral</title>
+  <rect width="800" height="320" fill="#f8f8f8"/>
+  <!-- Caja alta -->
+  <path d="M 60,250 L 60,100 Q 72,82 110,76 L 195,62 Q 230,52 285,50 L 690,50 Q 726,54 738,80 L 742,105 L 742,250 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Cabina -->
+  <path d="M 60,250 L 60,100 Q 72,82 110,76 L 195,62 Q 230,52 285,50 L 330,50 L 330,250 Z"
+        fill="#f5f5f5" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Parabrisas grande -->
+  <path d="M 195,62 L 210,50 L 320,50 L 320,66 Q 295,68 195,62 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ventanas cabina -->
+  <rect x="155" y="110" width="110" height="65" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Cuerpo carga sin ventanas -->
+  <rect x="338" y="72" width="396" height="178" rx="2" fill="white" stroke="#bbb" stroke-width="1"/>
+  <!-- Puerta corredera -->
+  <line x1="430" y1="72" x2="430" y2="250" stroke="#999" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <!-- Puertas traseras -->
+  <line x1="680" y1="54" x2="680" y2="250" stroke="#1a1a1a" stroke-width="2"/>
+  <line x1="710" y1="54" x2="710" y2="250" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Rueda delantera -->
+  <circle cx="160" cy="252" r="50" fill="white" stroke="#1a1a1a" stroke-width="3.5"/>
+  <circle cx="160" cy="252" r="33" fill="#e0e0e0" stroke="#555" stroke-width="1.5"/>
+  <circle cx="160" cy="252" r="12" fill="#999"/>
+  <!-- Rueda trasera doble representada -->
+  <circle cx="632" cy="252" r="50" fill="white" stroke="#1a1a1a" stroke-width="3.5"/>
+  <circle cx="632" cy="252" r="33" fill="#e0e0e0" stroke="#555" stroke-width="1.5"/>
+  <circle cx="632" cy="252" r="12" fill="#999"/>
+  <!-- Suelo -->
+  <line x1="30" y1="302" x2="770" y2="302" stroke="#555" stroke-width="1.5" stroke-dasharray="8,6"/>
+</svg>

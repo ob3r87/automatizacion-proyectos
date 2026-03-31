@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 280" width="800" height="280">
+  <title>M1 Cabrio — Vista Lateral</title>
+  <rect width="800" height="280" fill="#f8f8f8"/>
+  <!-- Carrocería baja -->
+  <path d="M 90,215 L 90,182 Q 100,172 130,167 L 195,150 Q 230,140 270,138 L 560,138 Q 610,140 660,155 L 700,175 Q 715,185 718,200 L 720,215 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Capota baja (cabrio con capota) -->
+  <path d="M 270,138 Q 295,112 330,108 L 520,108 Q 555,110 575,125 L 560,138 L 270,138 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Parabrisas muy inclinado -->
+  <path d="M 270,138 L 295,112 L 360,110 L 360,138 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ventana lateral pequeña -->
+  <path d="M 364,138 L 364,111 L 445,111 L 445,138 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Techo capota -->
+  <path d="M 448,138 L 448,112 L 520,111 L 540,125 L 560,138 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ruedas más pequeñas deportivo -->
+  <circle cx="180" cy="217" r="40" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="180" cy="217" r="27" fill="#e0e0e0" stroke="#555" stroke-width="1.5"/>
+  <circle cx="180" cy="217" r="10" fill="#999"/>
+  <circle cx="620" cy="217" r="40" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="620" cy="217" r="27" fill="#e0e0e0" stroke="#555" stroke-width="1.5"/>
+  <circle cx="620" cy="217" r="10" fill="#999"/>
+  <!-- Suelo -->
+  <line x1="40" y1="257" x2="760" y2="257" stroke="#555" stroke-width="1.5" stroke-dasharray="8,6"/>
+</svg>

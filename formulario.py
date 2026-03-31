@@ -2727,17 +2727,38 @@ class FormularioProyecto(tk.Tk):
         self._aplicar_plano(None)
 
     def _cargar_lista_planos(self):
-        """Rellena el listbox con los planos descargados localmente."""
+        """Rellena el listbox con los planos del índice local + descargados."""
         self._lb_planos.delete(0, "end")
-        try:
-            dm = DownloadManager()
-            locales = dm.get_local_blueprints()
-            self._planos_locales = locales
-            for p in locales:
-                nombre = Path(p).name if isinstance(p, (str, Path)) else str(p)
-                self._lb_planos.insert("end", nombre)
-        except Exception:
-            self._planos_locales = []
+        self._planos_locales = []
+
+        PLANTILLAS_DIR = BASE_DIR / "plantillas_vehiculos"
+        idx_path = PLANTILLAS_DIR / "indice.json"
+
+        # 1. Leer índice de siluetas generadas
+        if idx_path.exists():
+            try:
+                import json as _json
+                index = _json.loads(idx_path.read_text(encoding="utf-8"))
+                for item in index:
+                    ruta = PLANTILLAS_DIR / item["archivo"]
+                    if ruta.exists():
+                        etiqueta = f"[{item['categoria']}] {item['nombre']} — {item['vista']}"
+                        self._lb_planos.insert("end", etiqueta)
+                        self._planos_locales.append(str(ruta))
+            except Exception:
+                pass
+
+        # 2. Añadir planos descargados con DownloadManager (si los hay)
+        if _PLANOS_OK:
+            try:
+                dm = DownloadManager()
+                extra = dm.get_local_blueprints()
+                for p in extra:
+                    nombre = Path(p).name if isinstance(p, (str, Path)) else str(p)
+                    self._lb_planos.insert("end", f"[Descargado] {nombre}")
+                    self._planos_locales.append(str(p))
+            except Exception:
+                pass
 
     def _on_plano_lista_select(self, event=None):
         """Preview al seleccionar de la lista."""

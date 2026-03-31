@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" width="900" height="320">
+  <title>N2 Camión Rígido — Vista Lateral</title>
+  <rect width="900" height="320" fill="#f8f8f8"/>
+  <!-- Cabina camión -->
+  <path d="M 50,265 L 50,145 Q 62,118 100,108 L 168,90 Q 200,72 245,68 L 310,68 L 310,265 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Techo cabina -->
+  <path d="M 168,90 Q 200,60 250,55 L 305,55 L 310,68 L 245,68 Q 200,72 168,90 Z"
+        fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
+  <!-- Parabrisas -->
+  <path d="M 245,68 L 252,55 L 305,55 L 305,68 Z" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Ventana lateral cabina -->
+  <rect x="145" y="120" width="110" height="75" rx="3" fill="#d0e8f0" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Cuerpo/caja de carga larga -->
+  <rect x="315" y="68" width="548" height="197" rx="4" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <!-- Detalle estructura caja -->
+  <line x1="430" y1="68" x2="430" y2="265" stroke="#ddd" stroke-width="1"/>
+  <line x1="545" y1="68" x2="545" y2="265" stroke="#ddd" stroke-width="1"/>
+  <line x1="660" y1="68" x2="660" y2="265" stroke="#ddd" stroke-width="1"/>
+  <line x1="775" y1="68" x2="775" y2="265" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Chasis bajo cabina -->
+  <rect x="50" y="232" width="813" height="18" fill="#e8e8e8" stroke="#999" stroke-width="1"/>
+  <!-- Rueda delantera sencilla -->
+  <circle cx="155" cy="268" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="155" cy="268" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="155" cy="268" r="13" fill="#888"/>
+  <!-- Rueda trasera doble -->
+  <circle cx="638" cy="268" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="638" cy="268" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="638" cy="268" r="13" fill="#888"/>
+  <circle cx="720" cy="268" r="52" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+  <circle cx="720" cy="268" r="35" fill="#d8d8d8" stroke="#555" stroke-width="1.5"/>
+  <circle cx="720" cy="268" r="13" fill="#888"/>
+  <!-- Suelo -->
+  <line x1="20" y1="308" x2="880" y2="308" stroke="#555" stroke-width="1.5" stroke-dasharray="8,6"/>
+</svg>
