@@ -697,6 +697,375 @@ def abrir_formulario(config=None):
     vars_proyecto["unidades"] = crear_campo(frame_proy, "Unidades:", proy.get("unidades", "Medidas en mm."), 6, 20)
 
     # =====================================================================
+    # SECCIÓN: SELECTOR DE VEHÍCULO (Marca/Modelo + búsqueda de plantillas)
+    # =====================================================================
+    frame_vehiculo = ttk.LabelFrame(scroll_frame,
+                                     text="  Selector de Vehículo y Plantillas  ",
+                                     style="Section.TLabelframe")
+    frame_vehiculo.pack(fill="x", padx=10, pady=5)
+    frame_vehiculo.columnconfigure(1, weight=1)
+
+    # Variables del selector
+    var_sel_make = tk.StringVar()
+    var_sel_model = tk.StringVar()
+    var_sel_year = tk.StringVar()
+    var_sel_dims = tk.StringVar(value="")
+
+    # Estado del selector
+    _selector_state = {"makes": [], "models": [], "online": False}
+
+    # Fila 1: Marca + Modelo + Año
+    row_sel1 = ttk.Frame(frame_vehiculo)
+    row_sel1.grid(row=0, column=0, columnspan=2, sticky="ew", **pad)
+
+    ttk.Label(row_sel1, text="Marca:").pack(side="left", **pad)
+    combo_make = ttk.Combobox(row_sel1, textvariable=var_sel_make, width=18)
+    combo_make.pack(side="left", **pad)
+
+    ttk.Label(row_sel1, text="Modelo:").pack(side="left", **pad)
+    combo_model = ttk.Combobox(row_sel1, textvariable=var_sel_model, width=18)
+    combo_model.pack(side="left", **pad)
+
+    ttk.Label(row_sel1, text="Año:").pack(side="left", **pad)
+    combo_year = ttk.Combobox(row_sel1, textvariable=var_sel_year, width=7,
+                               values=[str(y) for y in range(2026, 1999, -1)])
+    combo_year.pack(side="left", **pad)
+
+    # Fila 2: Dimensiones + botones
+    row_sel2 = ttk.Frame(frame_vehiculo)
+    row_sel2.grid(row=1, column=0, columnspan=2, sticky="ew", **pad)
+
+    ttk.Label(row_sel2, text="Dimensiones:").pack(side="left", **pad)
+    lbl_dims = ttk.Label(row_sel2, textvariable=var_sel_dims,
+                          font=("Segoe UI", 8, "bold"))
+    lbl_dims.pack(side="left", **pad)
+
+    # Fila 3: Resultados de plantillas
+    row_sel3 = ttk.Frame(frame_vehiculo)
+    row_sel3.grid(row=2, column=0, columnspan=2, sticky="ew", **pad)
+
+    # Treeview compacto para resultados
+    sel_columns = ("fuente", "vista", "formato", "estado", "descripcion")
+    tree_sel = ttk.Treeview(row_sel3, columns=sel_columns,
+                             show="headings", height=5)
+    tree_sel.heading("fuente", text="Fuente")
+    tree_sel.heading("vista", text="Vista")
+    tree_sel.heading("formato", text="Fmt")
+    tree_sel.heading("estado", text="Gratis")
+    tree_sel.heading("descripcion", text="Descripción")
+    tree_sel.column("fuente", width=150)
+    tree_sel.column("vista", width=70)
+    tree_sel.column("formato", width=45)
+    tree_sel.column("estado", width=45)
+    tree_sel.column("descripcion", width=280)
+
+    scroll_sel = ttk.Scrollbar(row_sel3, orient="vertical",
+                                command=tree_sel.yview)
+    tree_sel.configure(yscrollcommand=scroll_sel.set)
+    tree_sel.pack(side="left", fill="both", expand=True)
+    scroll_sel.pack(side="right", fill="y")
+
+    # Estado de búsqueda
+    var_sel_status = tk.StringVar(value="Selecciona marca y modelo, luego pulsa Buscar")
+    sel_progress = ttk.Progressbar(frame_vehiculo, mode="determinate")
+    sel_progress.grid(row=3, column=0, columnspan=2, sticky="ew", padx=8, pady=2)
+    ttk.Label(frame_vehiculo, textvariable=var_sel_status,
+              font=("Segoe UI", 7)).grid(row=4, column=0, columnspan=2,
+                                          sticky="w", padx=8)
+
+    # Lista de resultados internos
+    _sel_results = []
+
+    # --- Cargar marcas del catálogo ---
+    def _load_vehicle_makes():
+        try:
+            import sys
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            if script_dir not in sys.path:
+                sys.path.insert(0, script_dir)
+            from vehiculo_blueprints.providers.carquery import CATALOGO_MARCAS
+            makes = sorted(CATALOGO_MARCAS.keys())
+            _selector_state["makes"] = makes
+            combo_make["values"] = makes
+
+            # Pre-seleccionar si hay vehículo en el proyecto
+            vehiculo_val = vars_proyecto.get("vehiculo", tk.StringVar()).get()
+            if vehiculo_val:
+                make_part = vehiculo_val.split("/")[0].strip().upper()
+                for m in makes:
+                    if make_part in m or m in make_part:
+                        var_sel_make.set(m)
+                        _on_sel_make_changed(None)
+                        break
+                if "/" in vehiculo_val:
+                    model_part = vehiculo_val.split("/")[1].strip().split("-")[0].strip()
+                    var_sel_model.set(model_part)
+        except ImportError:
+            pass
+
+    def _on_sel_make_changed(event):
+        """Al cambiar marca, cargar modelos."""
+        make = var_sel_make.get().strip()
+        if not make:
+            return
+        try:
+            from vehiculo_blueprints.providers.carquery import CATALOGO_MARCAS
+            models = CATALOGO_MARCAS.get(make.upper(), [])
+            combo_model["values"] = sorted(models)
+            _selector_state["models"] = sorted(models)
+            # Actualizar campo Vehículo del proyecto
+            model_val = var_sel_model.get().strip()
+            if model_val:
+                vars_proyecto["vehiculo"].set(f"{make} / {model_val}")
+            else:
+                vars_proyecto["vehiculo"].set(make)
+        except ImportError:
+            pass
+
+    def _on_sel_model_changed(event):
+        """Al cambiar modelo, actualizar campo Vehículo."""
+        make = var_sel_make.get().strip()
+        model = var_sel_model.get().strip()
+        if make and model:
+            vars_proyecto["vehiculo"].set(f"{make} / {model}")
+
+    combo_make.bind("<<ComboboxSelected>>", _on_sel_make_changed)
+    combo_make.bind("<Return>", _on_sel_make_changed)
+    combo_model.bind("<<ComboboxSelected>>", _on_sel_model_changed)
+    combo_model.bind("<Return>", _on_sel_model_changed)
+
+    # --- Búsqueda de plantillas ---
+    def _do_vehicle_search():
+        """Busca plantillas en todos los proveedores."""
+        make = var_sel_make.get().strip()
+        model = var_sel_model.get().strip()
+        if not make or not model:
+            messagebox.showwarning("Búsqueda",
+                                   "Selecciona marca y modelo primero.")
+            return
+
+        year_str = var_sel_year.get().strip()
+        year = int(year_str) if year_str.isdigit() else None
+
+        tree_sel.delete(*tree_sel.get_children())
+        _sel_results.clear()
+        var_sel_status.set("Buscando en todas las fuentes...")
+        sel_progress["value"] = 10
+
+        import threading
+
+        def _search():
+            all_results = []
+            try:
+                import sys
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                if script_dir not in sys.path:
+                    sys.path.insert(0, script_dir)
+                from vehiculo_blueprints.providers import ALL_PROVIDERS
+                from vehiculo_blueprints.downloader import DownloadManager
+                from vehiculo_blueprints import db as bp_db
+
+                dm = DownloadManager()
+
+                # Dimensiones
+                dims = dm.fetch_dimensions(make, model, year)
+
+                # Plantillas locales
+                local = bp_db.find_blueprint(make, model, year)
+                for bp in local:
+                    if os.path.exists(bp["file_path"]):
+                        from vehiculo_blueprints.providers.base import BlueprintSearchResult
+                        all_results.append(BlueprintSearchResult(
+                            source_key=bp["source_key"],
+                            source_name=f"{bp['source_key']} (Descargado)",
+                            make=make, model=model, year=bp.get("year"),
+                            download_url=bp["file_path"],
+                            file_format=bp.get("file_format", ""),
+                            view_type=bp.get("view_type", "mixed"),
+                            description=f"[Local] {os.path.basename(bp['file_path'])}",
+                            is_free=True,
+                            extra_data={"local": True, "blueprint_id": bp["id"]},
+                        ))
+
+                # Proveedores en paralelo
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = {
+                        executor.submit(p.search, make, model, year): p
+                        for p in ALL_PROVIDERS
+                    }
+                    for future in as_completed(futures):
+                        try:
+                            all_results.extend(future.result())
+                        except Exception:
+                            pass
+
+                return all_results, dims
+            except ImportError as e:
+                return [], None
+
+        def _done(data):
+            results, dims = data
+            _sel_results.clear()
+            _sel_results.extend(results)
+
+            # Mostrar dimensiones
+            if dims:
+                parts = []
+                if dims.get("length_mm"):
+                    parts.append(f"L:{dims['length_mm']}mm")
+                if dims.get("width_mm"):
+                    parts.append(f"A:{dims['width_mm']}mm")
+                if dims.get("height_mm"):
+                    parts.append(f"H:{dims['height_mm']}mm")
+                if dims.get("wheelbase_mm"):
+                    parts.append(f"Bat:{dims['wheelbase_mm']}mm")
+                var_sel_dims.set(" | ".join(parts))
+
+            # Poblar treeview
+            for i, r in enumerate(results):
+                if r.file_format == "data":
+                    continue
+                tree_sel.insert("", "end", iid=str(i), values=(
+                    r.source_name,
+                    r.view_type[:12],
+                    r.file_format,
+                    "Sí" if r.is_free else "No",
+                    r.description[:50],
+                ))
+
+            total = len([r for r in results if r.file_format != "data"])
+            var_sel_status.set(f"{total} plantillas encontradas")
+            sel_progress["value"] = 100
+
+        def _worker():
+            try:
+                result = _search()
+                root.after(0, lambda: _done(result))
+            except Exception as e:
+                root.after(0, lambda: var_sel_status.set(f"Error: {e}"))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    # --- Descargar y usar plantilla seleccionada ---
+    def _do_use_selected():
+        """Descarga la plantilla seleccionada y la aplica al plano activo."""
+        sel = tree_sel.selection()
+        if not sel:
+            messagebox.showwarning("Selección",
+                                   "Selecciona una plantilla de la lista.")
+            return
+
+        idx = int(sel[0])
+        if idx >= len(_sel_results):
+            return
+        result = _sel_results[idx]
+
+        # Si es info de suscripción, abrir URL
+        if result.extra_data.get("type") == "subscription_info":
+            import webbrowser
+            url = result.extra_data.get("subscription_url",
+                                         result.download_url)
+            webbrowser.open(url)
+            messagebox.showinfo(
+                "Suscripción requerida",
+                f"Visita: {url}\n\n"
+                f"Descarga las plantillas y usa 'Importar MR-Clipart'.")
+            return
+
+        # Si ya es local, usar directamente
+        if result.extra_data.get("local"):
+            _apply_template_to_planos(result.download_url)
+            return
+
+        # Descargar
+        var_sel_status.set("Descargando...")
+        sel_progress["value"] = 30
+
+        import threading
+
+        def _download():
+            try:
+                import sys
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                if script_dir not in sys.path:
+                    sys.path.insert(0, script_dir)
+                from vehiculo_blueprints.downloader import DownloadManager
+                from vehiculo_blueprints.providers import get_provider
+
+                dm = DownloadManager()
+                provider = get_provider(result.source_key)
+                if not provider:
+                    raise RuntimeError("Proveedor no encontrado")
+
+                def progress_cb(pct):
+                    root.after(0, lambda: sel_progress.configure(
+                        value=30 + pct * 70))
+
+                bp_data = dm.download_blueprint(result, provider,
+                                                 progress_cb=progress_cb)
+                return bp_data["file_path"]
+            except Exception as e:
+                root.after(0, lambda: messagebox.showerror("Error", str(e)))
+                return None
+
+        def _worker():
+            path = _download()
+            if path:
+                root.after(0, lambda: _apply_template_to_planos(path))
+                root.after(0, lambda: var_sel_status.set("Plantilla aplicada"))
+                root.after(0, lambda: sel_progress.configure(value=100))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _apply_template_to_planos(file_path):
+        """Aplica la plantilla descargada a los planos que no tienen imagen."""
+        applied = 0
+        for pw in planos_widgets:
+            current_img = pw["imagen_path"].get().strip()
+            if not current_img:
+                pw["imagen_path"].set(file_path)
+                applied += 1
+        if applied == 0 and planos_widgets:
+            # Si todos tienen imagen, aplicar al primero
+            planos_widgets[0]["imagen_path"].set(file_path)
+            applied = 1
+        var_sel_status.set(f"Plantilla aplicada a {applied} plano(s)")
+
+    # --- Importar carpeta MR-Clipart ---
+    def _import_mr_clipart_folder():
+        folder = filedialog.askdirectory(
+            title="Selecciona carpeta con plantillas MR-Clipart")
+        if not folder:
+            return
+        try:
+            import sys
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            if script_dir not in sys.path:
+                sys.path.insert(0, script_dir)
+            from vehiculo_blueprints.providers.mr_clipart import MRClipartProvider
+            mrc = MRClipartProvider()
+            count = mrc.import_folder(folder)
+            messagebox.showinfo("Importación",
+                                f"{count} plantillas importadas de MR-Clipart.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    # Botones de acción del selector
+    row_sel_btns = ttk.Frame(frame_vehiculo)
+    row_sel_btns.grid(row=5, column=0, columnspan=2, sticky="ew", **pad)
+
+    ttk.Button(row_sel_btns, text="Buscar plantillas",
+               command=_do_vehicle_search).pack(side="left", padx=5, pady=3)
+    ttk.Button(row_sel_btns, text="Usar seleccionada",
+               command=_do_use_selected).pack(side="left", padx=5, pady=3)
+    ttk.Button(row_sel_btns, text="Importar MR-Clipart",
+               command=_import_mr_clipart_folder).pack(side="right", padx=5, pady=3)
+
+    # Cargar marcas al iniciar
+    root.after(100, _load_vehicle_makes)
+
+    # =====================================================================
     # SECCIÓN: PERSONAS
     # =====================================================================
     frame_pers = ttk.LabelFrame(scroll_frame, text="  Personas  ",
