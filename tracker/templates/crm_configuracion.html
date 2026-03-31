@@ -38,6 +38,16 @@
       <i class="bi bi-file-earmark-pdf"></i> Plantilla PDF
     </button>
   </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabTipos">
+      <i class="bi bi-diagram-3"></i> Tipos de trabajo
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCarpetas">
+      <i class="bi bi-folder2-open"></i> Estructura carpetas
+    </button>
+  </li>
 </ul>
 
 <div class="tab-content">
@@ -459,6 +469,193 @@
 </div>
 
 
+<!-- ── Tab 5: Tipos de trabajo ── -->
+<div class="tab-pane fade" id="tabTipos">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <span class="text-muted small">Gestiona la jerarquía Tipo &rsaquo; Categoría &rsaquo; Subcategoría</span>
+    <button class="btn btn-sm btn-primary" onclick="abrirModalTipo(null)">
+      <i class="bi bi-plus-circle"></i> Nuevo tipo
+    </button>
+  </div>
+
+  {% for grupo, items in tipos_por_grupo.items() %}
+  <div class="card mb-3">
+    <div class="card-header fw-semibold bg-light d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-diagram-3 text-primary"></i> {{ grupo }}</span>
+      <span class="badge bg-secondary">{{ items | length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Categoría</th>
+            <th>Subcategoría</th>
+            <th style="width:80px">Código</th>
+            <th style="width:80px" class="text-center">Vehículo</th>
+            <th style="width:80px" class="text-center">Activo</th>
+            <th style="width:80px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in items %}
+          <tr id="row-tj-{{ t.id }}">
+            <td>{{ t.categoria }}</td>
+            <td>{{ t.subcategoria }}</td>
+            <td><code>{{ t.codigo }}</code></td>
+            <td class="text-center">
+              {% if t.es_vehiculo %}<i class="bi bi-car-front text-primary"></i>{% endif %}
+            </td>
+            <td class="text-center">
+              <div class="form-check form-switch d-inline-block m-0">
+                <input class="form-check-input" type="checkbox" {% if t.activo %}checked{% endif %}
+                       onchange="toggleTipo({{ t.id }}, this.checked)">
+              </div>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-secondary py-0" onclick='abrirModalTipo({{ t | tojson }})'>
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger py-0" onclick="eliminarTipo({{ t.id }})">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ── Tab 6: Estructura de carpetas ── -->
+<div class="tab-pane fade" id="tabCarpetas">
+  <!-- Ruta base -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold bg-light">
+      <i class="bi bi-folder2-open text-warning"></i> Ruta base de proyectos
+    </div>
+    <div class="card-body">
+      <div class="input-group">
+        <input type="text" id="carpetas-base-path" class="form-control"
+               placeholder="Ej: C:\Proyectos\Phican"
+               value="{{ carpetas_base_path }}">
+        <button class="btn btn-primary" onclick="guardarBasePath()">
+          <i class="bi bi-save"></i> Guardar ruta
+        </button>
+      </div>
+      <small class="text-muted">Cada proyecto se creará en una subcarpeta con su código (P2026-0001)</small>
+    </div>
+  </div>
+
+  <!-- Carpetas globales (por defecto para todos los tipos) -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold bg-light d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-folder text-secondary"></i> Plantilla global (todos los tipos)</span>
+      <button class="btn btn-sm btn-outline-primary" onclick="addCarpeta(0)">
+        <i class="bi bi-plus"></i> Añadir carpeta
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <ul class="list-group list-group-flush" id="carpetas-global">
+        {% for c in carpetas_globales %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1" id="carp-{{ c.id }}">
+          <input type="text" class="form-control form-control-sm w-75 border-0"
+                 value="{{ c.nombre_carpeta }}"
+                 onblur="editarCarpeta({{ c.id }}, this.value)">
+          <button class="btn btn-sm btn-outline-danger py-0" onclick="eliminarCarpeta({{ c.id }})">
+            <i class="bi bi-trash"></i>
+          </button>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted small py-2">Sin carpetas globales — se usarán las de cada tipo</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Carpetas por tipo -->
+  {% for t in tipos_con_carpetas %}
+  <div class="card mb-2">
+    <div class="card-header fw-semibold bg-light d-flex justify-content-between align-items-center py-2">
+      <span>
+        <code class="me-2">{{ t.codigo }}</code>
+        <small class="text-muted">{{ t.tipo }} / {{ t.categoria }} / {{ t.subcategoria }}</small>
+        {% if t.es_vehiculo %}<i class="bi bi-car-front text-primary ms-2" title="Requiere planos"></i>{% endif %}
+      </span>
+      <button class="btn btn-sm btn-outline-primary py-0" onclick="addCarpeta({{ t.id }})">
+        <i class="bi bi-plus"></i>
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <ul class="list-group list-group-flush" id="carpetas-tipo-{{ t.id }}">
+        {% for c in t.carpetas %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1" id="carp-{{ c.id }}">
+          <input type="text" class="form-control form-control-sm w-75 border-0"
+                 value="{{ c.nombre_carpeta }}"
+                 onblur="editarCarpeta({{ c.id }}, this.value)">
+          <button class="btn btn-sm btn-outline-danger py-0" onclick="eliminarCarpeta({{ c.id }})">
+            <i class="bi bi-trash"></i>
+          </button>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted small py-2" id="empty-tipo-{{ t.id }}">
+          Sin carpetas — usará la plantilla global
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- ── Modal Tipo de trabajo ── -->
+<div class="modal fade" id="modalTipo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTipoTitle">Tipo de trabajo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tj-id">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+            <input type="text" id="tj-tipo" class="form-control" placeholder="Ej: Vehículos">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Categoría</label>
+            <input type="text" id="tj-categoria" class="form-control" placeholder="Ej: Homologación de Reforma">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">Subcategoría</label>
+            <input type="text" id="tj-subcategoria" class="form-control" placeholder="Ej: Individual">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Código</label>
+            <input type="text" id="tj-codigo" class="form-control text-uppercase" maxlength="10" placeholder="HOV">
+          </div>
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="tj-vehiculo">
+              <label class="form-check-label" for="tj-vehiculo">
+                <i class="bi bi-car-front text-primary"></i> Requiere plano de vehículo
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarTipo()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- ── Modal Ensayo ── -->
 <div class="modal fade" id="modalEnsayo" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -798,5 +995,112 @@ function guardarPdfTemplate() {
 
 // Inicializar preview al cargar
 document.addEventListener('DOMContentLoaded', actualizarPreviewWM);
+
+// ═══════════════════════════════════════════════════════
+// TIPOS DE TRABAJO
+// ═══════════════════════════════════════════════════════
+const modalTipoEl = document.getElementById('modalTipo');
+const modalTipo = modalTipoEl ? new bootstrap.Modal(modalTipoEl) : null;
+
+function abrirModalTipo(data) {
+  document.getElementById('tj-id').value = data ? data.id : '';
+  document.getElementById('tj-tipo').value = data ? (data.tipo || '') : '';
+  document.getElementById('tj-categoria').value = data ? (data.categoria || '') : '';
+  document.getElementById('tj-subcategoria').value = data ? (data.subcategoria || '') : '';
+  document.getElementById('tj-codigo').value = data ? (data.codigo || '') : '';
+  document.getElementById('tj-vehiculo').checked = data ? !!data.es_vehiculo : false;
+  document.getElementById('modalTipoTitle').textContent = data ? 'Editar tipo de trabajo' : 'Nuevo tipo de trabajo';
+  modalTipo.show();
+}
+
+function guardarTipo() {
+  const id = document.getElementById('tj-id').value;
+  const body = {
+    tipo: document.getElementById('tj-tipo').value.trim(),
+    categoria: document.getElementById('tj-categoria').value.trim(),
+    subcategoria: document.getElementById('tj-subcategoria').value.trim(),
+    codigo: document.getElementById('tj-codigo').value.trim().toUpperCase(),
+    es_vehiculo: document.getElementById('tj-vehiculo').checked ? 1 : 0,
+  };
+  if (!body.tipo) { alert('El campo Tipo es obligatorio.'); return; }
+  const url = id ? `/crm/configuracion/tipos-jerarquia/${id}` : '/crm/configuracion/tipos-jerarquia';
+  const method = id ? 'PUT' : 'POST';
+  fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+    .then(r => r.json())
+    .then(() => { modalTipo.hide(); location.reload(); });
+}
+
+function toggleTipo(id, activo) {
+  fetch(`/crm/configuracion/tipos-jerarquia/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ activo: activo ? 1 : 0 }),
+  });
+}
+
+function eliminarTipo(id) {
+  if (!confirm('¿Eliminar este tipo de trabajo?')) return;
+  fetch(`/crm/configuracion/tipos-jerarquia/${id}`, { method: 'DELETE' })
+    .then(() => document.getElementById('row-tj-' + id)?.remove());
+}
+
+// ═══════════════════════════════════════════════════════
+// CARPETAS
+// ═══════════════════════════════════════════════════════
+
+function guardarBasePath() {
+  const path = document.getElementById('carpetas-base-path').value.trim();
+  fetch('/crm/configuracion/carpetas-config/base-path', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ base_path: path }),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) showToast('Ruta base guardada correctamente.', 'success');
+  });
+}
+
+function addCarpeta(tipoId) {
+  const nombre = prompt('Nombre de la carpeta (ej: 01_Encargo):');
+  if (!nombre || !nombre.trim()) return;
+  fetch(`/crm/configuracion/carpetas-tipo/${tipoId}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ nombre_carpeta: nombre.trim() }),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (!d.ok) return;
+    const listId = tipoId === 0 ? 'carpetas-global' : `carpetas-tipo-${tipoId}`;
+    const ul = document.getElementById(listId);
+    // Eliminar mensaje "sin carpetas" si existe
+    const empty = document.getElementById(`empty-tipo-${tipoId}`);
+    if (empty) empty.remove();
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex justify-content-between align-items-center py-1';
+    li.id = `carp-${d.id}`;
+    li.innerHTML = `<input type="text" class="form-control form-control-sm w-75 border-0"
+        value="${nombre.trim()}" onblur="editarCarpeta(${d.id}, this.value)">
+      <button class="btn btn-sm btn-outline-danger py-0" onclick="eliminarCarpeta(${d.id})">
+        <i class="bi bi-trash"></i></button>`;
+    ul.appendChild(li);
+  });
+}
+
+function editarCarpeta(id, nombre) {
+  if (!nombre.trim()) return;
+  fetch(`/crm/configuracion/carpetas-item/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ nombre_carpeta: nombre.trim() }),
+  });
+}
+
+function eliminarCarpeta(id) {
+  if (!confirm('¿Eliminar esta carpeta de la plantilla?')) return;
+  fetch(`/crm/configuracion/carpetas-item/${id}`, { method: 'DELETE' })
+    .then(() => document.getElementById('carp-' + id)?.remove());
+}
 </script>
 {% endblock %}

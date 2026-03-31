@@ -14,8 +14,11 @@ from flask import (Blueprint, render_template, request, redirect,
 
 from db import (query, execute, get_db, init_crm_db, init_work_types_defaults,
                 init_ensayo_types_defaults, get_pdf_settings, save_pdf_settings,
-                crear_tareas_oferta, TAREA_PLANTILLAS)
+                crear_tareas_oferta, TAREA_PLANTILLAS,
+                generar_codigo_proyecto, get_app_setting, save_app_setting,
+                get_tipos_jerarquia, get_plantillas_carpetas, crear_carpetas_proyecto)
 from pdf_generator import generar_pdf_oferta
+from hoja_encargo import generar_hoja_encargo
 
 import json as _json_mod
 _CODIGOS_REFORMA = {}
@@ -602,20 +605,66 @@ def oferta_cambiar_estado(oid):
 
     # Lógica especial al aceptar
     if nuevo_status == "aceptado":
-        referencia = oferta["referencia"].replace("/", "-")
-        output_path = _get_output_path()
-        carpeta_dest = Path(output_path) / "PRESUPUESTOS" / referencia
-        carpeta_dest.mkdir(parents=True, exist_ok=True)
+        # 1. Generar código de proyecto si no tiene
+        codigo_proyecto = oferta.get("codigo_proyecto", "") or ""
+        if not codigo_proyecto:
+            codigo_proyecto = generar_codigo_proyecto()
+            execute("UPDATE offers SET codigo_proyecto=? WHERE id=?", (codigo_proyecto, oid))
 
+        # 2. Buscar tipo_jerarquia_id por código de trabajo
+        tipo_trabajo = oferta.get("tipo_trabajo", "") or ""
+        tj = query("SELECT id FROM tipos_jerarquia WHERE codigo=? AND activo=1 LIMIT 1",
+                   (tipo_trabajo.upper(),), one=True)
+        tipo_jerarquia_id = tj["id"] if tj else None
+
+        # 3. Crear estructura de carpetas del proyecto
+        carpeta_raiz = crear_carpetas_proyecto(codigo_proyecto, tipo_jerarquia_id)
+        carpeta_path = Path(carpeta_raiz)
+
+        # 4. Copiar PDF del presupuesto a la carpeta del proyecto
         pdf_path = oferta.get("pdf_path", "")
+        carpeta_presupuesto = None
+        for sub in carpeta_path.iterdir():
+            if sub.is_dir() and "presupuesto" in sub.name.lower():
+                carpeta_presupuesto = sub
+                break
+        destino_pdf = carpeta_presupuesto or carpeta_path
         if pdf_path and Path(pdf_path).is_file():
-            shutil.copy2(pdf_path, str(carpeta_dest / Path(pdf_path).name))
+            shutil.copy2(pdf_path, str(destino_pdf / Path(pdf_path).name))
 
-        # Auto-generar tareas según tipo de trabajo
-        tipo_trabajo = oferta.get("tipo_trabajo", "")
+        # 5. Generar Hoja de Encargo
+        client_data = {}
+        if oferta.get("client_id"):
+            c = query("SELECT * FROM clients WHERE id=?", (oferta["client_id"],), one=True)
+            if c:
+                client_data = dict(c)
+        pdf_dir = BASE_DIR / "pdfs"
+        pdf_dir.mkdir(exist_ok=True)
+        he_filename = f"HE_{codigo_proyecto.replace('-', '_')}.pdf"
+        he_path = str(pdf_dir / he_filename)
+        generar_hoja_encargo(dict(oferta), client_data, codigo_proyecto, he_path,
+                             pdf_settings=get_pdf_settings())
+        execute("UPDATE offers SET he_path=? WHERE id=?", (he_path, oid))
+        # Copiar HE a carpeta encargo si existe
+        carpeta_encargo = None
+        for sub in carpeta_path.iterdir():
+            if sub.is_dir() and ("encargo" in sub.name.lower() or "01" in sub.name):
+                carpeta_encargo = sub
+                break
+        destino_he = carpeta_encargo or carpeta_path
+        if Path(he_path).is_file():
+            shutil.copy2(he_path, str(destino_he / he_filename))
+
+        # 6. Auto-generar tareas
         n_tareas = crear_tareas_oferta(oid, tipo_trabajo, oferta.get("referencia", ""))
 
-        return jsonify({"ok": True, "carpeta": str(carpeta_dest), "tareas_creadas": n_tareas})
+        return jsonify({
+            "ok": True,
+            "codigo_proyecto": codigo_proyecto,
+            "carpeta": str(carpeta_raiz),
+            "he_path": he_path,
+            "tareas_creadas": n_tareas,
+        })
 
     return jsonify({"ok": True})
 
@@ -815,12 +864,41 @@ def configuracion():
             "codigo": codigo,
             "descripcion": data["descripcion"]
         })
+    # Tipos jerarquía para pestaña configuración
+    tipos_jerarquia = query(
+        "SELECT * FROM tipos_jerarquia ORDER BY tipo, categoria, subcategoria, orden"
+    )
+    tipos_por_grupo = {}
+    for tj in tipos_jerarquia:
+        key = tj["tipo"]
+        if key not in tipos_por_grupo:
+            tipos_por_grupo[key] = []
+        tipos_por_grupo[key].append(dict(tj))
+
+    # Carpetas config
+    carpetas_base_path = get_app_setting("proyectos_base_path", "")
+    tipos_con_carpetas = []
+    for tj in tipos_jerarquia:
+        carpetas = query(
+            "SELECT * FROM plantillas_carpetas WHERE tipo_jerarquia_id=? ORDER BY orden",
+            (tj["id"],)
+        )
+        tipos_con_carpetas.append({**dict(tj), "carpetas": [dict(c) for c in carpetas]})
+    carpetas_globales = query(
+        "SELECT * FROM plantillas_carpetas WHERE tipo_jerarquia_id IS NULL ORDER BY orden"
+    )
+
     return render_template("crm_configuracion.html",
                            grupos_tarifas=grupos_tarifas,
                            ensayo_types=ensayo_types,
                            work_types=work_types,
                            grupos_reforma=grupos_reforma,
-                           pdf_settings=get_pdf_settings())
+                           pdf_settings=get_pdf_settings(),
+                           tipos_por_grupo=tipos_por_grupo,
+                           tipos_jerarquia=[dict(t) for t in tipos_jerarquia],
+                           tipos_con_carpetas=tipos_con_carpetas,
+                           carpetas_globales=[dict(c) for c in carpetas_globales],
+                           carpetas_base_path=carpetas_base_path)
 
 
 @crm_bp.route("/configuracion/pdf-template", methods=["POST"])
@@ -1325,6 +1403,183 @@ def api_vehiculo_modelos(marca):
     except ImportError:
         return jsonify([])
 
+
+# =============================================================================
+# HOJA DE ENCARGO — descarga
+# =============================================================================
+
+@crm_bp.route("/ofertas/<int:oid>/hoja-encargo")
+def oferta_hoja_encargo(oid):
+    """Genera (o regenera) la Hoja de Encargo y la descarga."""
+    oferta = query("SELECT * FROM offers WHERE id=?", (oid,), one=True)
+    if not oferta:
+        return jsonify({"error": "Oferta no encontrada"}), 404
+
+    client_data = {}
+    if oferta.get("client_id"):
+        c = query("SELECT * FROM clients WHERE id=?", (oferta["client_id"],), one=True)
+        if c:
+            client_data = dict(c)
+
+    codigo_proyecto = oferta.get("codigo_proyecto", "") or ""
+    if not codigo_proyecto:
+        codigo_proyecto = generar_codigo_proyecto()
+        execute("UPDATE offers SET codigo_proyecto=? WHERE id=?", (codigo_proyecto, oid))
+
+    pdf_dir = BASE_DIR / "pdfs"
+    pdf_dir.mkdir(exist_ok=True)
+    he_filename = f"HE_{codigo_proyecto.replace('-', '_')}.pdf"
+    he_path = str(pdf_dir / he_filename)
+    generar_hoja_encargo(dict(oferta), client_data, codigo_proyecto, he_path,
+                         pdf_settings=get_pdf_settings())
+    execute("UPDATE offers SET he_path=? WHERE id=?", (he_path, _now()))
+
+    return send_file(he_path, as_attachment=True, download_name=he_filename)
+
+
+# =============================================================================
+# CONFIGURACION — Tipos de trabajo jerárquicos
+# =============================================================================
+
+@crm_bp.route("/configuracion/tipos-jerarquia", methods=["GET"])
+def config_tipos_jerarquia_get():
+    tipos = query("SELECT * FROM tipos_jerarquia ORDER BY tipo, categoria, subcategoria, orden")
+    return jsonify([dict(t) for t in tipos])
+
+
+@crm_bp.route("/configuracion/tipos-jerarquia", methods=["POST"])
+def config_tipos_jerarquia_crear():
+    data = request.get_json() or {}
+    if not data.get("tipo"):
+        return jsonify({"error": "El campo tipo es obligatorio"}), 400
+    now = _now()
+    execute(
+        """INSERT INTO tipos_jerarquia
+           (tipo, categoria, subcategoria, codigo, es_vehiculo, activo, orden, created_at)
+           VALUES (?, ?, ?, ?, ?, 1, ?, ?)""",
+        (data.get("tipo", "").strip(),
+         data.get("categoria", "").strip(),
+         data.get("subcategoria", "").strip(),
+         data.get("codigo", "").strip().upper(),
+         1 if data.get("es_vehiculo") else 0,
+         int(data.get("orden", 0)),
+         now),
+    )
+    with get_db() as db:
+        new_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@crm_bp.route("/configuracion/tipos-jerarquia/<int:tid>", methods=["PUT"])
+def config_tipos_jerarquia_editar(tid):
+    data = request.get_json() or {}
+    allowed = {"tipo": str, "categoria": str, "subcategoria": str,
+               "codigo": str, "es_vehiculo": int, "activo": int, "orden": int}
+    sets, vals = [], []
+    for col, cast in allowed.items():
+        if col in data:
+            v = data[col]
+            if col == "codigo" and isinstance(v, str):
+                v = v.strip().upper()
+            sets.append(f"{col}=?")
+            vals.append(cast(v) if v not in (None, "") else (0 if cast == int else ""))
+    if not sets:
+        return jsonify({"ok": True})
+    vals.append(tid)
+    execute(f"UPDATE tipos_jerarquia SET {', '.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/configuracion/tipos-jerarquia/<int:tid>", methods=["DELETE"])
+def config_tipos_jerarquia_eliminar(tid):
+    execute("DELETE FROM tipos_jerarquia WHERE id=?", (tid,))
+    return jsonify({"ok": True})
+
+
+# =============================================================================
+# CONFIGURACION — Plantillas de carpetas
+# =============================================================================
+
+@crm_bp.route("/configuracion/carpetas-config", methods=["GET"])
+def config_carpetas_get():
+    base_path = get_app_setting("proyectos_base_path", "")
+    # Todos los tipos con sus carpetas
+    tipos = query("SELECT * FROM tipos_jerarquia WHERE activo=1 ORDER BY tipo, categoria, orden")
+    resultado = []
+    for t in tipos:
+        carpetas = query(
+            "SELECT * FROM plantillas_carpetas WHERE tipo_jerarquia_id=? ORDER BY orden",
+            (t["id"],)
+        )
+        resultado.append({
+            **dict(t),
+            "carpetas": [dict(c) for c in carpetas]
+        })
+    globales = query(
+        "SELECT * FROM plantillas_carpetas WHERE tipo_jerarquia_id IS NULL ORDER BY orden"
+    )
+    return jsonify({
+        "base_path": base_path,
+        "tipos": resultado,
+        "globales": [dict(c) for c in globales],
+    })
+
+
+@crm_bp.route("/configuracion/carpetas-config/base-path", methods=["POST"])
+def config_carpetas_base_path():
+    data = request.get_json() or {}
+    path = data.get("base_path", "").strip()
+    save_app_setting("proyectos_base_path", path)
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/configuracion/carpetas-tipo/<int:tid>", methods=["POST"])
+def config_carpetas_tipo_add(tid):
+    """Añade una carpeta a la plantilla de un tipo. tid=0 -> global."""
+    data = request.get_json() or {}
+    nombre = (data.get("nombre_carpeta") or "").strip()
+    if not nombre:
+        return jsonify({"error": "Nombre vacío"}), 400
+    tipo_id = None if tid == 0 else tid
+    max_orden = query(
+        "SELECT MAX(orden) as m FROM plantillas_carpetas WHERE tipo_jerarquia_id IS ?",
+        (tipo_id,), one=True
+    )
+    orden = (max_orden["m"] or 0) + 1 if max_orden else 1
+    execute(
+        "INSERT INTO plantillas_carpetas (tipo_jerarquia_id, nombre_carpeta, orden) VALUES (?, ?, ?)",
+        (tipo_id, nombre, orden)
+    )
+    with get_db() as db:
+        new_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@crm_bp.route("/configuracion/carpetas-item/<int:cid>", methods=["PUT"])
+def config_carpetas_item_edit(cid):
+    data = request.get_json() or {}
+    nombre = (data.get("nombre_carpeta") or "").strip()
+    if nombre:
+        execute("UPDATE plantillas_carpetas SET nombre_carpeta=? WHERE id=?", (nombre, cid))
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/configuracion/carpetas-item/<int:cid>", methods=["DELETE"])
+def config_carpetas_item_delete(cid):
+    execute("DELETE FROM plantillas_carpetas WHERE id=?", (cid,))
+    return jsonify({"ok": True})
+
+
+@crm_bp.route("/api/tipos-jerarquia")
+def api_tipos_jerarquia():
+    """API pública: tipos de trabajo jerárquicos activos."""
+    tipos = get_tipos_jerarquia()
+    return jsonify(tipos)
+
+
+# =============================================================================
+# PLANOS
+# =============================================================================
 
 @crm_bp.route("/planos")
 def planos_lista():

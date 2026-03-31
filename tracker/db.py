@@ -369,6 +369,85 @@ def init_crm_db():
             updated_at TEXT DEFAULT '',
             FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE SET NULL
         )""")
+        # App settings genérico (clave/valor)
+        db.execute("""CREATE TABLE IF NOT EXISTS app_settings (
+            clave TEXT PRIMARY KEY,
+            valor TEXT DEFAULT ''
+        )""")
+
+        # Secuencia de códigos de proyecto por año
+        db.execute("""CREATE TABLE IF NOT EXISTS codigos_proyecto (
+            anio INTEGER PRIMARY KEY,
+            ultimo_numero INTEGER DEFAULT 0
+        )""")
+
+        # Jerarquía de tipos de trabajo (tipo > categoría > subcategoría)
+        db.execute("""CREATE TABLE IF NOT EXISTS tipos_jerarquia (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo TEXT NOT NULL,
+            categoria TEXT NOT NULL DEFAULT '',
+            subcategoria TEXT NOT NULL DEFAULT '',
+            codigo TEXT DEFAULT '',
+            es_vehiculo INTEGER DEFAULT 0,
+            activo INTEGER DEFAULT 1,
+            orden INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT ''
+        )""")
+
+        # Plantillas de carpetas por tipo de trabajo (tipo_jerarquia_id NULL = global)
+        db.execute("""CREATE TABLE IF NOT EXISTS plantillas_carpetas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo_jerarquia_id INTEGER,
+            nombre_carpeta TEXT NOT NULL,
+            orden INTEGER DEFAULT 0,
+            FOREIGN KEY (tipo_jerarquia_id) REFERENCES tipos_jerarquia(id) ON DELETE CASCADE
+        )""")
+
+        # Migración: añadir codigo_proyecto a offers si no existe
+        off_cols = [r[1] for r in db.execute("PRAGMA table_info(offers)").fetchall()]
+        if "codigo_proyecto" not in off_cols:
+            db.execute("ALTER TABLE offers ADD COLUMN codigo_proyecto TEXT DEFAULT ''")
+        if "he_path" not in off_cols:
+            db.execute("ALTER TABLE offers ADD COLUMN he_path TEXT DEFAULT ''")
+
+        # Poblar tipos_jerarquia con valores por defecto si está vacía
+        count_tj = db.execute("SELECT COUNT(*) FROM tipos_jerarquia").fetchone()[0]
+        if count_tj == 0:
+            import datetime as _dt
+            _now2 = _dt.datetime.now().isoformat(timespec="seconds")
+            _tipos_default = [
+                # (tipo, categoria, subcategoria, codigo, es_vehiculo, orden)
+                ("Vehículos", "Homologación de Reforma", "Individual", "HOV", 1, 0),
+                ("Vehículos", "Homologación de Reforma", "Camper / Vivienda", "VIV", 1, 1),
+                ("Vehículos", "Homologación de Reforma", "Frigorífico", "FRIG", 1, 2),
+                ("Vehículos", "Homologación de Reforma", "Grúa autocargante", "CARG", 1, 3),
+                ("Vehículos", "Homologación de Reforma", "Plataforma elevadora", "PLAT", 1, 4),
+                ("Vehículos", "Homologación de Reforma", "Carrocería", "CARC", 1, 5),
+                ("Vehículos", "Homologación de Reforma", "Remolque", "REMO", 1, 6),
+                ("Vehículos", "Homologación de Reforma", "MMA", "MMA", 1, 7),
+                ("Vehículos", "Homologación de Reforma", "Eléctrico / Híbrido", "ELEC", 1, 8),
+                ("Vehículos", "Homologación de Reforma", "Extensión carrocería", "CARC2", 1, 9),
+                ("Vehículos", "Homologación de Reforma", "Suspensión", "SUSP", 1, 10),
+                ("Vehículos", "Homologación de Reforma", "GLP / GNC", "COMB", 1, 11),
+                ("Documentación", "Técnica", "Proyecto Técnico", "PT", 0, 0),
+                ("Documentación", "Técnica", "Certificado Final de Obra", "CFO", 0, 1),
+                ("Documentación", "Técnica", "Certificado de Taller", "CT", 0, 2),
+                ("Documentación", "Técnica", "Dictamen Técnico", "DT", 0, 3),
+                ("Documentación", "Técnica", "Estudio Técnico", "EST", 0, 4),
+                ("Ingeniería", "Servicios", "Inspección Técnica", "IT", 0, 0),
+                ("Ingeniería", "Servicios", "Cálculo Estructural", "CAL", 0, 1),
+                ("Ingeniería", "Servicios", "Dirección de Obra", "DIR", 0, 2),
+                ("Ingeniería", "Servicios", "Consultoría", "CON", 0, 3),
+                ("Otros", "General", "Otro", "OTR", 0, 0),
+            ]
+            for tipo, cat, sub, cod, es_veh, ord_ in _tipos_default:
+                db.execute(
+                    """INSERT INTO tipos_jerarquia
+                       (tipo, categoria, subcategoria, codigo, es_vehiculo, activo, orden, created_at)
+                       VALUES (?, ?, ?, ?, ?, 1, ?, ?)""",
+                    (tipo, cat, sub, cod, es_veh, ord_, _now2),
+                )
+
         # Tabla de eventos de agenda
         db.execute("""CREATE TABLE IF NOT EXISTS agenda_eventos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -546,6 +625,113 @@ TAREA_PLANTILLAS = {
         ("Entrega al cliente",                         "baja"),
     ],
 }
+
+
+# ---------------------------------------------------------------------------
+# App settings (clave/valor genérico)
+# ---------------------------------------------------------------------------
+
+def get_app_setting(clave: str, default: str = "") -> str:
+    """Lee un valor de la tabla app_settings."""
+    with get_db() as db:
+        row = db.execute("SELECT valor FROM app_settings WHERE clave=?", (clave,)).fetchone()
+        return row[0] if row else default
+
+
+def save_app_setting(clave: str, valor: str) -> None:
+    """Guarda o actualiza un valor en app_settings."""
+    with get_db() as db:
+        db.execute(
+            "INSERT INTO app_settings (clave, valor) VALUES (?, ?) "
+            "ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor",
+            (clave, valor),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Código de proyecto: P{año}-{NNNN}
+# ---------------------------------------------------------------------------
+
+def generar_codigo_proyecto() -> str:
+    """Genera el siguiente código de proyecto del año en curso: P2026-0001."""
+    from datetime import datetime
+    anio = datetime.now().year
+    with get_db() as db:
+        row = db.execute(
+            "SELECT ultimo_numero FROM codigos_proyecto WHERE anio=?", (anio,)
+        ).fetchone()
+        siguiente = (row[0] + 1) if row else 1
+        db.execute(
+            "INSERT INTO codigos_proyecto (anio, ultimo_numero) VALUES (?, ?) "
+            "ON CONFLICT(anio) DO UPDATE SET ultimo_numero=excluded.ultimo_numero",
+            (anio, siguiente),
+        )
+    return f"P{anio}-{siguiente:04d}"
+
+
+# ---------------------------------------------------------------------------
+# Jerarquía de tipos de trabajo
+# ---------------------------------------------------------------------------
+
+def get_tipos_jerarquia() -> list:
+    """Devuelve todos los tipos de trabajo jerárquicos."""
+    rows = query("SELECT * FROM tipos_jerarquia WHERE activo=1 ORDER BY tipo, categoria, subcategoria, orden")
+    return [dict(r) for r in rows] if rows else []
+
+
+def get_plantillas_carpetas(tipo_id=None) -> list:
+    """Devuelve las carpetas plantilla para un tipo (o globales si tipo_id=None)."""
+    if tipo_id is None:
+        rows = query(
+            "SELECT * FROM plantillas_carpetas WHERE tipo_jerarquia_id IS NULL ORDER BY orden"
+        )
+    else:
+        rows = query(
+            "SELECT * FROM plantillas_carpetas WHERE tipo_jerarquia_id=? ORDER BY orden",
+            (tipo_id,)
+        )
+    return [dict(r) for r in rows] if rows else []
+
+
+# ---------------------------------------------------------------------------
+# Crear estructura de carpetas de proyecto
+# ---------------------------------------------------------------------------
+
+def crear_carpetas_proyecto(codigo_proyecto: str, tipo_jerarquia_id=None) -> str:
+    """
+    Crea la estructura de carpetas para un proyecto.
+    Devuelve la ruta raíz creada como string.
+    """
+    base_path = get_app_setting("proyectos_base_path", "")
+    if not base_path:
+        base_path = str(Path(__file__).parent.parent / "PROYECTOS")
+
+    carpeta_raiz = Path(base_path) / codigo_proyecto
+    carpeta_raiz.mkdir(parents=True, exist_ok=True)
+
+    # Obtener plantilla del tipo específico; si no tiene, usar la global
+    carpetas = get_plantillas_carpetas(tipo_jerarquia_id)
+    if not carpetas:
+        carpetas = get_plantillas_carpetas(None)
+
+    # Carpetas por defecto si no hay ninguna configurada
+    if not carpetas:
+        carpetas_default = [
+            "01_Encargo",
+            "02_Presupuesto",
+            "03_Documentacion_cliente",
+            "04_Trabajo_tecnico",
+            "05_Entrega_final",
+        ]
+        for nombre in carpetas_default:
+            (carpeta_raiz / nombre).mkdir(exist_ok=True)
+    else:
+        for c in carpetas:
+            nombre = c.get("nombre_carpeta", "").strip()
+            if nombre:
+                (carpeta_raiz / nombre).mkdir(exist_ok=True)
+
+    return str(carpeta_raiz)
 
 
 def crear_tareas_oferta(offer_id: int, tipo_trabajo_codigo: str, referencia: str) -> int:

@@ -20,6 +20,9 @@
     <a href="{{ url_for('crm.oferta_pdf', oid=oferta.id) }}" class="btn btn-outline-danger btn-sm" target="_blank">
       <i class="bi bi-file-pdf"></i> Generar PDF
     </a>
+    <a href="{{ url_for('crm.oferta_hoja_encargo', oid=oferta.id) }}" class="btn btn-outline-warning btn-sm">
+      <i class="bi bi-file-earmark-text"></i> Hoja de Encargo
+    </a>
     <a href="{{ url_for('crm.oferta_plano', oid=oferta.id) }}" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-rulers"></i> Generar Plano
     </a>
@@ -85,8 +88,17 @@
       <div class="card-body">
         <div class="row g-2 small">
           <div class="col-md-4">
-            <div class="text-muted">Referencia</div>
+            <div class="text-muted">Referencia oferta</div>
             <div class="fw-bold font-monospace">{{ oferta.referencia }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted">Código proyecto</div>
+            <div class="fw-bold font-monospace text-primary">
+              {{ oferta.codigo_proyecto or '—' }}
+              {% if not oferta.codigo_proyecto and oferta.status == 'aceptado' %}
+              <small class="text-warning">(se genera al aceptar)</small>
+              {% endif %}
+            </div>
           </div>
           <div class="col-md-4">
             <div class="text-muted">Tipo de trabajo</div>
