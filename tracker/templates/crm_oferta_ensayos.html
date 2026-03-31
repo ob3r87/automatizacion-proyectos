@@ -1,4 +1,4 @@
-<!-- Sección de ensayos de la oferta — incluir con {% include 'crm_oferta_ensayos.html' %} -->
+{# Seccion de ensayos de la oferta - incluir desde crm_oferta_detalle.html #}
 {% set work_type_obj = work_types | selectattr('codigo','equalto', oferta.tipo_trabajo) | first if work_types is defined else none %}
 {% set requiere = work_type_obj.requiere_ensayos if work_type_obj else false %}
 
