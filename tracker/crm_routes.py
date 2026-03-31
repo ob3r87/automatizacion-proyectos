@@ -341,6 +341,9 @@ def oferta_nueva():
 
     clientes = query("SELECT * FROM clients ORDER BY nombre")
     work_types = query("SELECT * FROM work_types WHERE activo=1 ORDER BY codigo")
+    tipos_jerarquia = query(
+        "SELECT * FROM tipos_jerarquia WHERE activo=1 ORDER BY tipo, categoria, subcategoria, orden"
+    )
     referencia = siguiente_referencia_oferta()
     return render_template(
         "crm_oferta_form.html",
@@ -348,6 +351,7 @@ def oferta_nueva():
         lines=[],
         clientes=clientes,
         work_types=work_types,
+        tipos_jerarquia=[dict(t) for t in tipos_jerarquia],
         referencia=referencia,
         hov_data=None,
         codigos_reforma=_CODIGOS_REFORMA,
@@ -414,6 +418,9 @@ def oferta_editar(oid):
 
     clientes = query("SELECT * FROM clients ORDER BY nombre")
     work_types = query("SELECT * FROM work_types WHERE activo=1 ORDER BY codigo")
+    tipos_jerarquia = query(
+        "SELECT * FROM tipos_jerarquia WHERE activo=1 ORDER BY tipo, categoria, subcategoria, orden"
+    )
     lines = query("SELECT * FROM offer_lines WHERE offer_id = ? ORDER BY orden", (oid,))
     hov_data = query("SELECT * FROM offer_hov_data WHERE offer_id=?", (oid,), one=True) if oferta.get("tipo_trabajo") == "HOV" else None
     if hov_data and hov_data.get("actos_reglamentarios"):
@@ -427,6 +434,7 @@ def oferta_editar(oid):
         lines=lines,
         clientes=clientes,
         work_types=work_types,
+        tipos_jerarquia=[dict(t) for t in tipos_jerarquia],
         referencia=oferta["referencia"],
         hov_data=hov_data,
         codigos_reforma=_CODIGOS_REFORMA,

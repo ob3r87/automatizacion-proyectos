@@ -68,18 +68,28 @@
                      value="{{ oferta.titulo if oferta else '' }}"
                      placeholder="Ej: Homologación furgoneta isotérmica">
             </div>
+            <!-- Tipo de trabajo en cascada -->
             <div class="col-md-4">
               <label class="form-label">Tipo de trabajo</label>
-              <select name="tipo_trabajo" class="form-select" id="tipo-trabajo-select">
+              <select class="form-select" id="sel-tipo">
                 <option value="">— Seleccionar —</option>
-                {% for wt in work_types %}
-                <option value="{{ wt.codigo }}"
-                  {% if oferta and oferta.tipo_trabajo == wt.codigo %}selected{% endif %}>
-                  {{ wt.codigo }} — {{ wt.nombre }}
-                </option>
-                {% endfor %}
               </select>
             </div>
+            <div class="col-md-4">
+              <label class="form-label">Categoría</label>
+              <select class="form-select" id="sel-categoria" disabled>
+                <option value="">— Primero selecciona tipo —</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Subcategoría</label>
+              <select class="form-select" id="sel-subcategoria" disabled>
+                <option value="">— Primero selecciona categoría —</option>
+              </select>
+            </div>
+            <!-- Campo oculto con el código final que se envía al servidor -->
+            <input type="hidden" name="tipo_trabajo" id="tipo-trabajo-codigo"
+                   value="{{ oferta.tipo_trabajo if oferta else '' }}">
 
             <div class="col-12">
               <label class="form-label">Descripción / Objeto</label>
@@ -279,6 +289,102 @@ const workTypes = {
   '{{ wt.codigo }}': { nombre: {{ wt.nombre | tojson }}, precio: {{ wt.precio_base }} },
   {% endfor %}
 };
+
+// ── Selects en cascada: Tipo > Categoría > Subcategoría ──────────────────────
+const tiposJerarquia = {{ tipos_jerarquia | tojson }};
+const selTipo        = document.getElementById('sel-tipo');
+const selCategoria   = document.getElementById('sel-categoria');
+const selSubcat      = document.getElementById('sel-subcategoria');
+const inputCodigo    = document.getElementById('tipo-trabajo-codigo');
+
+// Valor pre-seleccionado (edición de oferta existente)
+const preselCodigo = inputCodigo.value || '';
+
+function poblarTipos() {
+  const tipos = [...new Set(tiposJerarquia.map(t => t.tipo))].sort();
+  selTipo.innerHTML = '<option value="">— Seleccionar —</option>';
+  tipos.forEach(tipo => {
+    const opt = document.createElement('option');
+    opt.value = tipo;
+    opt.textContent = tipo;
+    selTipo.appendChild(opt);
+  });
+}
+
+function poblarCategorias(tipoSeleccionado) {
+  const cats = [...new Set(
+    tiposJerarquia.filter(t => t.tipo === tipoSeleccionado).map(t => t.categoria)
+  )].sort();
+  selCategoria.innerHTML = '<option value="">— Seleccionar —</option>';
+  cats.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    selCategoria.appendChild(opt);
+  });
+  selCategoria.disabled = cats.length === 0;
+  selSubcat.innerHTML = '<option value="">— Primero selecciona categoría —</option>';
+  selSubcat.disabled = true;
+  inputCodigo.value = '';
+}
+
+function poblarSubcategorias(tipoSel, catSel) {
+  const items = tiposJerarquia.filter(t => t.tipo === tipoSel && t.categoria === catSel);
+  selSubcat.innerHTML = '<option value="">— Seleccionar —</option>';
+  items.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.codigo;
+    opt.textContent = item.subcategoria || item.codigo;
+    opt.dataset.esVehiculo = item.es_vehiculo;
+    selSubcat.appendChild(opt);
+  });
+  selSubcat.disabled = items.length === 0;
+  inputCodigo.value = '';
+}
+
+selTipo.addEventListener('change', () => {
+  poblarCategorias(selTipo.value);
+});
+
+selCategoria.addEventListener('change', () => {
+  poblarSubcategorias(selTipo.value, selCategoria.value);
+});
+
+selSubcat.addEventListener('change', () => {
+  const codigo = selSubcat.value;
+  inputCodigo.value = codigo;
+  // Autocompletar precio si el código existe en work_types
+  if (codigo && workTypes[codigo]) {
+    const campo = document.getElementById('precio-auto');
+    if (campo) campo.value = workTypes[codigo].precio;
+  }
+});
+
+// ── Pre-seleccionar si es edición ─────────────────────────────────────────────
+function preseleccionarCascada(codigo) {
+  if (!codigo) return;
+  const item = tiposJerarquia.find(t => t.codigo === codigo);
+  if (!item) return;
+
+  poblarTipos();
+  // Seleccionar Tipo
+  selTipo.value = item.tipo;
+  // Poblar y seleccionar Categoría
+  poblarCategorias(item.tipo);
+  selCategoria.value = item.categoria;
+  // Poblar y seleccionar Subcategoría
+  poblarSubcategorias(item.tipo, item.categoria);
+  selSubcat.value = codigo;
+  inputCodigo.value = codigo;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (preselCodigo) {
+    preseleccionarCascada(preselCodigo);
+  } else {
+    poblarTipos();
+  }
+});
 
 // Líneas iniciales (edición)
 const lineasIniciales = [
