@@ -1,0 +1,518 @@
+{% extends "base_app.html" %}
+{% block title %}Nuevo Proyecto — Phican{% endblock %}
+
+{% block extra_head %}
+<style>
+  .tab-content > .tab-pane { padding-top: 1rem; }
+  .form-label-sm { font-size: 0.82rem; color: #555; margin-bottom: 0.15rem; }
+  .form-control-sm { font-size: 0.85rem; }
+  .btn-action { font-size: 0.85rem; font-weight: 600; }
+  #status-bar { font-size: 0.82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h4 class="mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Nuevo Proyecto de Reforma</h4>
+    <small class="text-muted">Generador de Proyectos — Phican Ingenieros</small>
+  </div>
+  <div id="status-bar" class="text-muted"></div>
+</div>
+
+<!-- Pestañas -->
+<ul class="nav nav-tabs" id="formTabs" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-expediente" type="button">
+      <i class="bi bi-folder2-open me-1"></i>Expediente
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vehiculo" type="button">
+      <i class="bi bi-truck me-1"></i>Vehiculo
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-calculos" type="button">
+      <i class="bi bi-calculator me-1"></i>Calculos
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-reforma" type="button">
+      <i class="bi bi-tools me-1"></i>Reformas
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cfo" type="button">
+      <i class="bi bi-clipboard-check me-1"></i>CFO
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="formTabContent">
+
+  <!-- ════════════════════ TAB EXPEDIENTE ════════════════════ -->
+  <div class="tab-pane fade show active" id="tab-expediente">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5><i class="bi bi-folder me-1"></i>Expediente</h5>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label-sm">Referencia</label>
+              <input type="text" class="form-control form-control-sm" id="REFERENCIA"
+                     value="{{ ref_default }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Mes y ano</label>
+              <input type="text" class="form-control form-control-sm" id="MES_ANIO"
+                     value="{{ mes_anio }}">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5><i class="bi bi-person me-1"></i>Peticionario</h5>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label-sm">Nombre</label>
+              <input type="text" class="form-control form-control-sm" id="PETICIONARIO_NOMBRE">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Apellidos</label>
+              <input type="text" class="form-control form-control-sm" id="PETICIONARIO_APELLIDOS">
+            </div>
+            <div class="col-12">
+              <label class="form-label-sm">Provincia</label>
+              <input type="text" class="form-control form-control-sm" id="PETICIONARIO_PROVINCIA">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5><i class="bi bi-pen me-1"></i>Firma</h5>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label-sm">Lugar de firma</label>
+              <input type="text" class="form-control form-control-sm" id="LUGAR_FIRMA"
+                     value="{{ config.get('LUGAR_FIRMA', 'Santa Ursula') }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Fecha de firma</label>
+              <input type="text" class="form-control form-control-sm" id="FECHA_FIRMA"
+                     value="{{ fecha_firma }}">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5><i class="bi bi-person-badge me-1"></i>Tecnico firmante</h5>
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label-sm">Nombre completo</label>
+              <input type="text" class="form-control form-control-sm" id="TECNICO_NOMBRE"
+                     value="{{ config.get('TECNICO_NOMBRE', '') }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Colegio</label>
+              <input type="text" class="form-control form-control-sm" id="TECNICO_COLEGIO"
+                     value="{{ config.get('TECNICO_COLEGIO', '') }}">
+            </div>
+            <div class="col-3">
+              <label class="form-label-sm">Abreviatura</label>
+              <input type="text" class="form-control form-control-sm" id="TECNICO_COLEGIO_ABREV"
+                     value="{{ config.get('TECNICO_COLEGIO_ABREV', '') }}">
+            </div>
+            <div class="col-3">
+              <label class="form-label-sm">N colegiado</label>
+              <input type="text" class="form-control form-control-sm" id="TECNICO_NUM_COLEGIADO"
+                     value="{{ config.get('TECNICO_NUM_COLEGIADO', '') }}">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ TAB VEHICULO ════════════════════ -->
+  <div class="tab-pane fade" id="tab-vehiculo">
+
+    <!-- Botones de accion -->
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-primary btn-sm btn-action" onclick="leerFichaVision()">
+        <i class="bi bi-camera me-1"></i>Leer ficha desde foto
+      </button>
+      <button class="btn btn-sm btn-action" style="background:#00695c;color:#fff" onclick="buscarVehiculoBD()">
+        <i class="bi bi-search me-1"></i>Buscar en BD local
+      </button>
+      <button class="btn btn-sm btn-action" style="background:#e65100;color:#fff" onclick="abrirGiaveh()">
+        <i class="bi bi-globe me-1"></i>Abrir GIAVEH
+      </button>
+      <span id="ficha-status" class="align-self-center text-muted small"></span>
+      <input type="file" id="ficha-file-input" accept="image/*" capture="environment" class="d-none"
+             onchange="enviarFichaVision(this)">
+    </div>
+
+    <!-- Categoria y datos basicos -->
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5><i class="bi bi-tag me-1"></i>Categoria del vehiculo</h5>
+          <div class="mb-2">
+            <label class="form-label-sm">Categoria</label>
+            <select class="form-select form-select-sm" id="CATEGORIA_VEHICULO"
+                    onchange="onCategoriaChange()">
+              {% for cat in categorias %}
+              <option value="{{ cat }}" {% if 'M1' in cat %}selected{% endif %}>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label-sm">Uso del vehiculo</label>
+            <select class="form-select form-select-sm" id="USO_VEHICULO">
+              {% for uso in usos %}
+              <option value="{{ uso }}">{{ uso }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-section">
+          <h5><i class="bi bi-car-front me-1"></i>Datos del vehiculo</h5>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label-sm">Marca</label>
+              <input type="text" class="form-control form-control-sm" id="MARCA">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Modelo</label>
+              <input type="text" class="form-control form-control-sm" id="MODELO">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Tipo</label>
+              <input type="text" class="form-control form-control-sm" id="TIPO_VEHICULO">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Version</label>
+              <input type="text" class="form-control form-control-sm" id="VERSION_VEHICULO">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">N de bastidor</label>
+              <input type="text" class="form-control form-control-sm" id="NUM_BASTIDOR">
+            </div>
+            <div class="col-3">
+              <label class="form-label-sm">Matricula</label>
+              <input type="text" class="form-control form-control-sm" id="MATRICULA">
+            </div>
+            <div class="col-3">
+              <label class="form-label-sm">Parte fija VIN</label>
+              <input type="text" class="form-control form-control-sm" id="PARTE_FIJA_VIN">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Silueta del vehiculo -->
+    <div class="form-section mt-3" id="sil-container">
+      <h5><i class="bi bi-car-front me-1"></i>Representacion del vehiculo</h5>
+      <div class="row">
+        <div class="col-md-8">
+          <div class="sil-canvas-wrap">
+            <canvas id="sil-canvas" width="560" height="210"></canvas>
+            <canvas id="sil-row-canvas" width="560" height="52"></canvas>
+            <canvas id="sil-dim-canvas" width="560" height="82"></canvas>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="mb-2">
+            <label class="form-label-sm fw-bold">Tipo de vehiculo</label>
+            <div class="d-flex flex-wrap gap-1" id="sil-type-buttons">
+              <button class="sil-type-btn active" data-sil="turismo">M1 Turismo</button>
+              <button class="sil-type-btn" data-sil="suv">M1 SUV</button>
+              <button class="sil-type-btn" data-sil="mono">M1 Monovolumen</button>
+              <button class="sil-type-btn" data-sil="minibus">M2 Minibus</button>
+              <button class="sil-type-btn" data-sil="autobus">M3 Autobus</button>
+              <button class="sil-type-btn" data-sil="furgoneta">N1 Furgoneta</button>
+              <button class="sil-type-btn" data-sil="camion">N2/N3 Camion</button>
+              <button class="sil-type-btn" data-sil="moto">L Moto</button>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label-sm fw-bold">Filas de pasajeros</label>
+            <div class="btn-group btn-group-sm w-100">
+              <button class="btn btn-outline-secondary" onclick="setFilas(1)">1 fila</button>
+              <button class="btn btn-outline-secondary active" onclick="setFilas(2)">2 filas</button>
+              <button class="btn btn-outline-secondary" onclick="setFilas(3)">3 filas</button>
+            </div>
+          </div>
+          <hr>
+          <div class="mb-1">
+            <label class="form-label-sm fw-bold">Balance de masas</label>
+          </div>
+          <div class="row g-1">
+            <div class="col-6">
+              <label class="form-label-sm">Qu (carga util)</label>
+              <div class="bal-result bal-neutral" id="bal-qu">— kg</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">R1 eje del.</label>
+              <div class="bal-result bal-neutral" id="bal-r1">— kgf</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">R2 eje tras.</label>
+              <div class="bal-result bal-neutral" id="bal-r2">— kgf</div>
+            </div>
+            <div class="col-3">
+              <label class="form-label-sm">Verif. E1</label>
+              <div class="bal-result bal-neutral" id="bal-v1">—</div>
+            </div>
+            <div class="col-3">
+              <label class="form-label-sm">Verif. E2</label>
+              <div class="bal-result bal-neutral" id="bal-v2">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Datos dimensionales -->
+      <div class="row g-2 mt-2">
+        <div class="col-md-2">
+          <label class="form-label-sm">Longitud total (mm)</label>
+          <input type="text" class="form-control form-control-sm sil-input" id="sil_longitud"
+                 oninput="onSilDataChange()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">Voladizo trasero (mm)</label>
+          <input type="text" class="form-control form-control-sm sil-input" id="sil_voladizo"
+                 oninput="onSilDataChange()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">Dist. entre ejes (mm)</label>
+          <input type="text" class="form-control form-control-sm sil-input" id="sil_dist_ejes"
+                 oninput="onSilDataChange()">
+        </div>
+        <div class="col-md-6" id="sil-asientos-container">
+          <!-- Se construye dinámicamente -->
+        </div>
+      </div>
+      <hr class="my-2">
+      <!-- Datos de masas -->
+      <div class="row g-2">
+        <div class="col-md-2">
+          <label class="form-label-sm">Tara eje 1 (kg)</label>
+          <input type="text" class="form-control form-control-sm bal-input" id="sil_tara1"
+                 oninput="recalcularBalance()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">Tara eje 2 (kg)</label>
+          <input type="text" class="form-control form-control-sm bal-input" id="sil_tara2"
+                 oninput="recalcularBalance()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">MMA (kg)</label>
+          <input type="text" class="form-control form-control-sm bal-input" id="sil_mma"
+                 oninput="recalcularBalance()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">MMA eje 1 (kg)</label>
+          <input type="text" class="form-control form-control-sm bal-input" id="sil_mma1"
+                 oninput="recalcularBalance()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">MMA eje 2 (kg)</label>
+          <input type="text" class="form-control form-control-sm bal-input" id="sil_mma2"
+                 oninput="recalcularBalance()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label-sm">Long. caja N1 (mm)</label>
+          <input type="text" class="form-control form-control-sm bal-input" id="sil_long_caja"
+                 oninput="recalcularBalance()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Ficha reducida: Antes / Despues -->
+    <div class="form-section mt-3">
+      <h5><i class="bi bi-file-text me-1"></i>Ficha Reducida de Caracteristicas</h5>
+      <small class="text-muted">Dejar en blanco los campos que no apliquen</small>
+
+      {% macro ab_section(titulo, campos) %}
+      <div class="mt-3">
+        <h6 class="text-primary" style="font-size:0.85rem;font-weight:700">{{ titulo }}</h6>
+        <div class="ab-grid">
+          <div></div>
+          <div class="ab-header ab-header-antes">Antes</div>
+          <div></div>
+          <div class="ab-header ab-header-despues">Despues</div>
+          {% for ca, cd, label in campos %}
+          <div class="ab-label">{{ label }}</div>
+          <input type="text" class="form-control form-control-sm" id="{{ ca }}">
+          <div class="ab-arrow">&rarr;</div>
+          <input type="text" class="form-control form-control-sm" id="{{ cd }}">
+          {% endfor %}
+        </div>
+      </div>
+      {% endmacro %}
+
+      {{ ab_section("Fabricante del vehiculo", [
+        ("FABR_BASE_A", "FABR_BASE_D", "Fabricante del vehiculo base"),
+        ("FABR_ULTIMA_A", "FABR_ULTIMA_D", "Fabricante ultima fase"),
+        ("EMPL_PLACA_A", "EMPL_PLACA_D", "Emplazamiento placa fabricante"),
+      ]) }}
+
+      {{ ab_section("Homologacion e identificacion", [
+        ("EMPL_VIN_A", "EMPL_VIN_D", "Emplazamiento del VIN"),
+        ("HOMOL_BASE_A", "HOMOL_BASE_D", "N homologacion — veh. base"),
+        ("FECHA_HOMOL_BASE_A", "FECHA_HOMOL_BASE_D", "Fecha homologacion base"),
+        ("HOMOL_COMPL_A", "HOMOL_COMPL_D", "N homologacion — completo"),
+        ("FECHA_HOMOL_COMPL_A", "FECHA_HOMOL_COMPL_D", "Fecha homologacion completo"),
+      ]) }}
+
+      {{ ab_section("Constitucion general", [
+        ("NUM_EJES", "NUM_EJES_POST", "N de ejes y ruedas"),
+        ("EJES_MOTR_A", "EJES_MOTR_D", "Ejes motrices"),
+      ]) }}
+
+      {{ ab_section("Masas y dimensiones", [
+        ("DISTANCIA_EJES", "DISTANCIA_EJES_POST", "Distancia entre ejes (mm)"),
+        ("VIAS_EJES_A", "VIAS_EJES_D", "Vias de los ejes"),
+        ("LONGITUD_VEH", "LONGITUD_VEH_POST", "Longitud (mm)"),
+        ("ANCHURA_VEH", "ANCHURA_VEH_POST", "Anchura (mm)"),
+        ("ALTURA_VEH", "ALTURA_VEH_POST", "Altura (mm)"),
+        ("VOLADIZO_A", "VOLADIZO_D", "Voladizo trasero"),
+        ("TARA_VEHICULO_KG", "TARA_VEHICULO_KG_POST", "Tara / Masa en orden de marcha (kg)"),
+        ("MMTA", "MMTA_POST", "MMTA (kg)"),
+        ("MMA", "MMA_POST", "MMA (kg)"),
+        ("MMTA_EJE_A", "MMTA_EJE_D", "MMTA por eje"),
+        ("MMA_EJE_A", "MMA_EJE_D", "MMA por eje"),
+        ("MMTC", "MMTC_POST", "MMTC (kg)"),
+        ("MASA_REMOLC_A", "MASA_REMOLC_D", "Masa remolcable max"),
+        ("CARGA_VERT_A", "CARGA_VERT_D", "Carga vertical estatica"),
+      ]) }}
+
+      {{ ab_section("Unidad motriz", [
+        ("FABR_MOTOR_A", "FABR_MOTOR_D", "Fabricante/marca motor"),
+        ("COD_MOTOR_A", "COD_MOTOR_D", "Codigo del motor"),
+        ("CILINDRADA_A", "CILINDRADA_D", "Cilindrada (cm3)"),
+        ("COMBUSTIBLE_A", "COMBUSTIBLE_D", "Tipo combustible"),
+        ("POT_NETA_A", "POT_NETA_D", "Potencia neta max (kW)"),
+      ]) }}
+
+      {{ ab_section("Suspension / Direccion / Frenado", [
+        ("SUSPENSION_A", "SUSPENSION_D", "Tipo de suspension"),
+        ("DIRECCION_A", "DIRECCION_D", "Direccion, asistencia"),
+        ("FRENADO_A", "FRENADO_D", "Dispositivo de frenado"),
+      ]) }}
+
+      {{ ab_section("Carroceria", [
+        ("CARROCERIA_A", "CARROCERIA_D", "Tipo de carroceria"),
+        ("PLAZAS_A", "PLAZAS_D", "Plazas de asiento"),
+      ]) }}
+
+      {{ ab_section("Varios", [
+        ("VEL_MAX_A", "VEL_MAX_D", "Velocidad maxima"),
+        ("EMISIONES_A", "EMISIONES_D", "Nivel de emisiones Euro"),
+        ("CO2_A", "CO2_D", "Emision CO2 (g/km)"),
+        ("POT_FISCAL_A", "POT_FISCAL_D", "Potencia fiscal (CVF)"),
+      ]) }}
+    </div>
+  </div>
+
+  <!-- ════════════════════ TAB CALCULOS ════════════════════ -->
+  <div class="tab-pane fade" id="tab-calculos">
+    <div class="form-section">
+      <h5><i class="bi bi-calculator me-1"></i>Calculos justificativos</h5>
+      <div id="calc-bloques"></div>
+      <button class="btn btn-outline-primary btn-sm mt-2" onclick="addCalcBloque()">
+        <i class="bi bi-plus-circle me-1"></i>Anadir bloque de calculo
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════ TAB REFORMAS ════════════════════ -->
+  <div class="tab-pane fade" id="tab-reforma">
+    <div class="form-section">
+      <h5><i class="bi bi-tools me-1"></i>Reformas del vehiculo</h5>
+      <div id="reforma-list"></div>
+      <button class="btn btn-outline-primary btn-sm mt-2" onclick="addReforma()">
+        <i class="bi bi-plus-circle me-1"></i>Anadir reforma
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════ TAB CFO ════════════════════ -->
+  <div class="tab-pane fade" id="tab-cfo">
+    <div class="form-section">
+      <h5><i class="bi bi-clipboard-check me-1"></i>Certificado Final de Obra</h5>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label-sm">Taller ejecutor</label>
+          <input type="text" class="form-control form-control-sm" id="CFO_TALLER">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label-sm">Numero de taller</label>
+          <input type="text" class="form-control form-control-sm" id="CFO_NUM_TALLER">
+        </div>
+        <div class="col-12">
+          <label class="form-label-sm">Descripcion de los trabajos realizados</label>
+          <textarea class="form-control form-control-sm" id="CFO_DESCRIPCION" rows="4"></textarea>
+        </div>
+      </div>
+      <hr>
+      <h6 class="text-primary" style="font-size:0.85rem">Fotos del CFO</h6>
+      <div id="cfo-fotos"></div>
+      <button class="btn btn-outline-secondary btn-sm mt-2" onclick="addFotoCfo()">
+        <i class="bi bi-camera me-1"></i>Anadir foto
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Barra inferior fija -->
+<div class="bottom-bar mt-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <span id="gen-status" class="text-muted small"></span>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm text-white" style="background:#6a1b9a" onclick="generarCT()">
+        CT
+      </button>
+      <button class="btn btn-sm text-white" style="background:#00695c" onclick="generarCFO()">
+        CFO
+      </button>
+      <button class="btn btn-sm text-white" style="background:#1976D2" onclick="generarAnexo()">
+        <i class="bi bi-list-task me-1"></i>GENERAR ANEXO
+      </button>
+      <button class="btn btn-sm text-white fw-bold" style="background:#2e7d32;font-size:0.95rem"
+              onclick="generarProyecto()">
+        <i class="bi bi-play-fill me-1"></i>GENERAR PROYECTO
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Códigos de reforma disponibles para JS
+  window._codigosReforma = {{ codigos_reforma | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/silueta.js') }}"></script>
+<script src="{{ url_for('static', filename='js/formulario.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initSilueta();
+    buildAsientosInputs();
+    recalcularBalance();
+  });
+</script>
+{% endblock %}

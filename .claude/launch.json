@@ -2,14 +2,8 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Formulario (GUI)",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["formulario.py"],
-      "port": null
-    },
-    {
-      "name": "Tracker",
-      "runtimeExecutable": "C:\\Users\\ober_\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "name": "PHICAN WebApp",
+      "runtimeExecutable": "C:\\Program Files\\PyManager\\python.exe",
       "runtimeArgs": ["tracker/app.py"],
       "port": 5050
     }

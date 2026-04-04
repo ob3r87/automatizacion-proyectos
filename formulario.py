@@ -29,6 +29,8 @@ CAMPOS_CONFIG = [
     "MARCA_PORTADA", "MARCA", "LUGAR_FIRMA",
     # Técnico firmante (fijo por empresa)
     "TECNICO_NOMBRE", "TECNICO_COLEGIO", "TECNICO_COLEGIO_ABREV", "TECNICO_NUM_COLEGIADO",
+    # API
+    "ANTHROPIC_API_KEY",
 ]
 
 # ── Colores ───────────────────────────────────────────────────────────────────
@@ -2497,9 +2499,316 @@ class FormularioProyecto(tk.Tk):
             "Modifica lo necesario y pulsa GENERAR PROYECTO."
         )
 
+    # ── Lectura de ficha técnica con Claude Vision ──────────────────────────
+
+    def _leer_ficha_tecnica(self):
+        """Abre selector de imagen y envía a Claude Vision para extraer datos."""
+        from tkinter import filedialog
+
+        api_key = self.entries.get("ANTHROPIC_API_KEY", tk.StringVar()).get().strip()
+        if not api_key:
+            messagebox.showwarning(
+                "API Key necesaria",
+                "Configura tu ANTHROPIC_API_KEY en la pestaña Configuración\n"
+                "para poder usar la lectura de fichas técnicas.")
+            return
+
+        ruta = filedialog.askopenfilename(
+            title="Seleccionar foto de la ficha técnica",
+            filetypes=[
+                ("Imágenes", "*.jpg *.jpeg *.png *.bmp *.webp"),
+                ("Todos", "*.*"),
+            ]
+        )
+        if not ruta:
+            return
+
+        self._lbl_ficha_status.config(text="Leyendo ficha técnica...", fg="#1565c0")
+        self.root.update_idletasks()
+
+        # Ejecutar en hilo para no bloquear la UI
+        threading.Thread(
+            target=self._procesar_ficha_vision,
+            args=(ruta, api_key),
+            daemon=True
+        ).start()
+
+    def _procesar_ficha_vision(self, ruta_imagen, api_key):
+        """Envía la imagen a Claude Vision y extrae los campos de la ficha."""
+        import base64
+        try:
+            import httpx
+        except ImportError:
+            import subprocess as sp
+            sp.check_call([sys.executable, "-m", "pip", "install", "httpx", "--quiet"],
+                          stdout=sp.DEVNULL)
+            import httpx
+
+        # Leer imagen y codificar en base64
+        with open(ruta_imagen, "rb") as f:
+            img_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        ext = os.path.splitext(ruta_imagen)[1].lower()
+        media_type = {
+            ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".png": "image/png", ".bmp": "image/bmp",
+            ".webp": "image/webp",
+        }.get(ext, "image/jpeg")
+
+        # Prompt con los campos exactos que queremos extraer
+        prompt = """Analiza esta imagen de una ficha técnica de vehículo española.
+Extrae TODOS los valores que puedas identificar y devuélvelos SOLO como JSON válido (sin texto adicional).
+Usa exactamente estas claves si encuentras el dato correspondiente:
+
+{
+  "MARCA": "",
+  "MODELO": "",
+  "TIPO_VEHICULO": "",
+  "VERSION_VEHICULO": "",
+  "NUM_BASTIDOR": "",
+  "MATRICULA": "",
+  "DISTANCIA_EJES": "",
+  "LONGITUD_VEH": "",
+  "ANCHURA_VEH": "",
+  "ALTURA_VEH": "",
+  "TARA_VEHICULO_KG": "",
+  "MMA": "",
+  "MMTA": "",
+  "MMTC": "",
+  "MMTA_EJE_A": "",
+  "MMA_EJE_A": "",
+  "PLAZAS_A": "",
+  "VEL_MAX_A": "",
+  "CILINDRADA_A": "",
+  "POT_NETA_A": "",
+  "COMBUSTIBLE_A": "",
+  "EMISIONES_A": "",
+  "CO2_A": "",
+  "POT_FISCAL_A": "",
+  "CARROCERIA_A": "",
+  "NUM_EJES": "",
+  "VOLADIZO_A": "",
+  "VIAS_EJES_A": "",
+  "SUSPENSION_A": "",
+  "DIRECCION_A": "",
+  "FRENADO_A": "",
+  "FABR_BASE_A": "",
+  "FABR_MOTOR_A": "",
+  "COD_MOTOR_A": "",
+  "RUIDO_A": ""
+}
+
+Solo incluye las claves para las que encuentres un valor. No inventes datos.
+Devuelve SOLO el JSON, sin explicaciones ni markdown."""
+
+        try:
+            resp = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-sonnet-4-20250514",
+                    "max_tokens": 2000,
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": img_data,
+                                },
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
+                    }],
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            texto = data["content"][0]["text"]
+
+            # Parsear JSON de la respuesta
+            import json as _json
+            # Limpiar posible markdown
+            if "```" in texto:
+                texto = texto.split("```")[1]
+                if texto.startswith("json"):
+                    texto = texto[4:]
+            campos = _json.loads(texto.strip())
+
+            # Aplicar valores a self.entries en el hilo principal
+            self.root.after(0, self._aplicar_campos_ficha, campos)
+
+        except Exception as e:
+            self.root.after(0, lambda: (
+                self._lbl_ficha_status.config(text=f"Error: {e}", fg="#c62828"),
+                messagebox.showerror("Error", f"No se pudo leer la ficha:\n{e}")
+            ))
+
+    def _aplicar_campos_ficha(self, campos):
+        """Aplica los campos extraídos por Claude Vision a self.entries."""
+        n_aplicados = 0
+        for clave, valor in campos.items():
+            if not valor:
+                continue
+            sv = self.entries.get(clave)
+            if sv:
+                sv.set(str(valor))
+                n_aplicados += 1
+            # También rellenar el campo _POST si existe y está vacío
+            clave_post = clave + "_POST"
+            sv_post = self.entries.get(clave_post)
+            if sv_post and not sv_post.get().strip():
+                sv_post.set(str(valor))
+
+        self._lbl_ficha_status.config(
+            text=f"✓ {n_aplicados} campos rellenados desde la foto",
+            fg="#2e7d32")
+
+    # ── GIAVEH — Consulta de fichas reducidas ────────────────────────────────
+
+    def _abrir_giaveh(self):
+        """Abre la web de GIAVEH en el navegador para consultar fichas reducidas."""
+        import webbrowser
+        url = "https://industria.serviciosmin.gob.es/giaveh/FR/Extranet/ConsultaFichasReducidas.aspx"
+
+        # Copiar la contraseña de homologación al portapapeles si existe
+        homol = self.entries.get("HOMOL_BASE_A", tk.StringVar()).get().strip()
+        if homol:
+            try:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(homol)
+                self._lbl_ficha_status.config(
+                    text=f"Contraseña «{homol}» copiada al portapapeles → GIAVEH abierto",
+                    fg="#e65100")
+            except Exception:
+                pass
+        else:
+            self._lbl_ficha_status.config(
+                text="GIAVEH abierto en el navegador", fg="#e65100")
+
+        webbrowser.open(url)
+
+    # ── Búsqueda en BD local de vehículos ────────────────────────────────────
+
+    def _buscar_vehiculo_bd(self):
+        """Busca un vehículo por matrícula o bastidor en la BD local."""
+        mat = self.entries.get("MATRICULA", tk.StringVar()).get().strip()
+        bas = self.entries.get("NUM_BASTIDOR", tk.StringVar()).get().strip()
+
+        if not mat and not bas:
+            messagebox.showinfo("Buscar vehículo",
+                                "Escribe primero la matrícula o el número de bastidor\n"
+                                "en la ficha para poder buscar.")
+            return
+
+        try:
+            sys.path.insert(0, str(BASE_DIR / "tracker"))
+            from db import buscar_vehiculo
+            veh = buscar_vehiculo(matricula=mat, bastidor=bas)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo acceder a la BD:\n{e}")
+            return
+
+        if not veh:
+            self._lbl_ficha_status.config(
+                text="No encontrado en BD local", fg="#c62828")
+            return
+
+        # Mapeo BD → self.entries
+        MAPA = {
+            "marca": "MARCA", "modelo": "MODELO",
+            "tipo_vehiculo": "TIPO_VEHICULO", "version_vehiculo": "VERSION_VEHICULO",
+            "bastidor": "NUM_BASTIDOR", "matricula": "MATRICULA",
+            "distancia_ejes": "DISTANCIA_EJES", "longitud": "LONGITUD_VEH",
+            "anchura": "ANCHURA_VEH", "altura": "ALTURA_VEH",
+            "voladizo": "VOLADIZO_A", "tara": "TARA_VEHICULO_KG",
+            "mma": "MMA", "mmta": "MMTA", "mmtc": "MMTC",
+            "mmta_eje": "MMTA_EJE_A", "mma_eje": "MMA_EJE_A",
+            "plazas": "PLAZAS_A", "cilindrada": "CILINDRADA_A",
+            "potencia": "POT_NETA_A", "combustible": "COMBUSTIBLE_A",
+            "vel_max": "VEL_MAX_A", "emisiones": "EMISIONES_A",
+            "co2": "CO2_A", "pot_fiscal": "POT_FISCAL_A",
+            "carroceria": "CARROCERIA_A", "num_ejes": "NUM_EJES",
+            "suspension": "SUSPENSION_A", "direccion": "DIRECCION_A",
+            "frenado": "FRENADO_A", "fabricante": "FABR_BASE_A",
+            "fabricante_motor": "FABR_MOTOR_A", "cod_motor": "COD_MOTOR_A",
+            "ruido": "RUIDO_A",
+            "homol_base": "HOMOL_BASE_A", "homol_completo": "HOMOL_COMPL_A",
+        }
+        n = 0
+        for col_bd, clave_entry in MAPA.items():
+            val = veh.get(col_bd, "")
+            if val:
+                sv = self.entries.get(clave_entry)
+                if sv:
+                    sv.set(str(val))
+                    n += 1
+
+        self._lbl_ficha_status.config(
+            text=f"✓ {n} campos completados desde BD local", fg="#2e7d32")
+
+    def _guardar_vehiculo_en_bd(self):
+        """Guarda los datos actuales del vehículo en la BD local."""
+        datos = {}
+        for clave, sv in self.entries.items():
+            val = sv.get().strip()
+            if val:
+                datos[clave] = val
+        if not datos.get("MATRICULA") and not datos.get("NUM_BASTIDOR"):
+            return
+        try:
+            sys.path.insert(0, str(BASE_DIR / "tracker"))
+            from db import guardar_vehiculo
+            guardar_vehiculo(datos)
+        except Exception:
+            pass  # silencioso, no bloquear la generación
+
     # ── Pestaña 2: Categoría del vehículo ─────────────────────────────────────
     def _tab_vehiculo(self):
         frame, canvas = self._nueva_pestana("  Vehículo  ")
+
+        # Botón de lectura de ficha técnica desde foto
+        btn_frm = tk.Frame(frame, bg=BLANCO)
+        btn_frm.pack(fill="x", padx=4, pady=(6, 2))
+        tk.Button(
+            btn_frm,
+            text="  📷  Leer ficha desde foto  ",
+            bg="#0d47a1", fg=BLANCO, activebackground="#1565c0", activeforeground=BLANCO,
+            font=("Segoe UI", 10, "bold"),
+            relief="flat", padx=14, pady=6, cursor="hand2",
+            command=self._leer_ficha_tecnica
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            btn_frm,
+            text="  🔍  Buscar en BD local  ",
+            bg="#00695c", fg=BLANCO, activebackground="#004d40", activeforeground=BLANCO,
+            font=("Segoe UI", 10, "bold"),
+            relief="flat", padx=14, pady=6, cursor="hand2",
+            command=self._buscar_vehiculo_bd
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            btn_frm,
+            text="  🌐  Abrir GIAVEH  ",
+            bg="#e65100", fg=BLANCO, activebackground="#bf360c", activeforeground=BLANCO,
+            font=("Segoe UI", 10, "bold"),
+            relief="flat", padx=14, pady=6, cursor="hand2",
+            command=self._abrir_giaveh
+        ).pack(side="left", padx=(0, 6))
+
+        self._lbl_ficha_status = tk.Label(
+            btn_frm, text="", bg=BLANCO, fg="#888",
+            font=("Segoe UI", 8, "italic"))
+        self._lbl_ficha_status.pack(side="left", padx=(10, 0))
+
         self._seccion_categoria(frame)
         self._seccion_ficha(frame)
 
@@ -3171,6 +3480,28 @@ class FormularioProyecto(tk.Tk):
                 ttk.Entry(row, textvariable=self.entries[clave],
                           font=("Segoe UI", 9), width=40).pack(side="left")
 
+        # ── API Key Anthropic (Claude Vision) ─────────────────────────────────
+        frm_api = tk.LabelFrame(
+            frame, text="  API — Claude Vision (lectura de fichas técnicas)  ",
+            bg=BLANCO, fg="#555",
+            font=("Segoe UI", 10, "bold"),
+            relief="solid", bd=1, padx=14, pady=6
+        )
+        frm_api.pack(fill="x", padx=4, pady=(6, 4))
+
+        row_api = tk.Frame(frm_api, bg=BLANCO)
+        row_api.pack(fill="x", pady=1)
+        tk.Label(row_api, text="ANTHROPIC_API_KEY:", bg=BLANCO, fg="#444",
+                 font=("Segoe UI", 9), width=26, anchor="e"
+                 ).pack(side="left", padx=(0, 8))
+        if "ANTHROPIC_API_KEY" not in self.entries:
+            self.entries["ANTHROPIC_API_KEY"] = tk.StringVar()
+        ttk.Entry(row_api, textvariable=self.entries["ANTHROPIC_API_KEY"],
+                  font=("Segoe UI", 9), width=40, show="•").pack(side="left")
+
+        tk.Label(frm_api, text="Se usa para leer fichas técnicas desde fotos (pestaña Vehículo).",
+                 bg=BLANCO, fg="#888", font=("Segoe UI", 7)).pack(anchor="w")
+
         # ── Plantillas de documentos ──────────────────────────────────────────
         frm_plt = tk.LabelFrame(
             frame, text="  Plantillas de documentos  ",
@@ -3454,6 +3785,19 @@ class FormularioProyecto(tk.Tk):
         self._sil_drag_idx       = None     # índice de la flecha arrastrada
         self._sil_last_tipo      = None     # para detectar cambios de tipo/filas
         self._sil_last_filas     = None
+        self._sil_dist_fila_vars = []       # StringVar con distancia (mm) desde eje 1
+        self._sil_updating_dist  = False    # semáforo para evitar bucles de trace
+        # Balance de masas — campos de entrada
+        self._sil_tara1_var  = tk.StringVar()
+        self._sil_tara2_var  = tk.StringVar()
+        self._sil_mma_var    = tk.StringVar()
+        self._sil_mma1_var   = tk.StringVar()
+        self._sil_mma2_var   = tk.StringVar()
+        self._sil_long_caja_var = tk.StringVar()  # Longitud caja (N1)
+        # Balance de masas — resultados (Labels, se crean en _seccion_datos_vehiculo)
+        self._sil_bal_labels = {}          # {"Qu": Label, "R1": Label, ...}
+        self._sil_bal_R1 = 0.0             # último valor calculado (para dibujar flechas)
+        self._sil_bal_R2 = 0.0
 
         datos_frm = tk.Frame(frm, bg=BLANCO)
         datos_frm.pack(fill="x", pady=(8, 2))
@@ -3524,12 +3868,211 @@ class FormularioProyecto(tk.Tk):
         # Redibujar silueta (asientos sincronizados)
         if hasattr(self, "_sil_canvas"):
             self._dibujar_silueta(self._sil_canvas, tipo, filas)
+        # Actualizar campo de distancia en tiempo real
+        self._sync_xnorm_to_dist()
 
     def _sil_drag_end(self, event):
         """Finaliza el arrastre."""
         self._sil_drag_idx = None
         if hasattr(self, "_sil_row_canvas"):
             self._sil_row_canvas.config(cursor="sb_h_double_arrow")
+        # Sincronizar campos de distancia tras arrastrar
+        self._sync_xnorm_to_dist()
+
+    # ── Sincronización posición ↔ distancia (mm) ─────────────────────────────
+
+    def _get_longitud_total(self):
+        """Devuelve la longitud total del vehículo en mm (float) o 0 si vacío."""
+        try:
+            return float(self._sil_longitud_var.get().strip().replace(",", ".") or 0)
+        except (ValueError, AttributeError):
+            return 0.0
+
+    def _sync_xnorm_to_dist(self):
+        """Actualiza los campos de distancia (mm) desde las posiciones normalizadas.
+        Referencia: eje delantero (wx[0]). Distancias positivas hacia atrás."""
+        if self._sil_updating_dist:
+            return
+        self._sil_updating_dist = True
+        try:
+            long_mm = self._get_longitud_total()
+            tipo = next((k for l, k in _SIL_TIPOS
+                         if l == self._sil_tipo_var.get()), "turismo")
+            dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
+            bx0, bx1 = dims["bx"]
+            wx0 = dims["wx"][0]  # eje delantero (normalizado)
+
+            for i, xn in enumerate(self._sil_row_xnorm):
+                if i < len(self._sil_dist_fila_vars):
+                    if long_mm > 0 and (bx1 - bx0) > 0:
+                        # Distancia desde eje delantero en mm
+                        frac = (xn - wx0) / (bx1 - bx0)
+                        dist_mm = frac * long_mm
+                        self._sil_dist_fila_vars[i].set(f"{dist_mm:.0f}")
+                    else:
+                        self._sil_dist_fila_vars[i].set("")
+        finally:
+            self._sil_updating_dist = False
+
+    def _dist_fila_changed(self, idx):
+        """Cuando se escribe una distancia (mm) → actualizar posición normalizada.
+        Referencia: eje delantero (wx[0]). Positivo = hacia atrás."""
+        if self._sil_updating_dist:
+            return
+        self._sil_updating_dist = True
+        try:
+            long_mm = self._get_longitud_total()
+            if long_mm <= 0:
+                return
+            tipo = next((k for l, k in _SIL_TIPOS
+                         if l == self._sil_tipo_var.get()), "turismo")
+            dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
+            bx0, bx1 = dims["bx"]
+            wx0 = dims["wx"][0]  # eje delantero (normalizado)
+
+            raw = self._sil_dist_fila_vars[idx].get().strip().replace(",", ".")
+            if not raw:
+                return
+            dist_mm = float(raw)
+            # Convertir mm desde eje delantero a posición normalizada
+            frac = dist_mm / long_mm
+            new_xn = wx0 + frac * (bx1 - bx0)
+            new_xn = max(bx0 + 0.01, min(bx1 - 0.01, new_xn))
+
+            if idx < len(self._sil_row_xnorm):
+                self._sil_row_xnorm[idx] = new_xn
+                # Redibujar
+                filas = self._sil_filas_var.get()
+                cv = self._sil_row_canvas
+                Wd = cv.winfo_width() or 540
+                self._sil_draw_row_bar(cv, Wd, tipo, filas)
+                if hasattr(self, "_sil_canvas"):
+                    self._dibujar_silueta(self._sil_canvas, tipo, filas)
+        except (ValueError, IndexError):
+            pass
+        finally:
+            self._sil_updating_dist = False
+
+    # ── Balance de masas integrado en silueta ────────────────────────────────
+
+    def _recalcular_balance_silueta(self):
+        """Recalcula el balance de masas usando los datos de la silueta."""
+        if not hasattr(self, "_sil_bal_labels") or not self._sil_bal_labels:
+            return
+
+        def _fval(var, defecto=0.0):
+            try:
+                return float(var.get().strip().replace(",", ".") or 0)
+            except (ValueError, AttributeError):
+                return defecto
+
+        T1      = _fval(self._sil_tara1_var)
+        T2      = _fval(self._sil_tara2_var)
+        MMA     = _fval(self._sil_mma_var)
+        MMA_e1  = _fval(self._sil_mma1_var)
+        MMA_e2  = _fval(self._sil_mma2_var)
+        dist_ej = _fval(self._sil_dist_ejes_var)
+        volad   = _fval(self._sil_voladizo_var)
+
+        # Ocupantes: nº pasajeros × 75 kg por fila
+        filas = self._sil_filas_var.get()
+        O = []
+        dP = []
+        for i in range(filas):
+            n_pas = 0
+            if i < len(self._sil_asientos_vars):
+                try:
+                    n_pas = int(self._sil_asientos_vars[i].get().strip() or 0)
+                except ValueError:
+                    n_pas = 0
+            O.append(n_pas * 75)
+            dist = 0.0
+            if i < len(self._sil_dist_fila_vars):
+                try:
+                    dist = float(self._sil_dist_fila_vars[i].get().strip().replace(",", ".") or 0)
+                except ValueError:
+                    dist = 0.0
+            dP.append(dist)
+
+        # Datos insuficientes
+        if dist_ej <= 0 or MMA <= 0 or (T1 + T2) <= 0:
+            for lbl in self._sil_bal_labels.values():
+                lbl.config(text="—", fg="#333")
+            self._sil_bal_R1 = 0
+            self._sil_bal_R2 = 0
+            return
+
+        # Fórmulas del Excel "Balances de masas"
+        TARA = T1 + T2
+        sum_O = sum(O)
+        Qu = MMA - TARA - sum_O
+        if Qu < 0:
+            Qu = 0
+
+        # Detectar si es N1 (furgoneta/camión) por tipo de silueta
+        tipo_sil = next((k for l, k in _SIL_TIPOS
+                         if l == self._sil_tipo_var.get()), "turismo")
+        es_N1 = tipo_sil in ("furgoneta", "camion")
+
+        long_caja = _fval(self._sil_long_caja_var)
+
+        if es_N1 and long_caja > 0:
+            # ── N1: Carga útil distribuida en la caja (fórmulas hoja "B.m. Camion")
+            # Punto de aplicación de la carga = centro de la caja
+            punto_carga = long_caja / 2
+            # Distancia desde eje trasero al punto de aplicación
+            dQu_eje2 = volad - punto_carga
+            # Reacciones por ocupantes (desde eje 1, fórmula camión)
+            R1_ocu = 0
+            R2_ocu = 0
+            for i in range(len(O)):
+                if O[i] > 0 and dP[i] > 0:
+                    r1_i = (1 - dP[i] / dist_ej) * O[i]
+                    R1_ocu += r1_i
+                    R2_ocu += O[i] - r1_i
+            # Reacción por carga útil (momentos respecto eje 1)
+            # R1_Qu = -(Qu × dQu_eje2) / dist_ejes
+            R1_Qu = -(Qu * dQu_eje2) / dist_ej
+            R2_Qu = Qu - R1_Qu
+            # Totales
+            R1 = T1 + R1_ocu + R1_Qu
+            R2 = T2 + R2_ocu + R2_Qu
+        else:
+            # ── M1/M2: Fórmulas hoja "B.m. Turismos"
+            # Punto CG de la carga útil (desde eje 1)
+            dQu = dist_ej + (volad / 2 if volad > 0 else 0)
+            # Equilibrio estático: momentos respecto al eje 1
+            momento_R2 = T2 * dist_ej
+            for i in range(len(O)):
+                momento_R2 += O[i] * dP[i]
+            momento_R2 += Qu * dQu
+            R2 = momento_R2 / dist_ej
+            R1 = TARA + sum_O + Qu - R2
+
+        # Guardar para dibujar flechas
+        self._sil_bal_R1 = R1
+        self._sil_bal_R2 = R2
+
+        # Actualizar labels de resultados
+        self._sil_bal_labels["Qu"].config(text=f"{Qu:.0f} kg", fg="#333")
+        self._sil_bal_labels["R1"].config(text=f"{R1:.1f} kgf", fg="#333")
+        self._sil_bal_labels["R2"].config(text=f"{R2:.1f} kgf", fg="#333")
+
+        ok1 = R1 <= MMA_e1 if MMA_e1 > 0 else True
+        ok2 = R2 <= MMA_e2 if MMA_e2 > 0 else True
+        self._sil_bal_labels["V1"].config(
+            text="✓" if ok1 else f"✗ {R1:.0f}>{MMA_e1:.0f}",
+            fg="#2e7d32" if ok1 else "#c62828")
+        self._sil_bal_labels["V2"].config(
+            text="✓" if ok2 else f"✗ {R2:.0f}>{MMA_e2:.0f}",
+            fg="#2e7d32" if ok2 else "#c62828")
+
+        # Redibujar dimensiones con flechas R1/R2
+        if hasattr(self, "_sil_dim_canvas"):
+            tipo = next((k for l, k in _SIL_TIPOS
+                         if l == self._sil_tipo_var.get()), "turismo")
+            self._sil_dimensiones(self._sil_dim_canvas,
+                                  self._sil_dim_canvas.winfo_width() or 540, tipo)
 
     # ── Datos dimensionales del vehículo ─────────────────────────────────────
 
@@ -3606,6 +4149,10 @@ class FormularioProyecto(tk.Tk):
                       self._sil_dist_ejes_var,
                       ["DISTANCIA_EJES_POST", "DISTANCIA_EJES"])
 
+        # Cuando cambia la longitud total → recalcular distancias de filas
+        self._sil_longitud_var.trace_add(
+            "write", lambda *_: self._sync_xnorm_to_dist())
+
         # Contenedor de asientos por fila (reconstruible)
         self._sil_asientos_frame = tk.Frame(row_frm, bg=BLANCO)
         self._sil_asientos_frame.grid(row=0, column=3, padx=(0, 0), sticky="w")
@@ -3620,8 +4167,73 @@ class FormularioProyecto(tk.Tk):
         # Construir con el valor inicial de filas
         self._rebuild_sil_asientos(self._sil_filas_var.get())
 
+        # ── Fila de masas (Balance de masas integrado) ──────────────────────
+        sep_bal = ttk.Separator(parent, orient="horizontal")
+        sep_bal.pack(fill="x", pady=(8, 4))
+
+        tk.Label(parent, text="Balance de masas", bg=BLANCO, fg=AZUL,
+                 font=("Segoe UI", 9, "bold")).pack(anchor="w")
+
+        masas_frm = tk.Frame(parent, bg=BLANCO)
+        masas_frm.pack(fill="x", pady=(2, 0))
+
+        _linked_group(masas_frm, 0, "Tara eje 1 (kg)",
+                      self._sil_tara1_var,
+                      ["TARA_EJE1_KG", "MASA_EJE1_TARA"])
+
+        _linked_group(masas_frm, 1, "Tara eje 2 (kg)",
+                      self._sil_tara2_var,
+                      ["TARA_EJE2_KG", "MASA_EJE2_TARA"])
+
+        _linked_group(masas_frm, 2, "MMA (kg)",
+                      self._sil_mma_var,
+                      ["MMA_KG", "MMA_VEHICULO_KG"])
+
+        _linked_group(masas_frm, 3, "MMA eje 1 (kg)",
+                      self._sil_mma1_var,
+                      ["MMA_EJE1_KG"])
+
+        _linked_group(masas_frm, 4, "MMA eje 2 (kg)",
+                      self._sil_mma2_var,
+                      ["MMA_EJE2_KG"])
+
+        _linked_group(masas_frm, 5, "Long. caja (mm) [N1]",
+                      self._sil_long_caja_var,
+                      ["LONGITUD_CAJA_MM"])
+
+        # ── Panel de resultados del balance ─────────────────────────────────
+        res_frm = tk.Frame(parent, bg="#f0f4f8", relief="groove", bd=1)
+        res_frm.pack(fill="x", pady=(6, 2), ipady=4)
+
+        tk.Label(res_frm, text="  Resultados balance:", bg="#f0f4f8", fg=AZUL,
+                 font=("Segoe UI", 8, "bold")).pack(side="left", padx=(4, 8))
+
+        RESULTADOS = [
+            ("Qu",  "Carga útil"),
+            ("R1",  "R₁ eje del."),
+            ("R2",  "R₂ eje tras."),
+            ("V1",  "Verif. eje 1"),
+            ("V2",  "Verif. eje 2"),
+        ]
+        for key, titulo in RESULTADOS:
+            grp = tk.Frame(res_frm, bg="#f0f4f8")
+            grp.pack(side="left", padx=(0, 12))
+            tk.Label(grp, text=f"{titulo}:", bg="#f0f4f8", fg="#555",
+                     font=("Segoe UI", 7, "bold")).pack(side="left")
+            lbl = tk.Label(grp, text="—", bg="#f0f4f8", fg="#333",
+                           font=("Segoe UI", 8, "bold"))
+            lbl.pack(side="left", padx=(2, 0))
+            self._sil_bal_labels[key] = lbl
+
+        # Traces para recalcular balance cuando cambia cualquier entrada
+        for var in (self._sil_tara1_var, self._sil_tara2_var,
+                    self._sil_mma_var, self._sil_mma1_var, self._sil_mma2_var,
+                    self._sil_dist_ejes_var, self._sil_voladizo_var,
+                    self._sil_long_caja_var):
+            var.trace_add("write", lambda *_: self._recalcular_balance_silueta())
+
     def _rebuild_sil_asientos(self, filas):
-        """Reconstruye las entradas de asientos por fila según el número de filas."""
+        """Reconstruye las entradas de asientos y distancia por fila."""
         if not hasattr(self, "_sil_asientos_inner"):
             return
         inner = self._sil_asientos_inner
@@ -3631,17 +4243,43 @@ class FormularioProyecto(tk.Tk):
         # Ajustar lista de StringVars: conservar existentes, añadir nuevas
         while len(self._sil_asientos_vars) < filas:
             self._sil_asientos_vars.append(tk.StringVar(value=""))
-        # No eliminar los de más (guardan valores si se baja y sube el nº de filas)
+        while len(self._sil_dist_fila_vars) < filas:
+            self._sil_dist_fila_vars.append(tk.StringVar(value=""))
 
         COLORES_FILA = ["#1565c0", "#c62828", "#2e7d32"]
         for i in range(filas):
             col_frm = tk.Frame(inner, bg=BLANCO)
-            col_frm.pack(side="left", padx=(0, 6))
+            col_frm.pack(side="left", padx=(0, 10))
             color = COLORES_FILA[i % len(COLORES_FILA)]
             tk.Label(col_frm, text=f"F{i + 1}:", bg=BLANCO, fg=color,
                      font=("Segoe UI", 8, "bold")).pack(side="left")
             ttk.Entry(col_frm, textvariable=self._sil_asientos_vars[i],
                       width=3).pack(side="left")
+            # Campo distancia desde eje delantero (mm)
+            tk.Label(col_frm, text="  Dist eje 1:", bg=BLANCO, fg=color,
+                     font=("Segoe UI", 7)).pack(side="left", padx=(4, 0))
+            ent_dist = ttk.Entry(col_frm, textvariable=self._sil_dist_fila_vars[i],
+                                 width=6, font=("Segoe UI", 8))
+            ent_dist.pack(side="left")
+            tk.Label(col_frm, text="mm", bg=BLANCO, fg="#999",
+                     font=("Segoe UI", 7)).pack(side="left")
+
+            # Trace: cuando cambia la distancia → recalcular posición normalizada
+            idx = i
+            self._sil_dist_fila_vars[i].trace_add(
+                "write", lambda *_, ii=idx: self._dist_fila_changed(ii))
+
+        # Inicializar distancias desde posiciones actuales
+        self._sync_xnorm_to_dist()
+
+        # Traces para recalcular balance al cambiar asientos o distancias de filas
+        for i in range(filas):
+            if i < len(self._sil_asientos_vars):
+                self._sil_asientos_vars[i].trace_add(
+                    "write", lambda *_: self._recalcular_balance_silueta())
+            if i < len(self._sil_dist_fila_vars):
+                self._sil_dist_fila_vars[i].trace_add(
+                    "write", lambda *_: self._recalcular_balance_silueta())
 
     def _dibujar_silueta(self, cv, tipo, filas):
         """Dibuja la silueta lateral del vehículo sobre el canvas."""
@@ -3890,6 +4528,30 @@ class FormularioProyecto(tk.Tk):
         else:
             lbl_long = "Longitud total"
         flecha(bx0, y_long, bx1, COT_LONG, lbl_long)
+
+        # ── Flechas R1, R2 del balance de masas (sobre las ruedas) ────────
+        R1 = getattr(self, "_sil_bal_R1", 0)
+        R2 = getattr(self, "_sil_bal_R2", 0)
+        if R1 > 0 or R2 > 0:
+            COL_R = "#e65100"  # naranja para reacciones
+            arrow_h = 18
+            y_base = y_top - 2
+            y_tip  = y_base - arrow_h
+            sz = 5
+            for i, (wx_px, Ri) in enumerate(zip(wxs, [R1, R2] if len(wxs) == 2
+                                                  else [R1] + [0] * (len(wxs) - 2) + [R2])):
+                if Ri <= 0:
+                    continue
+                x = wx_px
+                # Flecha vertical hacia arriba
+                cv.create_line(x, y_base, x, y_tip, fill=COL_R, width=2)
+                cv.create_polygon(x, y_tip, x - sz, y_tip + sz,
+                                   x + sz, y_tip + sz,
+                                   fill=COL_R, outline="")
+                # Etiqueta
+                lbl_r = f"R{i + 1}={Ri:.0f}"
+                cv.create_text(x, y_tip - 4, text=lbl_r, fill=COL_R,
+                               font=("Segoe UI", 7, "bold"), anchor="s")
 
     # ── Perfiles ─────────────────────────────────────────────────────────────
 
@@ -5911,6 +6573,8 @@ class FormularioProyecto(tk.Tk):
         self.estado_var.set("[OK]  Proyecto generado correctamente")
         self.lbl_estado.config(fg=VERDE)
         self.entries["REFERENCIA"].set(siguiente_referencia())
+        # Guardar vehículo en BD local para autocompletado futuro
+        self._guardar_vehiculo_en_bd()
 
         if ruta and Path(ruta).exists():
             resp = messagebox.askyesno(

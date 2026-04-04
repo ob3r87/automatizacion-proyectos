@@ -25,6 +25,15 @@ tracker/pdfs/
 # ─── Secretos ────────────────────────────────────────────────────
 tracker/.secret_key
 .env
+config.json
+
+# ─── Logs de debug ───────────────────────────────────────────────
+vision_debug.log
+vision_error.log
+*.log
+
+# ─── Archivos temporales generados ──────────────────────────────
+gemini_vehicles.json
 
 # ─── Archivos temporales de Word ─────────────────────────────────
 ~$*

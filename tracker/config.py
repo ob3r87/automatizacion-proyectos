@@ -67,5 +67,5 @@ def save_config(updates: dict) -> None:
 
 # Puerto del servidor Flask
 FLASK_PORT = int(os.environ.get("PHICAN_PORT", 5050))
-FLASK_HOST = os.environ.get("PHICAN_HOST", "127.0.0.1")
+FLASK_HOST = os.environ.get("PHICAN_HOST", "0.0.0.0")
 FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"

@@ -1,0 +1,15 @@
+{
+  "MARCA_PORTADA": "SEAT",
+  "MARCA": "SEAT",
+  "LUGAR_FIRMA": "Santa Ursula",
+  "TECNICO_NOMBRE": "ROBERTO GARCIA GUTIERREZ",
+  "TECNICO_COLEGIO": "Ilustre Colegio Oficial de Ingenieros Técnicos de S/C de Tenerife",
+  "TECNICO_COLEGIO_ABREV": "COITITF",
+  "TECNICO_NUM_COLEGIADO": "1816",
+  "OUTPUT_PATH": "",
+  "TEMPLATE_PROYECTO": "",
+  "TEMPLATE_CFO": "",
+  "TEMPLATE_CT": "",
+  "ANTHROPIC_API_KEY": "",
+  "GEMINI_API_KEY": ""
+}

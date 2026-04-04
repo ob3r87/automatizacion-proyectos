@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a237e">
+  <title>{% block title %}Phican Ingenieros{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ═══ Topbar movil ═══ -->
+<div class="mobile-topbar">
+  <div>
+    <div class="logo-title">PHICAN</div>
+    <div class="logo-sub">Ingenieros</div>
+  </div>
+  <button class="btn-menu" onclick="toggleSidebar()" aria-label="Menu">
+    <i class="bi bi-list"></i>
+  </button>
+</div>
+
+<!-- ═══ Overlay para cerrar sidebar ═══ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- ═══ Sidebar ═══ -->
+<div id="sidebar">
+  <button class="btn-close-sidebar" onclick="toggleSidebar()" aria-label="Cerrar menu">
+    <i class="bi bi-x-lg"></i>
+  </button>
+
+  <div class="logo-area">
+    <div class="logo-title">PHICAN</div>
+    <div class="logo-sub">Ingenieros</div>
+  </div>
+
+  <div class="nav-section-label">Proyectos</div>
+  <nav class="nav flex-column">
+    <a href="{{ url_for('form.nuevo_proyecto') }}" class="nav-link {% if request.endpoint and 'form.' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-file-earmark-plus"></i> Nuevo Proyecto
+    </a>
+  </nav>
+
+  <div class="nav-section-label">Trabajos Diarios</div>
+  <nav class="nav flex-column">
+    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-house-door"></i> Dashboard
+    </a>
+    <a href="{{ url_for('entries_page') }}" class="nav-link {% if request.endpoint == 'entries_page' %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-journal-text"></i> Entradas
+    </a>
+    <a href="{{ url_for('templates_page') }}" class="nav-link {% if request.endpoint == 'templates_page' %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-file-earmark-text"></i> Plantillas
+    </a>
+  </nav>
+
+  <div class="nav-section-label">Comercial</div>
+  <nav class="nav flex-column">
+    <a href="{{ url_for('crm.dashboard') }}" class="nav-link {% if request.endpoint == 'crm.dashboard' %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-speedometer2"></i> CRM Dashboard
+    </a>
+    <a href="{{ url_for('crm.ofertas_lista') }}" class="nav-link {% if request.endpoint and 'oferta' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-file-earmark-check"></i> Ofertas
+    </a>
+    <a href="{{ url_for('crm.agenda') }}" class="nav-link {% if request.endpoint == 'crm.agenda' %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-calendar3"></i> Agenda
+    </a>
+    <a href="{{ url_for('crm.tareas_kanban') }}" class="nav-link {% if request.endpoint == 'crm.tareas_kanban' %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-kanban"></i> Tareas
+    </a>
+    <a href="{{ url_for('crm.clientes_lista') }}" class="nav-link {% if request.endpoint and 'cliente' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-people"></i> Clientes
+    </a>
+  </nav>
+
+  <div class="nav-section-label">Config</div>
+  <nav class="nav flex-column">
+    <a href="{{ url_for('crm.configuracion') }}" class="nav-link {% if request.endpoint and 'configuracion' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
+      <i class="bi bi-gear"></i> Configuracion
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    Phican Ingenieros &mdash; v2.0<br>
+    Webapp unificada
+  </div>
+</div>
+
+<div id="main-content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Sidebar toggle movil ────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+  document.body.style.overflow = document.getElementById('sidebar').classList.contains('open') ? 'hidden' : '';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+// Cerrar con ESC
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+// Cerrar al redimensionar a desktop
+window.addEventListener('resize', () => { if (window.innerWidth > 768) closeSidebar(); });
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

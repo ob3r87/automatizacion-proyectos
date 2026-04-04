@@ -752,3 +752,174 @@ def crear_tareas_oferta(offer_id: int, tipo_trabajo_codigo: str, referencia: str
             )
             creadas += 1
     return creadas
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Base de datos de vehículos (autocompletado de fichas técnicas)
+# ════════════════════════════════════════════════════════════════════════════
+
+SCHEMA_VEHICULOS = """
+CREATE TABLE IF NOT EXISTS vehiculos_ficha (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matricula TEXT,
+    bastidor TEXT,
+    marca TEXT,
+    modelo TEXT,
+    tipo_vehiculo TEXT,
+    version_vehiculo TEXT,
+    categoria TEXT,
+    distancia_ejes TEXT,
+    longitud TEXT,
+    anchura TEXT,
+    altura TEXT,
+    voladizo TEXT,
+    tara TEXT,
+    mma TEXT,
+    mmta TEXT,
+    mmtc TEXT,
+    mmta_eje TEXT,
+    mma_eje TEXT,
+    plazas TEXT,
+    cilindrada TEXT,
+    potencia TEXT,
+    combustible TEXT,
+    vel_max TEXT,
+    emisiones TEXT,
+    co2 TEXT,
+    pot_fiscal TEXT,
+    carroceria TEXT,
+    num_ejes TEXT,
+    suspension TEXT,
+    direccion TEXT,
+    frenado TEXT,
+    fabricante TEXT,
+    fabricante_motor TEXT,
+    cod_motor TEXT,
+    ruido TEXT,
+    homol_base TEXT,
+    homol_completo TEXT,
+    datos_extra TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(matricula, bastidor)
+);
+"""
+
+
+def init_vehiculos_db():
+    """Crea la tabla de vehículos si no existe."""
+    with get_db() as db:
+        db.executescript(SCHEMA_VEHICULOS)
+
+
+def guardar_vehiculo(datos):
+    """Guarda o actualiza un vehículo en la BD local.
+    datos: dict con claves como MATRICULA, MARCA, MODELO, etc."""
+    init_vehiculos_db()
+    import json
+    from datetime import datetime
+    now = datetime.now().isoformat()
+
+    mat = datos.get("MATRICULA", "").strip()
+    bas = datos.get("NUM_BASTIDOR", "").strip()
+    if not mat and not bas:
+        return
+
+    # Campos extra no mapeados
+    campos_conocidos = {
+        "MATRICULA", "NUM_BASTIDOR", "MARCA", "MODELO", "TIPO_VEHICULO",
+        "VERSION_VEHICULO", "DISTANCIA_EJES", "LONGITUD_VEH", "ANCHURA_VEH",
+        "ALTURA_VEH", "VOLADIZO_A", "TARA_VEHICULO_KG", "MMA", "MMTA", "MMTC",
+        "MMTA_EJE_A", "MMA_EJE_A", "PLAZAS_A", "CILINDRADA_A", "POT_NETA_A",
+        "COMBUSTIBLE_A", "VEL_MAX_A", "EMISIONES_A", "CO2_A", "POT_FISCAL_A",
+        "CARROCERIA_A", "NUM_EJES", "SUSPENSION_A", "DIRECCION_A", "FRENADO_A",
+        "FABR_BASE_A", "FABR_MOTOR_A", "COD_MOTOR_A", "RUIDO_A",
+        "HOMOL_BASE_A", "HOMOL_COMPL_A",
+    }
+    extras = {k: v for k, v in datos.items() if k not in campos_conocidos and v}
+
+    with get_db() as db:
+        db.execute("""
+            INSERT INTO vehiculos_ficha
+            (matricula, bastidor, marca, modelo, tipo_vehiculo, version_vehiculo,
+             categoria, distancia_ejes, longitud, anchura, altura, voladizo,
+             tara, mma, mmta, mmtc, mmta_eje, mma_eje, plazas,
+             cilindrada, potencia, combustible, vel_max, emisiones, co2,
+             pot_fiscal, carroceria, num_ejes, suspension, direccion, frenado,
+             fabricante, fabricante_motor, cod_motor, ruido,
+             homol_base, homol_completo,
+             datos_extra, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(matricula, bastidor) DO UPDATE SET
+             marca=excluded.marca, modelo=excluded.modelo,
+             tipo_vehiculo=excluded.tipo_vehiculo, version_vehiculo=excluded.version_vehiculo,
+             distancia_ejes=excluded.distancia_ejes, longitud=excluded.longitud,
+             anchura=excluded.anchura, altura=excluded.altura, voladizo=excluded.voladizo,
+             tara=excluded.tara, mma=excluded.mma, mmta=excluded.mmta, mmtc=excluded.mmtc,
+             mmta_eje=excluded.mmta_eje, mma_eje=excluded.mma_eje, plazas=excluded.plazas,
+             cilindrada=excluded.cilindrada, potencia=excluded.potencia,
+             combustible=excluded.combustible, vel_max=excluded.vel_max,
+             emisiones=excluded.emisiones, co2=excluded.co2, pot_fiscal=excluded.pot_fiscal,
+             carroceria=excluded.carroceria, num_ejes=excluded.num_ejes,
+             suspension=excluded.suspension, direccion=excluded.direccion,
+             frenado=excluded.frenado, fabricante=excluded.fabricante,
+             fabricante_motor=excluded.fabricante_motor, cod_motor=excluded.cod_motor,
+             ruido=excluded.ruido,
+             homol_base=excluded.homol_base, homol_completo=excluded.homol_completo,
+             datos_extra=excluded.datos_extra,
+             updated_at=excluded.updated_at
+        """, (
+            mat, bas,
+            datos.get("MARCA", ""), datos.get("MODELO", ""),
+            datos.get("TIPO_VEHICULO", ""), datos.get("VERSION_VEHICULO", ""),
+            datos.get("CATEGORIA_VEH", ""),
+            datos.get("DISTANCIA_EJES", ""), datos.get("LONGITUD_VEH", ""),
+            datos.get("ANCHURA_VEH", ""), datos.get("ALTURA_VEH", ""),
+            datos.get("VOLADIZO_A", ""),
+            datos.get("TARA_VEHICULO_KG", ""), datos.get("MMA", ""),
+            datos.get("MMTA", ""), datos.get("MMTC", ""),
+            datos.get("MMTA_EJE_A", ""), datos.get("MMA_EJE_A", ""),
+            datos.get("PLAZAS_A", ""),
+            datos.get("CILINDRADA_A", ""), datos.get("POT_NETA_A", ""),
+            datos.get("COMBUSTIBLE_A", ""), datos.get("VEL_MAX_A", ""),
+            datos.get("EMISIONES_A", ""), datos.get("CO2_A", ""),
+            datos.get("POT_FISCAL_A", ""),
+            datos.get("CARROCERIA_A", ""), datos.get("NUM_EJES", ""),
+            datos.get("SUSPENSION_A", ""), datos.get("DIRECCION_A", ""),
+            datos.get("FRENADO_A", ""),
+            datos.get("FABR_BASE_A", ""), datos.get("FABR_MOTOR_A", ""),
+            datos.get("COD_MOTOR_A", ""), datos.get("RUIDO_A", ""),
+            datos.get("HOMOL_BASE_A", ""), datos.get("HOMOL_COMPL_A", ""),
+            json.dumps(extras, ensure_ascii=False) if extras else "",
+            now, now,
+        ))
+
+
+def buscar_vehiculo(matricula="", bastidor=""):
+    """Busca un vehículo por matrícula o bastidor. Devuelve dict o None."""
+    init_vehiculos_db()
+    if matricula:
+        row = query(
+            "SELECT * FROM vehiculos_ficha WHERE matricula = ? LIMIT 1",
+            (matricula.strip().upper(),), one=True)
+        if row:
+            return row
+    if bastidor:
+        row = query(
+            "SELECT * FROM vehiculos_ficha WHERE bastidor = ? LIMIT 1",
+            (bastidor.strip().upper(),), one=True)
+        if row:
+            return row
+    return None
+
+
+def buscar_vehiculos_por_texto(texto):
+    """Busca vehículos por texto parcial en matrícula, bastidor, marca o modelo."""
+    init_vehiculos_db()
+    like = f"%{texto.strip()}%"
+    return query(
+        """SELECT * FROM vehiculos_ficha
+           WHERE matricula LIKE ? OR bastidor LIKE ?
+                 OR marca LIKE ? OR modelo LIKE ?
+           ORDER BY updated_at DESC LIMIT 20""",
+        (like, like, like, like))

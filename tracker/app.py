@@ -18,7 +18,8 @@ except ImportError:
     from flask import (Flask, render_template, request, jsonify,
                        redirect, url_for, send_file)
 
-from db import init_db, init_crm_db, init_work_types_defaults, init_ensayo_types_defaults, query, execute, get_db
+from db import (init_db, init_crm_db, init_work_types_defaults, init_ensayo_types_defaults,
+                init_vehiculos_db, query, execute, get_db)
 from project_scanner import scan_projects, get_project_files, get_project_datos
 from config import FLASK_PORT, FLASK_HOST, FLASK_DEBUG, DB_PATH, PROJECT_ROOT, TRACKER_DIR
 
@@ -49,6 +50,9 @@ def _diasrestantes(fecha_str):
 from crm_routes import crm_bp
 app.register_blueprint(crm_bp)
 
+from form_routes import form_bp
+app.register_blueprint(form_bp)
+
 CATEGORIES = [
     ("proyecto", "Proyecto"),
     ("calculo", "Cálculo"),
@@ -70,6 +74,20 @@ STATUSES = [
 
 
 # ─── Páginas HTML ────────────────────────────────────────────────
+
+@app.route("/qr")
+def qr_page():
+    """Muestra QR para conectar desde móvil/tablet."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = "192.168.1.18"
+    url = f"http://{local_ip}:{FLASK_PORT}/formulario/nuevo"
+    return render_template("qr.html", url=url, ip=local_ip, port=FLASK_PORT)
 
 @app.route("/")
 def index():
@@ -502,7 +520,10 @@ def api_export_csv():
 if __name__ == "__main__":
     init_db()
     init_crm_db()
+    init_vehiculos_db()
     init_work_types_defaults()
     init_ensayo_types_defaults()
-    print(f"Tracker disponible en http://{FLASK_HOST}:{FLASK_PORT}")
+    print(f"PHICAN WebApp disponible en http://{FLASK_HOST}:{FLASK_PORT}")
+    app.jinja_env.auto_reload = True
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)

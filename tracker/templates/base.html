@@ -6,89 +6,7 @@
   <title>{% block title %}Phican Ingenieros{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <style>
-    :root {
-      --sidebar-bg: #1a237e;
-      --sidebar-active: #1565c0;
-      --sidebar-hover: #283593;
-      --sidebar-width: 240px;
-    }
-    body { background: #f4f6fb; min-height: 100vh; }
-    #sidebar {
-      width: var(--sidebar-width);
-      min-height: 100vh;
-      background: var(--sidebar-bg);
-      color: #fff;
-      position: fixed;
-      top: 0; left: 0;
-      display: flex;
-      flex-direction: column;
-      z-index: 100;
-    }
-    #sidebar .logo-area {
-      padding: 1.5rem 1rem 1rem;
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-    }
-    #sidebar .logo-area .logo-title {
-      font-size: 1.6rem;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: #fff;
-      line-height: 1;
-    }
-    #sidebar .logo-area .logo-sub {
-      font-size: 0.75rem;
-      color: rgba(255,255,255,0.65);
-      letter-spacing: 0.5px;
-    }
-    #sidebar .nav-section-label {
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: rgba(255,255,255,0.45);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      padding: 1rem 1rem 0.25rem;
-    }
-    #sidebar .nav-link {
-      color: rgba(255,255,255,0.82);
-      font-size: 0.875rem;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      margin: 1px 8px;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: background 0.15s;
-    }
-    #sidebar .nav-link:hover { background: var(--sidebar-hover); color: #fff; }
-    #sidebar .nav-link.active { background: var(--sidebar-active); color: #fff; font-weight: 600; }
-    #sidebar .sidebar-footer {
-      margin-top: auto;
-      padding: 1rem;
-      font-size: 0.72rem;
-      color: rgba(255,255,255,0.35);
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-    #main-content {
-      margin-left: var(--sidebar-width);
-      min-height: 100vh;
-      padding: 1.5rem 2rem;
-    }
-    .page-header {
-      margin-bottom: 1.5rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 2px solid #e3e8f0;
-    }
-    .card { border: none; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
-    .badge-borrador { background: #9e9e9e; }
-    .badge-enviado, .badge-pendiente { background: #f57c00; }
-    .badge-aceptado { background: #2e7d32; }
-    .badge-rechazado { background: #c62828; }
-    @media (max-width: 768px) {
-      #sidebar { width: 100%; min-height: auto; position: relative; }
-      #main-content { margin-left: 0; padding: 1rem; }
-    }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -98,6 +16,13 @@
     <div class="logo-title">PHICAN</div>
     <div class="logo-sub">Ingenieros</div>
   </div>
+
+  <div class="nav-section-label">Proyectos</div>
+  <nav class="nav flex-column">
+    <a href="{{ url_for('form.nuevo_proyecto') }}" class="nav-link {% if request.endpoint and 'form.' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-file-earmark-plus"></i> Nuevo Proyecto
+    </a>
+  </nav>
 
   <div class="nav-section-label">Trabajos Diarios</div>
   <nav class="nav flex-column">
@@ -141,15 +66,9 @@
     </a>
   </nav>
 
-  <div class="px-2 mt-2">
-    <button class="btn btn-sm btn-outline-light w-100" onclick="launchFormulario()" title="Abrir formulario de nuevo proyecto">
-      <i class="bi bi-plus-circle"></i> Abrir Formulario
-    </button>
-  </div>
-
   <div class="sidebar-footer">
-    Phican Ingenieros &mdash; v1.0<br>
-    Gestor de Trabajos
+    Phican Ingenieros &mdash; v2.0<br>
+    Webapp unificada
   </div>
 </div>
 
@@ -172,12 +91,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function launchFormulario() {
-  fetch('/api/launch-formulario', {method:'POST'})
-    .then(r => r.json())
-    .then(d => { if (!d.ok) alert('No se pudo abrir el formulario: ' + (d.error||'')); })
-    .catch(() => alert('Error al lanzar el formulario.'));
-}
 </script>
 {% block extra_scripts %}{% endblock %}
 </body>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHICAN — Acceso Movil</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #01579b 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    max-width: 420px;
+    width: 90%;
+  }
+  .logo { font-size: 28px; font-weight: 800; color: #1a237e; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 24px; }
+  #qr-container {
+    display: inline-block;
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 3px solid #e3e8f0;
+    margin-bottom: 20px;
+  }
+  #qr-container canvas { display: block; }
+  .url-box {
+    background: #f0f4ff;
+    border: 2px solid #c5cae9;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 15px;
+    color: #1a237e;
+    word-break: break-all;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .url-box:hover { background: #e0e7ff; }
+  .url-box:active { background: #c5cae9; }
+  .instructions {
+    color: #555;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+  .instructions b { color: #1a237e; }
+  .step { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .step-num {
+    background: #1a237e;
+    color: #fff;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .copied-msg {
+    display: none;
+    background: #43a047;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .footer { color: #999; font-size: 11px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">PHICAN</div>
+  <div class="subtitle">Escanea con tu movil o tablet</div>
+
+  <div id="qr-container"></div>
+
+  <div class="copied-msg" id="copiedMsg">URL copiada al portapapeles</div>
+
+  <div class="url-box" onclick="copyUrl()" title="Click para copiar">
+    {{ url }}
+  </div>
+
+  <div class="instructions">
+    <div class="step">
+      <span class="step-num">1</span>
+      <span>Conecta el <b>movil/tablet</b> a la misma red <b>WiFi</b> que este PC</span>
+    </div>
+    <div class="step">
+      <span class="step-num">2</span>
+      <span>Abre la <b>camara</b> y escanea el codigo QR, o escribe la URL en el navegador</span>
+    </div>
+    <div class="step">
+      <span class="step-num">3</span>
+      <span>En iOS: pulsa <b>Compartir → Anadir a inicio</b>. En Android: <b>Menu → Anadir a pantalla de inicio</b></span>
+    </div>
+  </div>
+
+  <div class="footer">IP local: {{ ip }} &middot; Puerto: {{ port }}</div>
+</div>
+
+<!-- QR Code generator (qrcode.js - lightweight, no dependencies) -->
+<script>
+// Minimal QR Code generator - MIT License
+// Based on https://github.com/datalog/qrcode-svg (adapted for canvas)
+!function(){function t(r,e){var n,o,a,i,f,u,c,l,s=r.length,g=0,h=[],d=[];for(n=0;n<s;n++)o=r.charCodeAt(n),128>o?h.push(o):2048>o?(h.push(192|o>>6),h.push(128|63&o)):55296>o||o>=57344?(h.push(224|o>>12),h.push(128|o>>6&63),h.push(128|63&o)):(n++,o=65536+((1023&o)<<10|1023&r.charCodeAt(n)),h.push(240|o>>18),h.push(128|o>>12&63),h.push(128|o>>6&63),h.push(128|63&o));s=h.length;var v=e||function(){for(var t=1,r=s+((s+15)/16|0)+2;r>v;)t++,v=4*(1<<t);return t}(),w=4*(1<<v),p=(w-17)/4,b=[];function m(t,r){for(var e=-1;e<=7;e++)for(var n=-1;n<=7;n++)0>t+e||t+e>=p||0>r+n||r+n>=p||(b[t+e][r+n]=e>=0&&e<=6&&(0===n||6===n)||n>=0&&n<=6&&(0===e||6===e)||e>=2&&e<=4&&n>=2&&n<=4?1:0)}function y(t,r,e){for(var n=0;n<p;n++)for(var o=0;o<p;o++)b[n][o]>=2||(b[n][o]=e(n,o)?1^t:t)}for(n=0;n<p;n++){b[n]=[];for(o=0;o<p;o++)b[n][o]=-1}m(0,0);m(p-7,0);m(0,p-7);for(n=8;n<p-8;n++)b[n][6]<0&&(b[n][6]=n%2===0?1:0),b[6][n]<0&&(b[6][n]=n%2===0?1:0);var k=function(){for(var t=v<<10;t>=1024;)t^=1335<<(Math.log2(t)-10|0);return v<<10|t}();for(n=0;n<15;n++)a=1&k>>n,n<6?b[n][8]=a:n<8?b[n+1][8]=a:b[p-15+n][8]=a,n<8?b[8][p-n-1]=a:n<9?b[8][15-n]=a:b[8][14-n]=a;b[p-8][8]=1;var x=function(t){for(var r=t<<8,e=0;8>e;e++)r=r<<1^285*(r>>15);return t<<8^r};c=[],l=1;for(n=0;n<(1<<v);n++)c.push(l),l=l<<1^285*(l>>255);u=[];for(n=0;n<s+((s+15)/16|0)+2;n++)u.push(0);for(n=0;n<s;n++)u[n]=h[n];u[s]=64|s>>4;u[s+1]=(15&s)<<4|4;for(n=s+2;n<u.length-1;n++)u[n]=n%2?17:236;u[u.length-1]=0;var _=u.length,A=c.length,E=new Array(A).fill(0);for(n=0;n<_;n++){i=u[n]^E[0];E.shift();E.push(0);for(o=0;o<A;o++)E[o]^=x(c[o])*(i?c[(c.indexOf(i)+A-1-o)%255]:0)}d=u.slice(0,_).concat(E);f=0;for(n=0;n<p;n++)for(o=0;o<p;o++)if(b[n][o]<0){var C=d[f>>3];b[n][o]=1&C>>(7-(7&f));f++}var M=0,S=1/0;for(var R=0;R<8;R++){var T=JSON.parse(JSON.stringify(b));y(R,R<2?R:R<4?R+1:R<6?R+2:R+3,[[function(t,r){return(t+r)%2===0},function(t){return t%2===0},function(t,r){return r%3===0},function(t,r){return(t+r)%3===0},function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2===0},function(t,r){return t*r%2+t*r%3===0},function(t,r){return(t*r%2+t*r%3)%2===0},function(t,r){return((t+r)%2+t*r%3)%2===0}][R]]);var j=0;for(n=0;n<p;n++)for(o=0;o<p-1;o++)b[n][o]===b[n][o+1]&&j++,b[o][n]===b[o+1][n]&&j++;for(n=0;n<p-1;n++)for(o=0;o<p-1;o++)b[n][o]===b[n][o+1]&&b[n][o]===b[n+1][o]&&b[n][o]===b[n+1][o+1]&&(j+=3);j<S&&(S=j,M=R,b=T)}y(M,M<2?M:M<4?M+1:M<6?M+2:M+3,[[function(t,r){return(t+r)%2===0},function(t){return t%2===0},function(t,r){return r%3===0},function(t,r){return(t+r)%3===0},function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2===0},function(t,r){return t*r%2+t*r%3===0},function(t,r){return(t*r%2+t*r%3)%2===0},function(t,r){return((t+r)%2+t*r%3)%2===0}][M]);var D=M<2?M:M<4?M+1:M<6?M+2:M+3;k=D<<12|function(){for(var t=D<<12;t>=8192;)t^=5765<<(Math.log2(t)-12|0);return D<<12|t}();for(n=0;n<15;n++)a=1&k>>n,n<6?b[n][8]=a:n<8?b[n+1][8]=a:b[p-15+n][8]=a,n<8?b[8][p-n-1]=a:n<9?b[8][15-n]=a:b[8][14-n]=a;return b}window.generateQR=t}();
+</script>
+<script>
+// Use a reliable external QR library instead
+(function() {
+  // Load qrcode-generator library
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+  script.onload = function() {
+    var qr = qrcode(0, 'M');
+    qr.addData('{{ url }}');
+    qr.make();
+
+    var container = document.getElementById('qr-container');
+    var cellSize = 6;
+    var margin = 0;
+    var size = qr.getModuleCount();
+    var canvas = document.createElement('canvas');
+    var totalSize = size * cellSize + margin * 2;
+    canvas.width = totalSize;
+    canvas.height = totalSize;
+    canvas.style.width = (totalSize * 1.5) + 'px';
+    canvas.style.height = (totalSize * 1.5) + 'px';
+    canvas.style.imageRendering = 'pixelated';
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, totalSize, totalSize);
+    ctx.fillStyle = '#1a237e';
+    for (var r = 0; r < size; r++) {
+      for (var c = 0; c < size; c++) {
+        if (qr.isDark(r, c)) {
+          ctx.fillRect(c * cellSize + margin, r * cellSize + margin, cellSize, cellSize);
+        }
+      }
+    }
+    container.appendChild(canvas);
+  };
+  script.onerror = function() {
+    // Fallback: show the URL as a link
+    var container = document.getElementById('qr-container');
+    container.innerHTML = '<p style="color:#c00;font-size:14px;">No se pudo cargar el generador QR.<br>Usa la URL de abajo.</p>';
+  };
+  document.head.appendChild(script);
+})();
+
+function copyUrl() {
+  var url = '{{ url }}';
+  navigator.clipboard.writeText(url).then(function() {
+    var msg = document.getElementById('copiedMsg');
+    msg.style.display = 'inline-block';
+    setTimeout(function() { msg.style.display = 'none'; }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>
