@@ -2291,20 +2291,12 @@ class FormularioProyecto(tk.Tk):
 
     # ── Layout principal ──────────────────────────────────────────────────────
     def _build_ui(self):
-        # Cabecera
+        # ── Cabecera ──────────────────────────────────────────────────────
         header = tk.Frame(self, bg=AZUL, pady=14)
         header.pack(fill="x")
-        # Botón configuración — esquina superior derecha (pack ANTES de los labels fill="x")
-        tk.Button(
-            header,
-            text=" ⚙ ",
-            bg=AZUL, fg=BLANCO, activebackground="#0d47a1", activeforeground=BLANCO,
-            font=("Segoe UI", 12), relief="flat", bd=0, padx=10, pady=2,
-            cursor="hand2", command=self._abrir_ventana_configuracion
-        ).pack(side="right", padx=(0, 12))
         tk.Label(
             header,
-            text="  GENERADOR DE PROYECTOS DE REFORMA DE VEHICULO",
+            text="  HOMOLOGACIONES DE VEHÍCULOS",
             bg=AZUL, fg=BLANCO,
             font=("Segoe UI", 14, "bold"), anchor="w"
         ).pack(fill="x", padx=20)
@@ -2315,7 +2307,7 @@ class FormularioProyecto(tk.Tk):
             font=("Segoe UI", 10), anchor="w"
         ).pack(fill="x", padx=20)
 
-        # Notebook de pestañas
+        # ── Notebook de pestañas ──────────────────────────────────────────
         style = ttk.Style()
         style.configure("TNotebook",             background=GRIS_BG, borderwidth=0)
         style.configure("TNotebook.Tab",         padding=[14, 7], font=("Segoe UI", 10))
@@ -2328,8 +2320,82 @@ class FormularioProyecto(tk.Tk):
         bottom = tk.Frame(self, bg=GRIS_BG, pady=4)
         bottom.pack(side="bottom", fill="x", padx=16, pady=(4, 10))
 
-        self.nb = ttk.Notebook(self)
-        self.nb.pack(fill="both", expand=True, padx=14, pady=(10, 0))
+        # ── Área central: notebook + sidebar derecho ──────────────────────
+        main_area = tk.Frame(self, bg=GRIS_BG)
+        main_area.pack(fill="both", expand=True)
+
+        # ── Sidebar derecho ───────────────────────────────────────────────
+        sidebar = tk.Frame(main_area, bg=BLANCO, width=170,
+                           highlightthickness=1, highlightbackground="#dde3ed")
+        sidebar.pack(side="right", fill="y", padx=(4, 10), pady=(10, 0))
+        sidebar.pack_propagate(False)   # ancho fijo
+
+        # Sección superior — acciones rápidas
+        top_sb = tk.Frame(sidebar, bg=BLANCO)
+        top_sb.pack(fill="x", side="top", padx=10, pady=(14, 0))
+
+        tk.Label(top_sb, text="ACCIONES RÁPIDAS",
+                 bg=BLANCO, fg="#9e9e9e",
+                 font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(0, 8))
+
+        tk.Button(
+            top_sb, text="  + Nueva oferta",
+            bg=AZUL, fg=BLANCO,
+            activebackground="#0d47a1", activeforeground=BLANCO,
+            font=("Segoe UI", 9, "bold"),
+            relief="flat", pady=7, cursor="hand2",
+            command=self._abrir_nueva_oferta,
+        ).pack(fill="x", pady=(0, 6))
+
+        tk.Button(
+            top_sb, text="  📋 Nueva homologación",
+            bg=VERDE, fg=BLANCO,
+            activebackground=VERDE_H, activeforeground=BLANCO,
+            font=("Segoe UI", 9, "bold"),
+            relief="flat", pady=7, cursor="hand2",
+            command=self._nueva_homologacion,
+        ).pack(fill="x", pady=(0, 6))
+
+        tk.Button(
+            top_sb, text="  📋 Nuevo boletín",
+            bg="#6a1b9a", fg=BLANCO,
+            activebackground="#4a148c", activeforeground=BLANCO,
+            font=("Segoe UI", 9, "bold"),
+            relief="flat", pady=7, cursor="hand2",
+            command=lambda: self._abrir_dialogo_boletin("electrico_local"),
+        ).pack(fill="x")
+
+        # Separador
+        ttk.Separator(sidebar, orient="horizontal").pack(
+            fill="x", padx=10, pady=14)
+
+        # Información del expediente activo
+        self._sb_ref_lbl = tk.Label(
+            sidebar, text="Sin expediente", wraplength=148,
+            bg=BLANCO, fg="#bbb",
+            font=("Segoe UI", 8, "italic"), justify="center")
+        self._sb_ref_lbl.pack(padx=10)
+
+        # Sección inferior — configuración
+        bot_sb = tk.Frame(sidebar, bg=BLANCO)
+        bot_sb.pack(fill="x", side="bottom", padx=10, pady=(0, 14))
+
+        ttk.Separator(sidebar, orient="horizontal").pack(
+            fill="x", padx=10, pady=(0, 10), side="bottom")
+
+        tk.Button(
+            bot_sb, text="  ⚙  Configuración",
+            bg="#f5f5f5", fg="#444",
+            activebackground="#e0e0e0", activeforeground="#111",
+            font=("Segoe UI", 9),
+            relief="flat", pady=7, cursor="hand2",
+            command=self._abrir_ventana_configuracion,
+        ).pack(fill="x")
+
+        # ── Notebook ──────────────────────────────────────────────────────
+        self.nb = ttk.Notebook(main_area)
+        self.nb.pack(side="left", fill="both", expand=True,
+                     padx=(14, 0), pady=(10, 0))
 
         self._tab_expediente()
         self._tab_vehiculo()
@@ -2350,7 +2416,7 @@ class FormularioProyecto(tk.Tk):
 
         self.btn = tk.Button(
             bottom,
-            text="  >  GENERAR PROYECTO  ",
+            text="  >  NUEVA HOMOLOGACIÓN  ",
             bg=VERDE, fg=BLANCO, activebackground=VERDE_H, activeforeground=BLANCO,
             font=("Segoe UI", 12, "bold"),
             relief="flat", padx=20, pady=10, cursor="hand2",
@@ -2859,6 +2925,65 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
             text=f"✓ {n_aplicados} campos rellenados desde la foto",
             fg="#2e7d32")
 
+    # ── Acciones rápidas del sidebar ─────────────────────────────────────────
+
+    def _abrir_nueva_oferta(self):
+        """Abre el CRM en el navegador para crear una nueva oferta."""
+        import webbrowser
+        try:
+            cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
+        except Exception:
+            cfg = {}
+        puerto = cfg.get("PUERTO_WEB", 5000)
+        url = f"http://localhost:{puerto}/crm/ofertas/nueva"
+        webbrowser.open(url)
+
+    def _nueva_homologacion(self):
+        """Limpia el formulario para iniciar una nueva homologación."""
+        if messagebox.askyesno(
+            "Nueva homologación",
+            "¿Descartar los datos actuales e iniciar una nueva homologación?",
+        ):
+            # Limpiar todos los entries
+            for var in self.entries.values():
+                try:
+                    var.set("")
+                except Exception:
+                    pass
+            # Restablecer referencia y fecha
+            if "REFERENCIA" in self.entries:
+                self.entries["REFERENCIA"].set(siguiente_referencia())
+            if "FECHA_FIRMA" in self.entries:
+                self.entries["FECHA_FIRMA"].set(fecha_hoy_es())
+            if "MES_ANIO" in self.entries:
+                self.entries["MES_ANIO"].set(mes_anio_hoy_es())
+            # Limpiar reformas y calculos
+            for fila in list(self._reforma_rows):
+                try:
+                    self._del_reforma(fila)
+                except Exception:
+                    pass
+            self._reforma_rows.clear()
+            # Ir a la primera pestaña
+            self.nb.select(0)
+            self._actualizar_sidebar_ref()
+
+    def _actualizar_sidebar_ref(self, *_):
+        """Actualiza el label de referencia del sidebar."""
+        if not hasattr(self, "_sb_ref_lbl"):
+            return
+        ref = ""
+        if "REFERENCIA" in self.entries:
+            ref = self.entries["REFERENCIA"].get().strip()
+        if ref:
+            self._sb_ref_lbl.config(
+                text=f"Expediente:\n{ref}", fg="#333",
+                font=("Segoe UI", 8, "bold"))
+        else:
+            self._sb_ref_lbl.config(
+                text="Sin expediente", fg="#bbb",
+                font=("Segoe UI", 8, "italic"))
+
     # ── GIAVEH — Consulta de fichas reducidas ────────────────────────────────
 
     def _abrir_giaveh(self):
@@ -3326,6 +3451,10 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
                         var.set(cfg[clave])
         except Exception:
             pass
+        # Conectar trace de REFERENCIA al sidebar
+        if "REFERENCIA" in self.entries:
+            self.entries["REFERENCIA"].trace_add("write", self._actualizar_sidebar_ref)
+        self._actualizar_sidebar_ref()
 
     def _guardar_config(self):
         """Guarda los campos fijos (marca, lugar, técnico, ruta) como predeterminados en config.json."""
