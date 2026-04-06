@@ -90,6 +90,10 @@
                     placeholder="Notas adicionales…"></textarea>
         </div>
 
+        {% if oferta_id_presel %}
+        <input type="hidden" name="oferta_id" value="{{ oferta_id_presel }}">
+        {% endif %}
+
       </div><!-- /.row -->
 
       <hr class="my-4">

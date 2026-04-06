@@ -392,6 +392,12 @@ def oferta_detalle(oid):
     ensayo_types_list = query("SELECT * FROM ensayo_types WHERE activo=1 ORDER BY codigo")
     work_types_list = query("SELECT * FROM work_types WHERE activo=1 ORDER BY codigo")
 
+    # Boletines vinculados a esta oferta
+    from db import listar_boletines as _listar_bol, init_boletines_db, BOLETIN_PREFIJOS
+    init_boletines_db()
+    _todos_bol = _listar_bol() or []
+    boletines_oferta = [b for b in _todos_bol if b["oferta_id"] == oid]
+
     return render_template(
         "crm_oferta_detalle.html",
         oferta=oferta,
@@ -404,6 +410,8 @@ def oferta_detalle(oid):
         offer_ensayos=offer_ensayos_list,
         ensayo_types=ensayo_types_list,
         work_types=work_types_list,
+        boletines=boletines_oferta,
+        boletin_prefijos=BOLETIN_PREFIJOS,
     )
 
 

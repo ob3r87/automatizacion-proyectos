@@ -344,6 +344,69 @@
 <!-- Ensayos de la oferta -->
 {% include 'crm_oferta_ensayos.html' %}
 
+<!-- ── Boletines vinculados ──────────────────────────────────────────────── -->
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center"
+       style="background:#f3e5f5;">
+    <span><i class="bi bi-file-earmark-check" style="color:#6a1b9a;"></i>
+      <strong style="color:#6a1b9a;">Boletines vinculados</strong>
+      {% if boletines %}
+        <span class="badge rounded-pill ms-2" style="background:#6a1b9a;">{{ boletines|length }}</span>
+      {% endif %}
+    </span>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('bol.nuevo', oferta_id=oferta.id, tipo='electrico_vehiculo') }}"
+         class="btn btn-sm" style="background:#6a1b9a;color:white;">
+        <i class="bi bi-plus-circle"></i> Nuevo boletín
+      </a>
+      <a href="{{ url_for('bol.lista') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-list-ul"></i> Ver todos
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if boletines %}
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Número</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th>Peticionario</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in boletines %}
+        {% set tipo_label = boletin_prefijos.get(b.tipo, ('', b.tipo))[1] %}
+        {% set estado_class = {'borrador': 'secondary', 'emitido': 'success', 'anulado': 'danger'}.get(b.estado, 'secondary') %}
+        <tr>
+          <td><a href="{{ url_for('bol.detalle', bid=b.id) }}" class="fw-bold text-decoration-none"
+                 style="color:#6a1b9a;">{{ b.numero }}</a></td>
+          <td><small>{{ tipo_label }}</small></td>
+          <td><span class="badge bg-{{ estado_class }}">{{ b.estado|capitalize }}</span></td>
+          <td><small>{{ b.fecha }}</small></td>
+          <td><small>{{ b.peticionario or '—' }}</small></td>
+          <td class="text-end">
+            <a href="{{ url_for('bol.detalle', bid=b.id) }}" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-muted p-3 small">
+      <i class="bi bi-info-circle"></i>
+      Sin boletines vinculados a esta oferta.
+      <a href="{{ url_for('bol.nuevo', oferta_id=oferta.id) }}" style="color:#6a1b9a;">Crear el primero →</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 <!-- Modal para notas al cambiar estado -->
 <div class="modal fade" id="modalEstado" tabindex="-1">
   <div class="modal-dialog modal-sm">

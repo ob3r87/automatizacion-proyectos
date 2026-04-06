@@ -51,20 +51,26 @@ def nuevo():
             cp=request.form.get("cp", ""),
             tecnico=request.form.get("tecnico", ""),
             expediente_id=request.form.get("expediente_id") or None,
+            oferta_id=int(request.form["oferta_id"]) if request.form.get("oferta_id") else None,
             observaciones=request.form.get("observaciones", ""),
         )
         flash(f"Boletín {numero} creado correctamente.", "success")
+        # Redirigir al detalle de la oferta si venía de ella
+        if request.form.get("oferta_id"):
+            return redirect(url_for("crm.oferta_detalle", oid=request.form["oferta_id"]))
         return redirect(url_for("bol.detalle", bid=bid))
 
-    # Pre-fill tipo si viene en la URL (ej: desde formulario vehículo)
-    tipo_presel = request.args.get("tipo", "electrico_local")
+    # Pre-fill si viene en la URL (ej: desde oferta CRM o formulario vehículo)
+    tipo_presel      = request.args.get("tipo", "electrico_local")
     expediente_presel = request.args.get("expediente_id", "")
-    siguiente_nums = {t: siguiente_numero_boletin(t) for t in BOLETIN_PREFIJOS}
+    oferta_id_presel  = request.args.get("oferta_id", "")
+    siguiente_nums   = {t: siguiente_numero_boletin(t) for t in BOLETIN_PREFIJOS}
     return render_template(
         "boletines_nuevo.html",
         prefijos=BOLETIN_PREFIJOS,
         tipo_presel=tipo_presel,
         expediente_presel=expediente_presel,
+        oferta_id_presel=oferta_id_presel,
         siguiente_nums=siguiente_nums,
     )
 

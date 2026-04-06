@@ -2417,6 +2417,191 @@ class FormularioProyecto(tk.Tk):
         ])
 
         self._seccion_revision(frame)
+        self._seccion_boletines_expediente(frame)
+
+    def _seccion_boletines_expediente(self, parent):
+        """Panel para crear/ver boletines independientes desde el expediente."""
+        frm = tk.LabelFrame(
+            parent,
+            text="  📋  Boletines  ",
+            bg=BLANCO, fg="#6a1b9a",
+            font=("Segoe UI", 10, "bold"),
+            relief="solid", bd=1, padx=10, pady=8,
+        )
+        frm.pack(fill="x", padx=4, pady=(6, 6))
+
+        info = tk.Label(frm,
+            text="Crea un boletín independiente o vinculado al expediente actual.",
+            bg=BLANCO, fg="#555", font=("Segoe UI", 8, "italic"))
+        info.pack(anchor="w", pady=(0, 6))
+
+        btn_row = tk.Frame(frm, bg=BLANCO)
+        btn_row.pack(fill="x")
+
+        tipos = [
+            ("⚡ Eléctrico Local",    "electrico_local",    "#e65100"),
+            ("⚡ Eléctrico Vivienda", "electrico_vivienda", "#1565c0"),
+            ("⚡ Eléctrico Vehículo", "electrico_vehiculo", "#6a1b9a"),
+            ("🔥 Gas",               "gas",                "#bf360c"),
+            ("💧 Fontanería",        "fontaneria",         "#00695c"),
+        ]
+        for label, tipo, color in tipos:
+            tk.Button(
+                btn_row, text=f"  {label}  ",
+                bg=color, fg=BLANCO,
+                activebackground=color, activeforeground=BLANCO,
+                font=("Segoe UI", 8, "bold"),
+                relief="flat", padx=8, pady=4, cursor="hand2",
+                command=lambda t=tipo: self._abrir_dialogo_boletin(t),
+            ).pack(side="left", padx=(0, 4))
+
+    def _abrir_dialogo_boletin(self, tipo_inicial="electrico_vehiculo"):
+        """Abre un Toplevel para crear un nuevo boletín."""
+        import datetime as _dt
+
+        win = tk.Toplevel(self)
+        win.title("Nuevo boletín")
+        win.configure(bg=BLANCO)
+        win.resizable(False, False)
+        win.grab_set()
+
+        # Calcular número preview
+        def _num_preview(tipo):
+            try:
+                sys.path.insert(0, str(BASE_DIR / "tracker"))
+                from db import siguiente_numero_boletin as _sig
+                return _sig(tipo)
+            except Exception:
+                return "—"
+
+        TIPOS_LABELS = [
+            ("electrico_local",    "⚡ Eléctrico — Local"),
+            ("electrico_vivienda", "⚡ Eléctrico — Vivienda"),
+            ("electrico_vehiculo", "⚡ Eléctrico — Vehículo"),
+            ("gas",                "🔥 Gas"),
+            ("fontaneria",         "💧 Fontanería"),
+        ]
+
+        # ── Cabecera ──────────────────────────────────────────────────────
+        hdr = tk.Frame(win, bg="#6a1b9a", pady=10)
+        hdr.pack(fill="x")
+        tk.Label(hdr, text="  📋  Nuevo boletín", bg="#6a1b9a", fg=BLANCO,
+                 font=("Segoe UI", 13, "bold")).pack(side="left", padx=14)
+        self._bol_num_lbl = tk.Label(hdr, text="", bg="#6a1b9a", fg="#ce93d8",
+                                     font=("Segoe UI", 11, "bold"))
+        self._bol_num_lbl.pack(side="right", padx=14)
+
+        body = tk.Frame(win, bg=BLANCO, padx=20, pady=12)
+        body.pack(fill="both")
+
+        def fila(parent, etiqueta, var, w=36):
+            f = tk.Frame(parent, bg=BLANCO)
+            f.pack(fill="x", pady=2)
+            tk.Label(f, text=etiqueta, bg=BLANCO, fg="#333",
+                     font=("Segoe UI", 9), width=22, anchor="e").pack(side="left", padx=(0, 8))
+            e = ttk.Entry(f, textvariable=var, width=w, font=("Segoe UI", 9))
+            e.pack(side="left")
+            return e
+
+        tipo_var = tk.StringVar(value=tipo_inicial)
+
+        def _on_tipo_change(*_):
+            num = _num_preview(tipo_var.get())
+            self._bol_num_lbl.config(text=num)
+
+        # Tipo selector
+        tf = tk.Frame(body, bg=BLANCO)
+        tf.pack(fill="x", pady=2)
+        tk.Label(tf, text="Tipo:", bg=BLANCO, fg="#333",
+                 font=("Segoe UI", 9), width=22, anchor="e").pack(side="left", padx=(0, 8))
+        cb_tipo = ttk.Combobox(tf, textvariable=tipo_var,
+                               values=[lbl for _, lbl in TIPOS_LABELS],
+                               state="readonly", width=34, font=("Segoe UI", 9))
+        # Mostrar etiqueta en combobox
+        tipo_key_to_lbl = dict(TIPOS_LABELS)
+        tipo_lbl_to_key = {v: k for k, v in TIPOS_LABELS}
+        cb_tipo.set(tipo_key_to_lbl.get(tipo_inicial, tipo_inicial))
+        cb_tipo.pack(side="left")
+        cb_tipo.bind("<<ComboboxSelected>>",
+                     lambda e: (tipo_var.set(tipo_lbl_to_key.get(cb_tipo.get(), cb_tipo.get())),
+                                _on_tipo_change()))
+
+        # Campos
+        peticionario_var = tk.StringVar(
+            value=self.entries.get("PETICIONARIO_NOMBRE", tk.StringVar()).get())
+        nif_var           = tk.StringVar()
+        direccion_var     = tk.StringVar()
+        poblacion_var     = tk.StringVar()
+        cp_var            = tk.StringVar()
+        tecnico_var       = tk.StringVar(
+            value=self.entries.get("TECNICO_NOMBRE", tk.StringVar()).get())
+        expediente_var    = tk.StringVar(
+            value=self.entries.get("REFERENCIA", tk.StringVar()).get().strip())
+        obs_var           = tk.StringVar()
+
+        fila(body, "Peticionario / Titular:", peticionario_var)
+        fila(body, "NIF/CIF:", nif_var, 20)
+        fila(body, "Dirección instalación:", direccion_var)
+        fila(body, "Población:", poblacion_var)
+        fila(body, "C.P.:", cp_var, 10)
+        fila(body, "Técnico responsable:", tecnico_var)
+        fila(body, "Expediente vinculado:", expediente_var, 20)
+        fila(body, "Observaciones:", obs_var)
+
+        # Actualizar número preview inicial
+        _on_tipo_change()
+
+        # ── Botones ───────────────────────────────────────────────────────
+        btn_frm = tk.Frame(win, bg="#f5f5f5", pady=10)
+        btn_frm.pack(fill="x")
+
+        def _guardar():
+            tipo = tipo_var.get()
+            if tipo in tipo_key_to_lbl:
+                pass  # ya es key
+            else:
+                tipo = tipo_lbl_to_key.get(tipo, tipo)
+
+            try:
+                sys.path.insert(0, str(BASE_DIR / "tracker"))
+                from db import crear_boletin as _crear
+                bid, numero = _crear(
+                    tipo=tipo,
+                    peticionario=peticionario_var.get().strip(),
+                    nif=nif_var.get().strip(),
+                    direccion=direccion_var.get().strip(),
+                    poblacion=poblacion_var.get().strip(),
+                    cp=cp_var.get().strip(),
+                    tecnico=tecnico_var.get().strip(),
+                    expediente_id=expediente_var.get().strip() or None,
+                    observaciones=obs_var.get().strip(),
+                )
+                messagebox.showinfo(
+                    "Boletín creado",
+                    f"✅ Boletín {numero} creado correctamente.\n\nCarpeta generada automáticamente.",
+                    parent=win,
+                )
+                win.destroy()
+                # Refrescar lista si existe
+                self._refrescar_boletines_vehiculo()
+            except Exception as exc:
+                messagebox.showerror("Error", f"No se pudo crear el boletín:\n{exc}", parent=win)
+
+        tk.Button(
+            btn_frm, text="  ✅  Crear boletín",
+            bg="#6a1b9a", fg=BLANCO,
+            activebackground="#4a148c", activeforeground=BLANCO,
+            font=("Segoe UI", 10, "bold"),
+            relief="flat", padx=16, pady=6, cursor="hand2",
+            command=_guardar,
+        ).pack(side="left", padx=(20, 8))
+
+        tk.Button(
+            btn_frm, text="  Cancelar",
+            bg=BLANCO, fg="#555",
+            font=("Segoe UI", 9), relief="flat", padx=10, pady=6, cursor="hand2",
+            command=win.destroy,
+        ).pack(side="left")
 
     def _seccion_revision(self, parent):
         """Panel para cargar un proyecto existente y generar una nueva revisión."""
@@ -2814,6 +2999,106 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
 
         self._seccion_categoria(frame)
         self._seccion_ficha(frame)
+        self._seccion_boletines_vehiculo(frame)
+
+    def _seccion_boletines_vehiculo(self, parent):
+        """Panel de boletines eléctricos vinculados al expediente del vehículo."""
+        frm = tk.LabelFrame(
+            parent,
+            text="  📋  Boletines del vehículo  ",
+            bg=BLANCO, fg="#6a1b9a",
+            font=("Segoe UI", 10, "bold"),
+            relief="solid", bd=1, padx=10, pady=8,
+        )
+        frm.pack(fill="x", padx=4, pady=(6, 6))
+
+        # ── Cabecera con botones ──────────────────────────────────────────
+        hdr = tk.Frame(frm, bg=BLANCO)
+        hdr.pack(fill="x", pady=(0, 6))
+
+        tk.Button(
+            hdr, text="  ⚡  Nuevo boletín eléctrico vehículo",
+            bg="#6a1b9a", fg=BLANCO,
+            activebackground="#4a148c", activeforeground=BLANCO,
+            font=("Segoe UI", 9, "bold"),
+            relief="flat", padx=10, pady=4, cursor="hand2",
+            command=lambda: self._abrir_dialogo_boletin("electrico_vehiculo"),
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            hdr, text="  ↻  Actualizar",
+            bg=BLANCO, fg="#6a1b9a",
+            font=("Segoe UI", 9), relief="flat", padx=8, pady=4, cursor="hand2",
+            command=self._refrescar_boletines_vehiculo,
+        ).pack(side="left")
+
+        # ── Tabla de boletines ────────────────────────────────────────────
+        self._bol_veh_frame = tk.Frame(frm, bg=BLANCO)
+        self._bol_veh_frame.pack(fill="x")
+        self._refrescar_boletines_vehiculo()
+
+    def _refrescar_boletines_vehiculo(self):
+        """Recarga la lista de boletines vinculados al expediente actual."""
+        if not hasattr(self, "_bol_veh_frame"):
+            return
+        for w in self._bol_veh_frame.winfo_children():
+            w.destroy()
+
+        expediente_id = self.entries.get("REFERENCIA", tk.StringVar()).get().strip()
+        boletines = []
+        if expediente_id:
+            try:
+                sys.path.insert(0, str(BASE_DIR / "tracker"))
+                from db import listar_boletines as _listar
+                boletines = _listar(texto=None) or []
+                boletines = [b for b in boletines
+                             if (b["expediente_id"] or "").strip() == expediente_id]
+            except Exception:
+                pass
+
+        if not boletines:
+            msg = "Sin expediente asignado" if not expediente_id else "Sin boletines vinculados a este expediente"
+            tk.Label(self._bol_veh_frame, text=msg,
+                     bg=BLANCO, fg="#999",
+                     font=("Segoe UI", 8, "italic")).pack(anchor="w", pady=4)
+            return
+
+        # Cabecera tabla
+        COLS = [("Número", 18), ("Tipo", 24), ("Estado", 10), ("Fecha", 12), ("", 6)]
+        hdrf = tk.Frame(self._bol_veh_frame, bg="#ede7f6")
+        hdrf.pack(fill="x")
+        for txt, w in COLS:
+            tk.Label(hdrf, text=txt, bg="#ede7f6", fg="#4a148c",
+                     font=("Segoe UI", 8, "bold"), width=w, anchor="w",
+                     padx=4).pack(side="left")
+
+        ESTADO_COL = {"borrador": "#888", "emitido": "#2e7d32", "anulado": "#c62828"}
+        for bol in boletines:
+            row = tk.Frame(self._bol_veh_frame, bg=BLANCO,
+                           highlightthickness=1, highlightbackground="#e0e0e0")
+            row.pack(fill="x", pady=1)
+            tk.Label(row, text=bol["numero"], bg=BLANCO, fg="#1565c0",
+                     font=("Segoe UI", 8, "bold"), width=18, anchor="w", padx=4).pack(side="left")
+            tipo_label = {
+                "electrico_local": "Eléctrico Local",
+                "electrico_vivienda": "Eléctrico Vivienda",
+                "electrico_vehiculo": "Eléctrico Vehículo",
+                "gas": "Gas", "fontaneria": "Fontanería",
+            }.get(bol["tipo"], bol["tipo"])
+            tk.Label(row, text=tipo_label, bg=BLANCO, fg="#333",
+                     font=("Segoe UI", 8), width=24, anchor="w", padx=4).pack(side="left")
+            col_est = ESTADO_COL.get(bol["estado"], "#888")
+            tk.Label(row, text=bol["estado"].capitalize(), bg=BLANCO, fg=col_est,
+                     font=("Segoe UI", 8, "bold"), width=10, anchor="w", padx=4).pack(side="left")
+            tk.Label(row, text=bol["fecha"] or "", bg=BLANCO, fg="#555",
+                     font=("Segoe UI", 8), width=12, anchor="w", padx=4).pack(side="left")
+            # Botón abrir carpeta
+            carpeta = bol.get("carpeta", "")
+            if carpeta and os.path.isdir(carpeta):
+                tk.Button(row, text="📁", bg=BLANCO, fg="#555",
+                          font=("Segoe UI", 9), relief="flat", cursor="hand2",
+                          command=lambda c=carpeta: os.startfile(c)
+                          ).pack(side="left", padx=2)
 
     def _seccion_categoria(self, parent):
         """Sección de categoría del vehículo con campos de la ficha técnica."""
