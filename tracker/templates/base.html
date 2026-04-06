@@ -59,6 +59,16 @@
     </a>
   </nav>
 
+  <div class="nav-section-label">Boletines</div>
+  <nav class="nav flex-column">
+    <a href="{{ url_for('bol.lista') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('bol.') %}active{% endif %}">
+      <i class="bi bi-file-earmark-check"></i> Boletines
+    </a>
+    <a href="{{ url_for('bol.nuevo') }}" class="nav-link {% if request.endpoint == 'bol.nuevo' %}active{% endif %}">
+      <i class="bi bi-plus-circle"></i> Nuevo boletín
+    </a>
+  </nav>
+
   <div class="nav-section-label">Config</div>
   <nav class="nav flex-column">
     <a href="{{ url_for('crm.configuracion') }}" class="nav-link {% if request.endpoint and 'configuracion' in request.endpoint %}active{% endif %}">

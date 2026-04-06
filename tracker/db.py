@@ -648,6 +648,150 @@ def save_app_setting(clave: str, valor: str) -> None:
         )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# BOLETINES
+# ─────────────────────────────────────────────────────────────────────────────
+
+BOLETIN_PREFIJOS = {
+    "electrico_local":     ("BEL", "Eléctrico — Local"),
+    "electrico_vivienda":  ("BEV", "Eléctrico — Vivienda"),
+    "electrico_vehiculo":  ("BEH", "Eléctrico — Vehículo"),
+    "gas":                 ("BGA", "Gas"),
+    "fontaneria":          ("BFO", "Fontanería"),
+}
+
+def init_boletines_db():
+    """Crea la tabla boletines si no existe."""
+    execute("""
+        CREATE TABLE IF NOT EXISTS boletines (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero      TEXT    UNIQUE NOT NULL,
+            tipo        TEXT    NOT NULL,
+            estado      TEXT    NOT NULL DEFAULT 'borrador',
+            fecha       TEXT    NOT NULL,
+            peticionario TEXT,
+            nif         TEXT,
+            direccion   TEXT,
+            poblacion   TEXT,
+            cp          TEXT,
+            tecnico     TEXT,
+            expediente_id TEXT,
+            oferta_id   INTEGER,
+            carpeta     TEXT,
+            datos_json  TEXT,
+            observaciones TEXT,
+            created_at  TEXT    DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+def siguiente_numero_boletin(tipo: str) -> str:
+    """Devuelve el siguiente número correlativo para el tipo dado (ej: BEL-2026-0001)."""
+    init_boletines_db()
+    import datetime
+    anio = datetime.date.today().year
+    prefijo, _ = BOLETIN_PREFIJOS.get(tipo, ("BOL", "Boletin"))
+    row = query(
+        "SELECT numero FROM boletines WHERE tipo = ? AND numero LIKE ? ORDER BY id DESC LIMIT 1",
+        (tipo, f"{prefijo}-{anio}-%"), one=True
+    )
+    ultimo = 0
+    if row:
+        partes = row["numero"].rsplit("-", 1)
+        try:
+            ultimo = int(partes[-1])
+        except ValueError:
+            ultimo = 0
+    return f"{prefijo}-{anio}-{ultimo + 1:04d}"
+
+def crear_boletin(tipo, peticionario="", nif="", direccion="", poblacion="", cp="",
+                  tecnico="", expediente_id=None, oferta_id=None, observaciones="",
+                  datos_extra=None):
+    """Crea un nuevo boletín. Devuelve el id y número asignado."""
+    import datetime, json as _json
+    from pathlib import Path
+    init_boletines_db()
+    numero = siguiente_numero_boletin(tipo)
+    fecha  = datetime.date.today().isoformat()
+
+    # Crear carpeta
+    tipo_carpeta = {
+        "electrico_local":    "ELECTRICIDAD/LOCAL",
+        "electrico_vivienda": "ELECTRICIDAD/VIVIENDA",
+        "electrico_vehiculo": "ELECTRICIDAD/VEHICULO",
+        "gas":                "GAS",
+        "fontaneria":         "FONTANERIA",
+    }.get(tipo, tipo.upper())
+
+    base = Path(__file__).parent.parent / "BOLETINES" / tipo_carpeta / numero
+    base.mkdir(parents=True, exist_ok=True)
+    carpeta = str(base)
+
+    datos_json_str = _json.dumps(datos_extra or {}, ensure_ascii=False)
+
+    execute("""
+        INSERT INTO boletines
+          (numero, tipo, estado, fecha, peticionario, nif, direccion, poblacion, cp,
+           tecnico, expediente_id, oferta_id, carpeta, datos_json, observaciones)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (numero, tipo, "borrador", fecha, peticionario, nif, direccion, poblacion,
+          cp, tecnico, expediente_id, oferta_id, carpeta, datos_json_str, observaciones))
+
+    row = query("SELECT id FROM boletines WHERE numero = ?", (numero,), one=True)
+    bid = row["id"] if row else None
+
+    # Guardar datos.json en carpeta
+    datos_file = base / "datos.json"
+    full_data = {
+        "numero": numero, "tipo": tipo, "fecha": fecha,
+        "peticionario": peticionario, "nif": nif,
+        "direccion": direccion, "poblacion": poblacion, "cp": cp,
+        "tecnico": tecnico, "expediente_id": expediente_id,
+        "observaciones": observaciones,
+        **(datos_extra or {})
+    }
+    with open(datos_file, "w", encoding="utf-8") as f:
+        _json.dump(full_data, f, ensure_ascii=False, indent=2)
+
+    return bid, numero
+
+def listar_boletines(tipo=None, estado=None, texto=None):
+    """Lista boletines con filtros opcionales."""
+    init_boletines_db()
+    sql = "SELECT * FROM boletines WHERE 1=1"
+    params = []
+    if tipo:
+        sql += " AND tipo = ?"
+        params.append(tipo)
+    if estado:
+        sql += " AND estado = ?"
+        params.append(estado)
+    if texto:
+        like = f"%{texto}%"
+        sql += " AND (numero LIKE ? OR peticionario LIKE ? OR nif LIKE ? OR direccion LIKE ?)"
+        params.extend([like, like, like, like])
+    sql += " ORDER BY id DESC"
+    return query(sql, params)
+
+def get_boletin(bid):
+    """Obtiene un boletín por id."""
+    init_boletines_db()
+    return query("SELECT * FROM boletines WHERE id = ?", (bid,), one=True)
+
+def actualizar_boletin(bid, **kwargs):
+    """Actualiza campos de un boletín."""
+    init_boletines_db()
+    if not kwargs:
+        return
+    sets = ", ".join(f"{k} = ?" for k in kwargs)
+    vals = list(kwargs.values()) + [bid]
+    execute(f"UPDATE boletines SET {sets} WHERE id = ?", vals)
+
+def eliminar_boletin(bid):
+    """Elimina un boletín por id."""
+    init_boletines_db()
+    execute("DELETE FROM boletines WHERE id = ?", (bid,))
+
+
 # ---------------------------------------------------------------------------
 # Código de proyecto: P{año}-{NNNN}
 # ---------------------------------------------------------------------------

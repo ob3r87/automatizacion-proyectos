@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ bol.numero }} — Phican Ingenieros{% endblock %}
+
+{% block content %}
+{% set bc = {'borrador': 'secondary', 'emitido': 'success', 'anulado': 'danger'} %}
+{% set tipo_label = prefijos[bol.tipo][1] if bol.tipo in prefijos else bol.tipo %}
+
+<!-- Header -->
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+  <div>
+    <h2 class="mb-1">
+      <code class="text-primary fs-4">{{ bol.numero }}</code>
+      <span class="badge bg-{{ bc.get(bol.estado, 'secondary') }} ms-2">{{ bol.estado }}</span>
+    </h2>
+    <div class="text-muted small">
+      <i class="bi bi-tag"></i> {{ tipo_label }} &nbsp;·&nbsp;
+      <i class="bi bi-calendar3"></i> {{ bol.fecha }}
+      {% if bol.created_at %}
+      &nbsp;·&nbsp; Creado: {{ bol.created_at[:16] }}
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('bol.editar', bid=bol.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    <button class="btn btn-outline-info btn-sm" onclick="abrirCarpeta({{ bol.id }})">
+      <i class="bi bi-folder2-open"></i> Abrir carpeta
+    </button>
+    <a href="{{ url_for('bol.lista') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- Datos principales -->
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-person-lines-fill"></i> Datos del boletín</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4 text-muted">Peticionario</dt>
+          <dd class="col-sm-8">{{ bol.peticionario or '—' }}</dd>
+
+          <dt class="col-sm-4 text-muted">NIF / CIF</dt>
+          <dd class="col-sm-8"><code>{{ bol.nif or '—' }}</code></dd>
+
+          <dt class="col-sm-4 text-muted">Dirección</dt>
+          <dd class="col-sm-8">{{ bol.direccion or '—' }}</dd>
+
+          <dt class="col-sm-4 text-muted">Población</dt>
+          <dd class="col-sm-8">{{ bol.poblacion or '—' }}</dd>
+
+          <dt class="col-sm-4 text-muted">Código postal</dt>
+          <dd class="col-sm-8">{{ bol.cp or '—' }}</dd>
+
+          <dt class="col-sm-4 text-muted">Técnico</dt>
+          <dd class="col-sm-8">{{ bol.tecnico or '—' }}</dd>
+
+          {% if bol.expediente_id %}
+          <dt class="col-sm-4 text-muted">Expediente</dt>
+          <dd class="col-sm-8">
+            <span class="badge bg-info text-dark">{{ bol.expediente_id }}</span>
+          </dd>
+          {% endif %}
+
+          {% if bol.observaciones %}
+          <dt class="col-sm-4 text-muted">Observaciones</dt>
+          <dd class="col-sm-8" style="white-space:pre-wrap">{{ bol.observaciones }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel lateral -->
+  <div class="col-md-4">
+    <!-- Cambiar estado -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-arrow-repeat"></i> Estado</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('bol.cambiar_estado', bid=bol.id) }}" class="d-flex gap-2">
+          <select name="estado" class="form-select form-select-sm">
+            <option value="borrador" {% if bol.estado == 'borrador' %}selected{% endif %}>Borrador</option>
+            <option value="emitido"  {% if bol.estado == 'emitido'  %}selected{% endif %}>Emitido</option>
+            <option value="anulado"  {% if bol.estado == 'anulado'  %}selected{% endif %}>Anulado</option>
+          </select>
+          <button type="submit" class="btn btn-sm btn-primary text-nowrap">Guardar</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Carpeta -->
+    {% if bol.carpeta %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-folder"></i> Carpeta</div>
+      <div class="card-body">
+        <p class="small text-muted text-break mb-2">{{ bol.carpeta }}</p>
+        <button class="btn btn-sm btn-outline-info w-100" onclick="abrirCarpeta({{ bol.id }})">
+          <i class="bi bi-folder2-open"></i> Abrir en explorador
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Eliminar -->
+    <div class="card border-danger">
+      <div class="card-header fw-semibold text-danger"><i class="bi bi-exclamation-triangle"></i> Zona peligrosa</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('bol.eliminar', bid=bol.id) }}"
+              onsubmit="return confirm('¿Eliminar {{ bol.numero }}? Esta acción no se puede deshacer.')">
+          <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+            <i class="bi bi-trash"></i> Eliminar boletín
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Datos adicionales (datos_json) -->
+{% if bol.datos_json and bol.datos_json not in ('{}', '', None) %}
+<div class="card mt-3">
+  <div class="card-header fw-semibold"><i class="bi bi-braces"></i> Datos adicionales</div>
+  <div class="card-body">
+    {% set datos = bol.datos_json | tojson %}
+    <pre class="mb-0 small text-muted" style="white-space:pre-wrap">{{ bol.datos_json }}</pre>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function abrirCarpeta(bid) {
+  fetch(`/boletines/${bid}/abrir-carpeta`)
+    .then(r => r.json())
+    .catch(() => {});
+}
+</script>
+{% endblock %}

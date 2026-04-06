@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Boletines — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">
+    <i class="bi bi-file-earmark-check text-primary"></i> Boletines
+    <span class="badge bg-secondary ms-2" style="font-size:.75rem">{{ boletines | length }}</span>
+  </h2>
+  <a href="{{ url_for('bol.nuevo') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nuevo boletín
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Tipo</label>
+        <select name="tipo" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">Todos los tipos</option>
+          {% for tipo_key, (prefijo, label) in prefijos.items() %}
+          <option value="{{ tipo_key }}" {% if filtro_tipo == tipo_key %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Estado</label>
+        <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          <option value="borrador" {% if filtro_estado == 'borrador' %}selected{% endif %}>Borrador</option>
+          <option value="emitido"  {% if filtro_estado == 'emitido'  %}selected{% endif %}>Emitido</option>
+          <option value="anulado"  {% if filtro_estado == 'anulado'  %}selected{% endif %}>Anulado</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Búsqueda</label>
+        <div class="input-group input-group-sm">
+          <input type="text" name="q" class="form-control" placeholder="Número, peticionario, NIF, dirección…" value="{{ filtro_texto }}">
+          <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+        </div>
+      </div>
+      <div class="col-md-3">
+        {% if filtro_tipo or filtro_estado or filtro_texto %}
+        <a href="{{ url_for('bol.lista') }}" class="btn btn-sm btn-outline-secondary w-100">
+          <i class="bi bi-x-circle"></i> Limpiar filtros
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span>{{ boletines | length }} boletín(es)</span>
+  </div>
+  <div class="card-body p-0">
+    {% if boletines %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Número</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Peticionario</th>
+            <th>Dirección</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bol in boletines %}
+          {% set bc = {'borrador': 'secondary', 'emitido': 'success', 'anulado': 'danger'} %}
+          <tr>
+            <td><code class="text-primary">{{ bol.numero }}</code></td>
+            <td>
+              <small class="text-muted">
+                {% if bol.tipo in prefijos %}
+                  {{ prefijos[bol.tipo][1] }}
+                {% else %}
+                  {{ bol.tipo }}
+                {% endif %}
+              </small>
+            </td>
+            <td>
+              <span class="badge bg-{{ bc.get(bol.estado, 'secondary') }}">{{ bol.estado }}</span>
+            </td>
+            <td><small>{{ bol.fecha }}</small></td>
+            <td>{{ bol.peticionario or '—' }}</td>
+            <td class="text-truncate" style="max-width:200px" title="{{ bol.direccion }}">
+              {{ bol.direccion or '—' }}
+            </td>
+            <td class="text-end">
+              <a href="{{ url_for('bol.detalle', bid=bol.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> Ver
+              </a>
+              <a href="{{ url_for('bol.editar', bid=bol.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i> Editar
+              </a>
+              <form method="POST" action="{{ url_for('bol.eliminar', bid=bol.id) }}" class="d-inline"
+                    onsubmit="return confirm('¿Eliminar el boletín {{ bol.numero }}? Esta acción no se puede deshacer.')">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-file-earmark-x" style="font-size:3rem"></i>
+      <p class="mt-2">No hay boletines{% if filtro_tipo or filtro_estado or filtro_texto %} con los filtros aplicados{% endif %}.</p>
+      <a href="{{ url_for('bol.nuevo') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg"></i> Crear el primero
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

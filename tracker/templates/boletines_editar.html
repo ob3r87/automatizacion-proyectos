@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ bol.numero }} — Phican Ingenieros{% endblock %}
+
+{% block content %}
+{% set tipo_label = prefijos[bol.tipo][1] if bol.tipo in prefijos else bol.tipo %}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">
+    <i class="bi bi-pencil text-primary"></i> Editar boletín
+    <code class="fs-5 ms-2">{{ bol.numero }}</code>
+  </h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('bol.detalle', bid=bol.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Cancelar
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+
+        <!-- Tipo (solo lectura) + Número -->
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Tipo de boletín</label>
+          <input type="text" class="form-control bg-light" value="{{ tipo_label }}" readonly>
+          <div class="form-text">El tipo no se puede cambiar una vez creado.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Número</label>
+          <input type="text" class="form-control bg-light fw-bold text-primary" value="{{ bol.numero }}" readonly>
+        </div>
+
+        <!-- Estado -->
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="borrador" {% if bol.estado == 'borrador' %}selected{% endif %}>Borrador</option>
+            <option value="emitido"  {% if bol.estado == 'emitido'  %}selected{% endif %}>Emitido</option>
+            <option value="anulado"  {% if bol.estado == 'anulado'  %}selected{% endif %}>Anulado</option>
+          </select>
+        </div>
+
+        <!-- Peticionario -->
+        <div class="col-md-6">
+          <label class="form-label">Peticionario</label>
+          <input type="text" name="peticionario" class="form-control"
+                 value="{{ bol.peticionario or '' }}"
+                 placeholder="Nombre completo o empresa">
+        </div>
+
+        <!-- NIF -->
+        <div class="col-md-6">
+          <label class="form-label">NIF / CIF</label>
+          <input type="text" name="nif" class="form-control"
+                 value="{{ bol.nif or '' }}"
+                 placeholder="00000000A">
+        </div>
+
+        <!-- Dirección -->
+        <div class="col-md-8">
+          <label class="form-label">Dirección de la instalación</label>
+          <input type="text" name="direccion" class="form-control"
+                 value="{{ bol.direccion or '' }}"
+                 placeholder="Calle, número, piso…">
+        </div>
+
+        <!-- CP -->
+        <div class="col-md-4">
+          <label class="form-label">Código postal</label>
+          <input type="text" name="cp" class="form-control"
+                 value="{{ bol.cp or '' }}"
+                 placeholder="00000">
+        </div>
+
+        <!-- Población -->
+        <div class="col-md-6">
+          <label class="form-label">Población</label>
+          <input type="text" name="poblacion" class="form-control"
+                 value="{{ bol.poblacion or '' }}"
+                 placeholder="Ciudad / municipio">
+        </div>
+
+        <!-- Técnico -->
+        <div class="col-md-6">
+          <label class="form-label">Técnico responsable</label>
+          <input type="text" name="tecnico" class="form-control"
+                 value="{{ bol.tecnico or '' }}"
+                 placeholder="Nombre del técnico">
+        </div>
+
+        <!-- Observaciones -->
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea name="observaciones" class="form-control" rows="3"
+                    placeholder="Notas adicionales…">{{ bol.observaciones or '' }}</textarea>
+        </div>
+
+      </div><!-- /.row -->
+
+      <hr class="my-4">
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-lg"></i> Guardar cambios
+        </button>
+        <a href="{{ url_for('bol.detalle', bid=bol.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

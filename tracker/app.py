@@ -53,6 +53,9 @@ app.register_blueprint(crm_bp)
 from form_routes import form_bp
 app.register_blueprint(form_bp)
 
+from boletin_routes import bol_bp
+app.register_blueprint(bol_bp)
+
 CATEGORIES = [
     ("proyecto", "Proyecto"),
     ("calculo", "Cálculo"),

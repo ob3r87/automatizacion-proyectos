@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Boletín — Phican Ingenieros{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">
+    <i class="bi bi-plus-circle text-primary"></i> Nuevo Boletín
+  </h2>
+  <a href="{{ url_for('bol.lista') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver a la lista
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+
+        <!-- Tipo + Preview número -->
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Tipo de boletín <span class="text-danger">*</span></label>
+          <select name="tipo" id="tipo-select" class="form-select" required>
+            {% for tipo_key, (prefijo, label) in prefijos.items() %}
+            <option value="{{ tipo_key }}"
+              data-numero="{{ siguiente_nums[tipo_key] }}"
+              {% if tipo_key == tipo_presel %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Número asignado</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-hash"></i></span>
+            <input type="text" id="numero-preview" class="form-control bg-light fw-bold text-primary" readonly
+                   value="{{ siguiente_nums[tipo_presel] }}">
+          </div>
+          <div class="form-text">Se asignará automáticamente al crear el boletín.</div>
+        </div>
+
+        <!-- Peticionario -->
+        <div class="col-md-6">
+          <label class="form-label">Peticionario</label>
+          <input type="text" name="peticionario" class="form-control" placeholder="Nombre completo o empresa">
+        </div>
+
+        <!-- NIF -->
+        <div class="col-md-6">
+          <label class="form-label">NIF / CIF</label>
+          <input type="text" name="nif" class="form-control" placeholder="00000000A">
+        </div>
+
+        <!-- Dirección -->
+        <div class="col-md-8">
+          <label class="form-label">Dirección de la instalación</label>
+          <input type="text" name="direccion" class="form-control" placeholder="Calle, número, piso…">
+        </div>
+
+        <!-- CP -->
+        <div class="col-md-4">
+          <label class="form-label">Código postal</label>
+          <input type="text" name="cp" class="form-control" placeholder="00000">
+        </div>
+
+        <!-- Población -->
+        <div class="col-md-6">
+          <label class="form-label">Población</label>
+          <input type="text" name="poblacion" class="form-control" placeholder="Ciudad / municipio">
+        </div>
+
+        <!-- Técnico -->
+        <div class="col-md-6">
+          <label class="form-label">Técnico responsable</label>
+          <input type="text" name="tecnico" class="form-control" placeholder="Nombre del técnico">
+        </div>
+
+        <!-- Expediente vinculado -->
+        <div class="col-md-6">
+          <label class="form-label">Expediente vinculado</label>
+          <input type="text" name="expediente_id" class="form-control"
+                 placeholder="Ref. expediente (opcional)"
+                 value="{{ expediente_presel }}">
+        </div>
+
+        <!-- Observaciones -->
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea name="observaciones" class="form-control" rows="3"
+                    placeholder="Notas adicionales…"></textarea>
+        </div>
+
+      </div><!-- /.row -->
+
+      <hr class="my-4">
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-file-earmark-plus"></i> Crear boletín
+        </button>
+        <a href="{{ url_for('bol.lista') }}" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const tipoSelect = document.getElementById('tipo-select');
+  const numeroPreview = document.getElementById('numero-preview');
+
+  tipoSelect.addEventListener('change', function () {
+    const tipo = this.value;
+    // Primero usar el valor pre-calculado del data attribute
+    const opt = this.options[this.selectedIndex];
+    if (opt.dataset.numero) {
+      numeroPreview.value = opt.dataset.numero;
+    }
+    // Luego actualizar con fetch para tener el valor real (por si hubo cambios)
+    fetch(`/boletines/api/siguiente-numero?tipo=${encodeURIComponent(tipo)}`)
+      .then(r => r.json())
+      .then(data => { numeroPreview.value = data.numero; })
+      .catch(() => {});
+  });
+</script>
+{% endblock %}
