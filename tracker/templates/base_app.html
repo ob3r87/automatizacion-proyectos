@@ -34,61 +34,89 @@
     <i class="bi bi-x-lg"></i>
   </button>
 
+  <!-- Logo -->
   <div class="logo-area">
     <div class="logo-title">PHICAN</div>
     <div class="logo-sub">Ingenieros</div>
   </div>
 
-  <div class="nav-section-label">Proyectos</div>
-  <nav class="nav flex-column">
-    <a href="{{ url_for('form.nuevo_proyecto') }}" class="nav-link {% if request.endpoint and 'form.' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-file-earmark-plus"></i> Nuevo Proyecto
+  <!-- ── Acciones rápidas (siempre visibles arriba) ── -->
+  <div class="sidebar-actions">
+    <a href="{{ url_for('crm.oferta_nueva') }}"
+       class="btn-action btn-nueva-oferta" onclick="closeSidebar()">
+      <i class="bi bi-plus-circle-fill"></i> Nueva oferta
     </a>
-  </nav>
+    <a href="{{ url_for('form.nuevo_proyecto') }}"
+       class="btn-action btn-nueva-homol {% if request.endpoint and 'form.' in request.endpoint %}active{% endif %}"
+       onclick="closeSidebar()">
+      <i class="bi bi-car-front-fill"></i> Nueva homologación
+    </a>
+    <a href="{{ url_for('bol.nuevo') }}"
+       class="btn-action btn-nuevo-boletin {% if request.endpoint == 'bol.nuevo' %}active{% endif %}"
+       onclick="closeSidebar()">
+      <i class="bi bi-file-earmark-check-fill"></i> Nuevo boletín
+    </a>
+  </div>
 
-  <div class="nav-section-label">Trabajos Diarios</div>
-  <nav class="nav flex-column">
-    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-house-door"></i> Dashboard
-    </a>
-    <a href="{{ url_for('entries_page') }}" class="nav-link {% if request.endpoint == 'entries_page' %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-journal-text"></i> Entradas
-    </a>
-    <a href="{{ url_for('templates_page') }}" class="nav-link {% if request.endpoint == 'templates_page' %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-file-earmark-text"></i> Plantillas
-    </a>
-  </nav>
+  <!-- ── Navegación central (scrollable) ── -->
+  <div class="sidebar-nav">
 
-  <div class="nav-section-label">Comercial</div>
-  <nav class="nav flex-column">
-    <a href="{{ url_for('crm.dashboard') }}" class="nav-link {% if request.endpoint == 'crm.dashboard' %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-speedometer2"></i> CRM Dashboard
-    </a>
-    <a href="{{ url_for('crm.ofertas_lista') }}" class="nav-link {% if request.endpoint and 'oferta' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-file-earmark-check"></i> Ofertas
-    </a>
-    <a href="{{ url_for('crm.agenda') }}" class="nav-link {% if request.endpoint == 'crm.agenda' %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-calendar3"></i> Agenda
-    </a>
-    <a href="{{ url_for('crm.tareas_kanban') }}" class="nav-link {% if request.endpoint == 'crm.tareas_kanban' %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-kanban"></i> Tareas
-    </a>
-    <a href="{{ url_for('crm.clientes_lista') }}" class="nav-link {% if request.endpoint and 'cliente' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-people"></i> Clientes
-    </a>
-  </nav>
+    <div class="nav-section-label">Trabajos Diarios</div>
+    <nav class="nav flex-column">
+      <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-house-door"></i> Dashboard
+      </a>
+      <a href="{{ url_for('entries_page') }}" class="nav-link {% if request.endpoint == 'entries_page' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-journal-text"></i> Entradas
+      </a>
+      <a href="{{ url_for('templates_page') }}" class="nav-link {% if request.endpoint == 'templates_page' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-file-earmark-text"></i> Plantillas
+      </a>
+    </nav>
 
-  <div class="nav-section-label">Config</div>
-  <nav class="nav flex-column">
-    <a href="{{ url_for('crm.configuracion') }}" class="nav-link {% if request.endpoint and 'configuracion' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
-      <i class="bi bi-gear"></i> Configuracion
-    </a>
-  </nav>
+    <div class="nav-section-label">Comercial</div>
+    <nav class="nav flex-column">
+      <a href="{{ url_for('crm.dashboard') }}" class="nav-link {% if request.endpoint == 'crm.dashboard' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-speedometer2"></i> CRM Dashboard
+      </a>
+      <a href="{{ url_for('crm.ofertas_lista') }}" class="nav-link {% if request.endpoint and 'oferta' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-file-earmark-check"></i> Ofertas
+      </a>
+      <a href="{{ url_for('crm.agenda') }}" class="nav-link {% if request.endpoint == 'crm.agenda' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-calendar3"></i> Agenda
+      </a>
+      <a href="{{ url_for('crm.tareas_kanban') }}" class="nav-link {% if request.endpoint == 'crm.tareas_kanban' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-kanban"></i> Tareas
+      </a>
+      <a href="{{ url_for('crm.clientes_lista') }}" class="nav-link {% if request.endpoint and 'cliente' in request.endpoint %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-people"></i> Clientes
+      </a>
+    </nav>
+
+    <div class="nav-section-label">Boletines</div>
+    <nav class="nav flex-column">
+      <a href="{{ url_for('bol.lista') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('bol.') and request.endpoint != 'bol.nuevo' %}active{% endif %}" onclick="closeSidebar()">
+        <i class="bi bi-collection"></i> Todos los boletines
+      </a>
+    </nav>
+
+  </div><!-- /sidebar-nav -->
+
+  <!-- ── Zona inferior fija: Configuración ── -->
+  <div class="sidebar-bottom">
+    <nav class="nav flex-column">
+      <a href="{{ url_for('crm.configuracion') }}"
+         class="nav-link {% if request.endpoint and 'configuracion' in request.endpoint %}active{% endif %}"
+         onclick="closeSidebar()">
+        <i class="bi bi-gear"></i> Configuración
+      </a>
+    </nav>
+  </div>
 
   <div class="sidebar-footer">
-    Phican Ingenieros &mdash; v2.0<br>
-    Webapp unificada
+    Phican Ingenieros &mdash; v2.0
   </div>
+
 </div>
 
 <div id="main-content">
