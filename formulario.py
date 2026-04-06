@@ -3718,14 +3718,17 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         sil_frame = tk.Frame(frm, bg=BLANCO)
         sil_frame.pack(fill="x", pady=(4, 0))
 
+        # ── 1. Silueta del vehículo ───────────────────────────────────────
         self._sil_canvas = tk.Canvas(
-            sil_frame, height=210,
+            sil_frame, width=400, height=210,
             bg="#f0f4f8", highlightthickness=1,
             highlightbackground="#b0bec5",
         )
-        self._sil_canvas.pack(fill="x")
+        self._sil_canvas.pack(fill="x", expand=True)
+        # Redibujar al cambiar ancho (solo cuando el propio canvas cambia)
+        self._sil_canvas.bind("<Configure>", self._on_sil_resize)
 
-        # Etiqueta encima de la barra de filas
+        # ── 2. Barra de filas de pasajeros (arrastrables) ─────────────────
         tk.Label(
             sil_frame,
             text="  ← Arrastra las flechas para ajustar la posición de cada fila de pasajeros →",
@@ -3734,28 +3737,24 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
             anchor="w",
         ).pack(fill="x", pady=(4, 0))
 
-        # Canvas de barra de filas (entre silueta y cotas)
         self._sil_row_canvas = tk.Canvas(
-            sil_frame, height=68,
+            sil_frame, width=400, height=68,
             bg="#f0f4ff", highlightthickness=1,
             highlightbackground="#90caf9",
         )
-        self._sil_row_canvas.pack(fill="x", pady=(0, 2))
+        self._sil_row_canvas.pack(fill="x", expand=True, pady=(0, 2))
         self._sil_row_canvas.bind("<ButtonPress-1>",   self._sil_drag_start)
         self._sil_row_canvas.bind("<B1-Motion>",       self._sil_drag_move)
         self._sil_row_canvas.bind("<ButtonRelease-1>", self._sil_drag_end)
         self._sil_row_canvas.config(cursor="sb_h_double_arrow")
 
-        # Canvas de cotas (debajo de la silueta, mismo ancho)
+        # ── 3. Barra de cotas dimensionales ───────────────────────────────
         self._sil_dim_canvas = tk.Canvas(
-            sil_frame, height=82,
+            sil_frame, width=400, height=82,
             bg="#ffffff", highlightthickness=1,
             highlightbackground="#b0bec5",
         )
-        self._sil_dim_canvas.pack(fill="x", pady=(2, 0))
-
-        # Redibujar al cambiar tamaño de ventana
-        sil_frame.bind("<Configure>", self._on_sil_resize)
+        self._sil_dim_canvas.pack(fill="x", expand=True, pady=(2, 0))
 
         # ── Selectores debajo de los canvas (en fila horizontal) ─────────
         opts = tk.Frame(frm, bg=BLANCO)
@@ -3828,7 +3827,11 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         frm.after(50, self._actualizar_silueta)
 
     def _on_sil_resize(self, event):
-        """Redibujar los tres canvas cuando cambia el ancho del frame contenedor."""
+        """Redibujar los tres canvas cuando cambia el ancho del canvas principal."""
+        # Ignorar eventos de altura (solo nos importa el ancho)
+        if hasattr(self, "_sil_last_resize_w") and self._sil_last_resize_w == event.width:
+            return
+        self._sil_last_resize_w = event.width
         if hasattr(self, "_sil_resize_after"):
             try:
                 self.after_cancel(self._sil_resize_after)
