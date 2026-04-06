@@ -3714,19 +3714,16 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         )
         frm.pack(fill="x", padx=4, pady=(6, 6))
 
-        content = tk.Frame(frm, bg=BLANCO)
-        content.pack(fill="x")
-
-        # ── Canvas de silueta + cotas (apilados verticalmente) ───────────
-        sil_frame = tk.Frame(content, bg=BLANCO)
-        sil_frame.pack(side="left", padx=(0, 14), pady=4)
+        # ── Canvas de silueta + cotas (ancho completo, responsivo) ──────
+        sil_frame = tk.Frame(frm, bg=BLANCO)
+        sil_frame.pack(fill="x", pady=(4, 0))
 
         self._sil_canvas = tk.Canvas(
-            sil_frame, width=540, height=210,
+            sil_frame, height=210,
             bg="#f0f4f8", highlightthickness=1,
             highlightbackground="#b0bec5",
         )
-        self._sil_canvas.pack()
+        self._sil_canvas.pack(fill="x")
 
         # Etiqueta encima de la barra de filas
         tk.Label(
@@ -3739,11 +3736,11 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
 
         # Canvas de barra de filas (entre silueta y cotas)
         self._sil_row_canvas = tk.Canvas(
-            sil_frame, width=540, height=68,
+            sil_frame, height=68,
             bg="#f0f4ff", highlightthickness=1,
             highlightbackground="#90caf9",
         )
-        self._sil_row_canvas.pack(pady=(0, 2))
+        self._sil_row_canvas.pack(fill="x", pady=(0, 2))
         self._sil_row_canvas.bind("<ButtonPress-1>",   self._sil_drag_start)
         self._sil_row_canvas.bind("<B1-Motion>",       self._sil_drag_move)
         self._sil_row_canvas.bind("<ButtonRelease-1>", self._sil_drag_end)
@@ -3751,38 +3748,50 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
 
         # Canvas de cotas (debajo de la silueta, mismo ancho)
         self._sil_dim_canvas = tk.Canvas(
-            sil_frame, width=540, height=82,
+            sil_frame, height=82,
             bg="#ffffff", highlightthickness=1,
             highlightbackground="#b0bec5",
         )
-        self._sil_dim_canvas.pack(pady=(2, 0))
+        self._sil_dim_canvas.pack(fill="x", pady=(2, 0))
 
-        # ── Panel de opciones (derecha) ───────────────────────────────────
-        opts = tk.Frame(content, bg=BLANCO)
-        opts.pack(side="left", fill="y", anchor="n", pady=4)
+        # Redibujar al cambiar tamaño de ventana
+        sil_frame.bind("<Configure>", self._on_sil_resize)
 
-        # Tipo de vehículo
-        tk.Label(opts, text="Tipo de vehículo:", bg=BLANCO, fg="#333",
-                 font=("Segoe UI", 8, "bold")).pack(anchor="w")
+        # ── Selectores debajo de los canvas (en fila horizontal) ─────────
+        opts = tk.Frame(frm, bg=BLANCO)
+        opts.pack(fill="x", pady=(8, 2))
+
+        # Grupo: Tipo de vehículo (2 columnas de 4 para no ocupar mucha altura)
+        tipo_frm = tk.LabelFrame(opts, text=" Tipo de vehículo ", bg=BLANCO, fg=AZUL,
+                                 font=("Segoe UI", 8, "bold"), relief="solid", bd=1,
+                                 padx=6, pady=4)
+        tipo_frm.pack(side="left", anchor="n", padx=(0, 12))
 
         self._sil_tipo_var = tk.StringVar(value=_SIL_TIPOS[0][0])
-        for etiq, _ in _SIL_TIPOS:
-            tk.Radiobutton(
-                opts, text=etiq, variable=self._sil_tipo_var, value=etiq,
-                bg=BLANCO, activebackground=BLANCO, fg="#333",
-                font=("Segoe UI", 8), command=self._actualizar_silueta,
-            ).pack(anchor="w")
+        mitad = (len(_SIL_TIPOS) + 1) // 2
+        for col_idx, start in enumerate([0, mitad]):
+            col_frm = tk.Frame(tipo_frm, bg=BLANCO)
+            col_frm.pack(side="left", anchor="n", padx=(0, 4))
+            for etiq, _ in _SIL_TIPOS[start:start + mitad]:
+                tk.Radiobutton(
+                    col_frm, text=etiq, variable=self._sil_tipo_var, value=etiq,
+                    bg=BLANCO, activebackground=BLANCO, fg="#333",
+                    font=("Segoe UI", 8), command=self._actualizar_silueta,
+                ).pack(anchor="w")
 
-        ttk.Separator(opts, orient="horizontal").pack(fill="x", pady=(8, 6))
+        # Separador vertical
+        ttk.Separator(opts, orient="vertical").pack(side="left", fill="y", padx=8)
 
-        # Filas de pasajeros
-        tk.Label(opts, text="Filas de pasajeros:", bg=BLANCO, fg="#333",
-                 font=("Segoe UI", 8, "bold")).pack(anchor="w")
+        # Grupo: Filas de pasajeros
+        filas_frm = tk.LabelFrame(opts, text=" Filas de pasajeros ", bg=BLANCO, fg=AZUL,
+                                  font=("Segoe UI", 8, "bold"), relief="solid", bd=1,
+                                  padx=6, pady=4)
+        filas_frm.pack(side="left", anchor="n")
 
         self._sil_filas_var = tk.IntVar(value=2)
         for n, txt in [(1, "1 fila"), (2, "2 filas"), (3, "3 filas")]:
             tk.Radiobutton(
-                opts, text=txt, variable=self._sil_filas_var, value=n,
+                filas_frm, text=txt, variable=self._sil_filas_var, value=n,
                 bg=BLANCO, activebackground=BLANCO, fg="#333",
                 font=("Segoe UI", 8), command=self._actualizar_silueta,
             ).pack(anchor="w")
@@ -3817,6 +3826,15 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
 
         # Dibujo inicial
         frm.after(50, self._actualizar_silueta)
+
+    def _on_sil_resize(self, event):
+        """Redibujar los tres canvas cuando cambia el ancho del frame contenedor."""
+        if hasattr(self, "_sil_resize_after"):
+            try:
+                self.after_cancel(self._sil_resize_after)
+            except Exception:
+                pass
+        self._sil_resize_after = self.after(60, self._actualizar_silueta)
 
     def _on_tab_changed(self, event):
         """Redibujar silueta y barra de filas al entrar en la pestaña Cálculos."""
