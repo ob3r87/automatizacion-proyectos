@@ -2338,6 +2338,9 @@ class FormularioProyecto(tk.Tk):
         self._tab_cfo()
         self._tab_taller()
 
+        # Redibujar silueta al activar la pestaña Cálculos
+        self.nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
         self.estado_var = tk.StringVar(value="")
         self.lbl_estado = tk.Label(
             bottom, textvariable=self.estado_var,
@@ -3725,13 +3728,22 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         )
         self._sil_canvas.pack()
 
+        # Etiqueta encima de la barra de filas
+        tk.Label(
+            sil_frame,
+            text="  ← Arrastra las flechas para ajustar la posición de cada fila de pasajeros →",
+            bg="#e8f0fe", fg="#1565c0",
+            font=("Segoe UI", 7, "italic"),
+            anchor="w",
+        ).pack(fill="x", pady=(4, 0))
+
         # Canvas de barra de filas (entre silueta y cotas)
         self._sil_row_canvas = tk.Canvas(
-            sil_frame, width=540, height=52,
-            bg="#fafafa", highlightthickness=1,
-            highlightbackground="#b0bec5",
+            sil_frame, width=540, height=68,
+            bg="#f0f4ff", highlightthickness=1,
+            highlightbackground="#90caf9",
         )
-        self._sil_row_canvas.pack(pady=(2, 0))
+        self._sil_row_canvas.pack(pady=(0, 2))
         self._sil_row_canvas.bind("<ButtonPress-1>",   self._sil_drag_start)
         self._sil_row_canvas.bind("<B1-Motion>",       self._sil_drag_move)
         self._sil_row_canvas.bind("<ButtonRelease-1>", self._sil_drag_end)
@@ -3806,6 +3818,15 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         # Dibujo inicial
         frm.after(50, self._actualizar_silueta)
 
+    def _on_tab_changed(self, event):
+        """Redibujar silueta y barra de filas al entrar en la pestaña Cálculos."""
+        if not hasattr(self, "nb"):
+            return
+        tab_id = self.nb.select()
+        tab_txt = self.nb.tab(tab_id, "text")
+        if "lculos" in tab_txt or "Calc" in tab_txt:          # "Cálculos"
+            self.after(10, self._actualizar_silueta)
+
     def _actualizar_silueta(self, *_):
         """Redibuja la silueta según las opciones actuales."""
         etiq  = self._sil_tipo_var.get()
@@ -3834,17 +3855,12 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
             return
         cv  = self._sil_row_canvas
         Wd  = cv.winfo_width() or 540
-        tipo = next((k for l, k in _SIL_TIPOS
-                     if l == self._sil_tipo_var.get()), "turismo")
-        dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
-        bx0  = Wd * dims["bx"][0]
-        bx1  = Wd * dims["bx"][1]
-        # Coordenadas de píxel de cada flecha
-        xs   = [bx0 + (bx1 - bx0) * xn for xn in self._sil_row_xnorm]
-        # Encontrar la más cercana dentro de un radio de 20 px
+        # Posiciones en píxel: xnorm es fracción directa del ancho del canvas
+        xs   = [int(Wd * xn) for xn in self._sil_row_xnorm]
+        # Encontrar la más cercana dentro de un radio de 24 px
         dists = [abs(event.x - x) for x in xs]
         min_d = min(dists)
-        if min_d <= 20:
+        if min_d <= 24:
             self._sil_drag_idx = dists.index(min_d)
             cv.config(cursor="fleur")
 
@@ -4365,9 +4381,10 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         """Barra horizontal con una flecha por cada fila de pasajeros (arrastrables)."""
         cv.delete("all")
         Wd = cv.winfo_width()  or W
-        H  = cv.winfo_height() or 52
+        H  = cv.winfo_height() or 68
 
-        cv.create_rectangle(0, 0, Wd, H, fill="#fafafa", outline="")
+        # Fondo degradado suave
+        cv.create_rectangle(0, 0, Wd, H, fill="#f0f4ff", outline="")
 
         dims = _SIL_DIMS.get(tipo, _SIL_DIMS["turismo"])
         bx0  = int(Wd * dims["bx"][0])
@@ -4380,9 +4397,9 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         def xnorm_to_px(xn):
             return int(Wd * xn)
 
-        # ── Barra del vehículo ────────────────────────────────────────────
-        bar_y  = int(H * 0.72)
-        bar_h  = 8
+        # ── Barra del vehículo (línea de planta) ──────────────────────────
+        bar_y  = H - 14
+        bar_h  = 10
         cv.create_rectangle(bx0, bar_y, bx1, bar_y + bar_h,
                             fill="#cfd8dc", outline="")
         cv.create_rectangle(bx0, bar_y, bx1, bar_y + 3,
@@ -4390,36 +4407,37 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         cv.create_rectangle(bx0, bar_y, bx1, bar_y + bar_h,
                             fill="", outline="#78909c", width=1)
         for bx in (bx0, bx1):
-            cv.create_rectangle(bx - 2, bar_y - 2,
-                                bx + 2, bar_y + bar_h + 2,
+            cv.create_rectangle(bx - 3, bar_y - 2,
+                                bx + 3, bar_y + bar_h + 2,
                                 fill="#78909c", outline="")
 
         # ── Flechas arrastrables por fila ─────────────────────────────────
         COLORES = ["#1565c0", "#c62828", "#2e7d32",
                    "#6a1b9a", "#e65100", "#00695c"]
         tip_y = bar_y - 1
-        sz    = 8
+        sz    = 10           # tamaño de la punta de flecha (mayor = más visible)
 
         for i, xn in enumerate(posns):
             x   = xnorm_to_px(xn)
             col = COLORES[i % len(COLORES)]
 
             # Línea vertical
-            cv.create_line(x, 6, x, bar_y, fill=col, width=2)
+            cv.create_line(x, 4, x, bar_y, fill=col, width=2)
 
             # Punta de flecha ▼ (relleno + borde resaltado si arrastrando)
-            outline_col = "#ffffff" if self._sil_drag_idx != i else "#ffeb3b"
+            dragging = (self._sil_drag_idx is not None and self._sil_drag_idx == i)
+            outline_col = "#ffeb3b" if dragging else "#ffffff"
             cv.create_polygon(
-                x,      tip_y,
-                x - sz, tip_y - sz * 2,
-                x + sz, tip_y - sz * 2,
-                fill=col, outline=outline_col, width=1,
+                x,          tip_y,
+                x - sz,     tip_y - sz * 2,
+                x + sz,     tip_y - sz * 2,
+                fill=col, outline=outline_col, width=2,
             )
 
-            # Etiqueta
-            lbl_y = tip_y - sz * 2 - 3
+            # Etiqueta "Fila N" sobre la punta de la flecha
+            lbl_y = tip_y - sz * 2 - 2
             cv.create_text(x, lbl_y, text=f"Fila {i + 1}",
-                           fill=col, font=("Segoe UI", 7, "bold"),
+                           fill=col, font=("Segoe UI", 8, "bold"),
                            anchor="s")
 
     # ── Barra de cotas ───────────────────────────────────────────────────────
