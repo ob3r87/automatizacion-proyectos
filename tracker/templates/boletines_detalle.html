@@ -105,6 +105,28 @@
     </div>
     {% endif %}
 
+    <!-- Generar documentos -->
+    {% if bol.tipo == 'electrico_vehiculo' %}
+    <div class="card mb-3 border-primary">
+      <div class="card-header fw-semibold text-primary"><i class="bi bi-file-earmark-word"></i> Documentos</div>
+      <div class="card-body">
+        <button id="btn-generar" class="btn btn-primary btn-sm w-100 mb-2" onclick="generarDocs({{ bol.id }})">
+          <i class="bi bi-gear-fill"></i> Generar documentos
+          <span id="spinner-generar" class="spinner-border spinner-border-sm ms-1 d-none" role="status"></span>
+        </button>
+        <div id="docs-generados" class="d-flex flex-column gap-2 {% if not mtd_path and not cie_path %}d-none{% endif %}">
+          <button class="btn btn-outline-primary btn-sm" onclick="abrirMtd({{ bol.id }})" {% if not mtd_path %}disabled{% endif %} id="btn-abrir-mtd">
+            <i class="bi bi-file-earmark-text"></i> Abrir MTD
+          </button>
+          <button class="btn btn-outline-success btn-sm" onclick="abrirCie({{ bol.id }})" {% if not cie_path %}disabled{% endif %} id="btn-abrir-cie">
+            <i class="bi bi-file-earmark-check"></i> Abrir CIE
+          </button>
+        </div>
+        <div id="generar-error" class="alert alert-danger small mt-2 d-none"></div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Eliminar -->
     <div class="card border-danger">
       <div class="card-header fw-semibold text-danger"><i class="bi bi-exclamation-triangle"></i> Zona peligrosa</div>
@@ -121,12 +143,404 @@
 
 </div>
 
-<!-- Datos adicionales (datos_json) -->
-{% if bol.datos_json and bol.datos_json not in ('{}', '', None) %}
+<!-- ── Datos técnicos ──────────────────────────────────────────────────────── -->
+{% if bol.tipo == 'electrico_vehiculo' %}
+<div class="card mt-4">
+  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-tools"></i> Datos técnicos</span>
+    <button class="btn btn-sm btn-outline-primary" onclick="guardarDatosTecnicos({{ bol.id }})">
+      <i class="bi bi-save"></i> Guardar datos técnicos
+      <span id="spinner-guardar" class="spinner-border spinner-border-sm ms-1 d-none" role="status"></span>
+    </button>
+  </div>
+  <div class="card-body p-0">
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs px-3 pt-2" id="tabsDatosTec" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-instalacion" data-bs-toggle="tab" data-bs-target="#pane-instalacion" type="button">
+          <i class="bi bi-lightning-charge"></i> Instalación
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-vehiculo" data-bs-toggle="tab" data-bs-target="#pane-vehiculo" type="button">
+          <i class="bi bi-truck"></i> Vehículo
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-equipo" data-bs-toggle="tab" data-bs-target="#pane-equipo" type="button">
+          <i class="bi bi-cpu"></i> Equipo FV
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-tecnico" data-bs-toggle="tab" data-bs-target="#pane-tecnico" type="button">
+          <i class="bi bi-person-badge"></i> Técnico
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-calculos" data-bs-toggle="tab" data-bs-target="#pane-calculos" type="button">
+          <i class="bi bi-calculator"></i> Cálculos
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-protecciones" data-bs-toggle="tab" data-bs-target="#pane-protecciones" type="button">
+          <i class="bi bi-shield-check"></i> Protecciones
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content p-3" id="tabsDatosTecContent">
+
+      <!-- Tab 1: Instalación -->
+      <div class="tab-pane fade show active" id="pane-instalacion" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Nº CIE</label>
+            <input type="text" class="form-control form-control-sm" id="f_CIE_NUMERO"
+                   name="CIE_NUMERO" value="{{ datos_json.get('CIE_NUMERO', bol.numero) }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Nº Expediente</label>
+            <input type="text" class="form-control form-control-sm" id="f_CIE_EXPEDIENTE"
+                   name="CIE_EXPEDIENTE" value="{{ datos_json.get('CIE_EXPEDIENTE', bol.expediente_id or '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Potencia nominal (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_POT_NOMINAL"
+                   name="POT_NOMINAL" value="{{ datos_json.get('POT_NOMINAL', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Potencia pico campo FV (Wp)</label>
+            <input type="text" class="form-control form-control-sm" id="f_POT_PICO_CAMPO"
+                   name="POT_PICO_CAMPO" value="{{ datos_json.get('POT_PICO_CAMPO', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Tensión nominal (V)</label>
+            <input type="text" class="form-control form-control-sm" id="f_TENSION_NOMINAL"
+                   name="TENSION_NOMINAL" value="{{ datos_json.get('TENSION_NOMINAL', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">P. instalada (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_P_INSTALADA"
+                   name="P_INSTALADA" value="{{ datos_json.get('P_INSTALADA', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Derivación individual Cu mm²</label>
+            <input type="text" class="form-control form-control-sm" id="f_DERIVACION_CU"
+                   name="DERIVACION_CU" value="{{ datos_json.get('DERIVACION_CU', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Tensión (V)</label>
+            <input type="text" class="form-control form-control-sm" id="f_TENSION"
+                   name="TENSION" value="{{ datos_json.get('TENSION', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Objetivo</label>
+            <select class="form-select form-select-sm" id="f_OBJETIVO" name="OBJETIVO">
+              <option value="Instalación nueva" {% if datos_json.get('OBJETIVO','Instalación nueva')=='Instalación nueva' %}selected{% endif %}>Instalación nueva</option>
+              <option value="Modificación" {% if datos_json.get('OBJETIVO')=='Modificación' %}selected{% endif %}>Modificación</option>
+              <option value="Ampliación" {% if datos_json.get('OBJETIVO')=='Ampliación' %}selected{% endif %}>Ampliación</option>
+              <option value="Cambio tensión" {% if datos_json.get('OBJETIVO')=='Cambio tensión' %}selected{% endif %}>Cambio tensión</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label form-label-sm fw-semibold">Observaciones</label>
+            <textarea class="form-control form-control-sm" id="f_OBSERVACIONES" name="OBSERVACIONES" rows="3">{{ datos_json.get('OBSERVACIONES', bol.observaciones or '') }}</textarea>
+          </div>
+          <!-- Fecha de firma -->
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Lugar firma</label>
+            <input type="text" class="form-control form-control-sm" id="f_LUGAR_FIRMA"
+                   name="LUGAR_FIRMA" value="{{ datos_json.get('LUGAR_FIRMA', 'Santa Úrsula') }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm fw-semibold">Día</label>
+            <input type="text" class="form-control form-control-sm" id="f_DIA_FIRMA"
+                   name="DIA_FIRMA" value="{{ datos_json.get('DIA_FIRMA', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Mes</label>
+            <input type="text" class="form-control form-control-sm" id="f_MES_FIRMA"
+                   name="MES_FIRMA" value="{{ datos_json.get('MES_FIRMA', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Año</label>
+            <input type="text" class="form-control form-control-sm" id="f_ANIO_FIRMA"
+                   name="ANIO_FIRMA" value="{{ datos_json.get('ANIO_FIRMA', '') }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Vehículo -->
+      <div class="tab-pane fade" id="pane-vehiculo" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Marca</label>
+            <input type="text" class="form-control form-control-sm" id="f_VEH_MARCA"
+                   name="VEH_MARCA" value="{{ datos_json.get('VEH_MARCA', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Tipo</label>
+            <input type="text" class="form-control form-control-sm" id="f_VEH_TIPO"
+                   name="VEH_TIPO" value="{{ datos_json.get('VEH_TIPO', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Denominación comercial</label>
+            <input type="text" class="form-control form-control-sm" id="f_VEH_DENOMINACION"
+                   name="VEH_DENOMINACION" value="{{ datos_json.get('VEH_DENOMINACION', '') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label form-label-sm fw-semibold">Número de bastidor</label>
+            <input type="text" class="form-control form-control-sm" id="f_VEH_BASTIDOR"
+                   name="VEH_BASTIDOR" value="{{ datos_json.get('VEH_BASTIDOR', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Matrícula</label>
+            <input type="text" class="form-control form-control-sm" id="f_VEH_MATRICULA"
+                   name="VEH_MATRICULA" value="{{ datos_json.get('VEH_MATRICULA', '') }}">
+          </div>
+          <!-- Titular -->
+          <div class="col-12"><hr class="my-1"><small class="text-muted fw-semibold">TITULAR</small></div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Nombre</label>
+            <input type="text" class="form-control form-control-sm" id="f_TITULAR_NOMBRE"
+                   name="TITULAR_NOMBRE" value="{{ datos_json.get('TITULAR_NOMBRE', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Apellidos</label>
+            <input type="text" class="form-control form-control-sm" id="f_TITULAR_APELLIDOS"
+                   name="TITULAR_APELLIDOS" value="{{ datos_json.get('TITULAR_APELLIDOS', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">DNI/NIE</label>
+            <input type="text" class="form-control form-control-sm" id="f_TITULAR_DNI"
+                   name="TITULAR_DNI" value="{{ datos_json.get('TITULAR_DNI', bol.nif or '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Teléfono</label>
+            <input type="text" class="form-control form-control-sm" id="f_TITULAR_TELEFONO"
+                   name="TITULAR_TELEFONO" value="{{ datos_json.get('TITULAR_TELEFONO', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Correo-e</label>
+            <input type="email" class="form-control form-control-sm" id="f_TITULAR_EMAIL"
+                   name="TITULAR_EMAIL" value="{{ datos_json.get('TITULAR_EMAIL', '') }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Equipo FV -->
+      <div class="tab-pane fade" id="pane-equipo" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-12"><small class="text-muted fw-semibold">GENERADOR FOTOVOLTAICO</small></div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Fabricante</label>
+            <input type="text" class="form-control form-control-sm" id="f_GEN_FABRICANTE"
+                   name="GEN_FABRICANTE" value="{{ datos_json.get('GEN_FABRICANTE', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Modelo módulo</label>
+            <input type="text" class="form-control form-control-sm" id="f_GEN_MODELO"
+                   name="GEN_MODELO" value="{{ datos_json.get('GEN_MODELO', '') }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm fw-semibold">Potencia pico Pmax (Wp)</label>
+            <input type="text" class="form-control form-control-sm" id="f_GEN_POT_PICO"
+                   name="GEN_POT_PICO" value="{{ datos_json.get('GEN_POT_PICO', '') }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm fw-semibold">Nº módulos</label>
+            <input type="text" class="form-control form-control-sm" id="f_GEN_NUM_MODULOS"
+                   name="GEN_NUM_MODULOS" value="{{ datos_json.get('GEN_NUM_MODULOS', '') }}">
+          </div>
+          <div class="col-12"><hr class="my-1"><small class="text-muted fw-semibold">CONDUCTORES CC</small></div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Naturaleza</label>
+            <input type="text" class="form-control form-control-sm" id="f_COND_NATURALEZA_CC"
+                   name="COND_NATURALEZA_CC" value="{{ datos_json.get('COND_NATURALEZA_CC', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Aislamiento</label>
+            <input type="text" class="form-control form-control-sm" id="f_COND_AISLAMIENTO_CC"
+                   name="COND_AISLAMIENTO_CC" value="{{ datos_json.get('COND_AISLAMIENTO_CC', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Clase aislamiento</label>
+            <input type="text" class="form-control form-control-sm" id="f_COND_CLASE_CC"
+                   name="COND_CLASE_CC" value="{{ datos_json.get('COND_CLASE_CC', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Sección (mm²)</label>
+            <input type="text" class="form-control form-control-sm" id="f_COND_SECCION_CC"
+                   name="COND_SECCION_CC" value="{{ datos_json.get('COND_SECCION_CC', '') }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Técnico -->
+      <div class="tab-pane fade" id="pane-tecnico" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Nombre</label>
+            <input type="text" class="form-control form-control-sm" id="f_TEC_NOMBRE"
+                   name="TEC_NOMBRE" value="{{ datos_json.get('TEC_NOMBRE', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Apellidos</label>
+            <input type="text" class="form-control form-control-sm" id="f_TEC_APELLIDOS"
+                   name="TEC_APELLIDOS" value="{{ datos_json.get('TEC_APELLIDOS', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Email</label>
+            <input type="email" class="form-control form-control-sm" id="f_TEC_EMAIL"
+                   name="TEC_EMAIL" value="{{ datos_json.get('TEC_EMAIL', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Teléfono</label>
+            <input type="text" class="form-control form-control-sm" id="f_TEC_TELEFONO"
+                   name="TEC_TELEFONO" value="{{ datos_json.get('TEC_TELEFONO', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Domicilio</label>
+            <input type="text" class="form-control form-control-sm" id="f_TEC_DOMICILIO"
+                   name="TEC_DOMICILIO" value="{{ datos_json.get('TEC_DOMICILIO', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Nº colegiado / CCI</label>
+            <input type="text" class="form-control form-control-sm" id="f_TEC_NUM_COLEGIADO"
+                   name="TEC_NUM_COLEGIADO" value="{{ datos_json.get('TEC_NUM_COLEGIADO', '') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label form-label-sm fw-semibold">Colegio profesional</label>
+            <input type="text" class="form-control form-control-sm" id="f_TEC_COLEGIO"
+                   name="TEC_COLEGIO" value="{{ datos_json.get('TEC_COLEGIO', '') }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Cálculos caída tensión -->
+      <div class="tab-pane fade" id="pane-calculos" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Longitud (m)</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_LONGITUD"
+                   name="CALC_LONGITUD" value="{{ datos_json.get('CALC_LONGITUD', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Material conductor</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_MATERIAL"
+                   name="CALC_MATERIAL" value="{{ datos_json.get('CALC_MATERIAL', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Intensidad (A)</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_INTENSIDAD"
+                   name="CALC_INTENSIDAD" value="{{ datos_json.get('CALC_INTENSIDAD', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">% caída tensión</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_CAIDA_PCT"
+                   name="CALC_CAIDA_PCT" value="{{ datos_json.get('CALC_CAIDA_PCT', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Caída tensión (V)</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_CAIDA_V"
+                   name="CALC_CAIDA_V" value="{{ datos_json.get('CALC_CAIDA_V', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Tensión (V)</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_TENSION"
+                   name="CALC_TENSION" value="{{ datos_json.get('CALC_TENSION', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Sección (mm²)</label>
+            <input type="text" class="form-control form-control-sm" id="f_CALC_SECCION"
+                   name="CALC_SECCION" value="{{ datos_json.get('CALC_SECCION', '') }}">
+          </div>
+          <div class="col-12"><hr class="my-1"><small class="text-muted fw-semibold">RECEPTORES</small></div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Alumbrado denominación</label>
+            <input type="text" class="form-control form-control-sm" id="f_ALUM_DENOMINACION"
+                   name="ALUM_DENOMINACION" value="{{ datos_json.get('ALUM_DENOMINACION', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Alumbrado potencia (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_ALUM_POTENCIA"
+                   name="ALUM_POTENCIA" value="{{ datos_json.get('ALUM_POTENCIA', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Fuerza denominación</label>
+            <input type="text" class="form-control form-control-sm" id="f_FUERZA_DENOMINACION"
+                   name="FUERZA_DENOMINACION" value="{{ datos_json.get('FUERZA_DENOMINACION', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Fuerza potencia (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_FUERZA_POTENCIA"
+                   name="FUERZA_POTENCIA" value="{{ datos_json.get('FUERZA_POTENCIA', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Potencia total (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_POT_TOTAL"
+                   name="POT_TOTAL" value="{{ datos_json.get('POT_TOTAL', '') }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 6: Protecciones -->
+      <div class="tab-pane fade" id="pane-protecciones" role="tabpanel">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">I.G.A. (A)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_IGA"
+                   name="PROT_IGA" value="{{ datos_json.get('PROT_IGA', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Magnetotérmicos / nº (A)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_MAGNETO"
+                   name="PROT_MAGNETO" value="{{ datos_json.get('PROT_MAGNETO', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Sobretensiones / cat. (kV)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_SOBRETENCION"
+                   name="PROT_SOBRETENCION" value="{{ datos_json.get('PROT_SOBRETENCION', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Diferencial / sensibilidad (mA)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_DIFERENCIAL"
+                   name="PROT_DIFERENCIAL" value="{{ datos_json.get('PROT_DIFERENCIAL', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Resistencia p.a.t. (Ω)</label>
+            <input type="text" class="form-control form-control-sm" id="f_MED_PAT"
+                   name="MED_PAT" value="{{ datos_json.get('MED_PAT', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Resistencia aislamiento (KΩ)</label>
+            <input type="text" class="form-control form-control-sm" id="f_MED_AISLAMIENTO"
+                   name="MED_AISLAMIENTO" value="{{ datos_json.get('MED_AISLAMIENTO', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Empresa distribuidora</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMP_DISTRIBUIDORA"
+                   name="EMP_DISTRIBUIDORA" value="{{ datos_json.get('EMP_DISTRIBUIDORA', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Acometida Red BT</label>
+            <input type="text" class="form-control form-control-sm" id="f_ACOMETIDA_BT"
+                   name="ACOMETIDA_BT" value="{{ datos_json.get('ACOMETIDA_BT', '') }}">
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div><!-- /card-body -->
+</div><!-- /card datos técnicos -->
+{% endif %}
+
+<!-- Datos adicionales (datos_json raw, siempre visible para tipos no vehiculo) -->
+{% if bol.tipo != 'electrico_vehiculo' and bol.datos_json and bol.datos_json not in ('{}', '', None) %}
 <div class="card mt-3">
   <div class="card-header fw-semibold"><i class="bi bi-braces"></i> Datos adicionales</div>
   <div class="card-body">
-    {% set datos = bol.datos_json | tojson %}
     <pre class="mb-0 small text-muted" style="white-space:pre-wrap">{{ bol.datos_json }}</pre>
   </div>
 </div>
@@ -140,6 +554,111 @@ function abrirCarpeta(bid) {
   fetch(`/boletines/${bid}/abrir-carpeta`)
     .then(r => r.json())
     .catch(() => {});
+}
+
+function generarDocs(bid) {
+  const btn = document.getElementById('btn-generar');
+  const spinner = document.getElementById('spinner-generar');
+  const errorDiv = document.getElementById('generar-error');
+  const docsDiv = document.getElementById('docs-generados');
+  const btnMtd = document.getElementById('btn-abrir-mtd');
+  const btnCie = document.getElementById('btn-abrir-cie');
+
+  btn.disabled = true;
+  spinner.classList.remove('d-none');
+  errorDiv.classList.add('d-none');
+
+  fetch(`/boletines/${bid}/generar`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        docsDiv.classList.remove('d-none');
+        if (btnMtd) btnMtd.disabled = false;
+        if (btnCie) btnCie.disabled = false;
+      } else {
+        errorDiv.textContent = 'Error: ' + (data.error || 'desconocido');
+        errorDiv.classList.remove('d-none');
+      }
+    })
+    .catch(err => {
+      errorDiv.textContent = 'Error de red: ' + err;
+      errorDiv.classList.remove('d-none');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      spinner.classList.add('d-none');
+    });
+}
+
+function abrirMtd(bid) {
+  fetch(`/boletines/${bid}/abrir-mtd`)
+    .then(r => r.json())
+    .then(d => { if (!d.ok) alert('MTD no encontrado: ' + (d.error || '')); })
+    .catch(() => {});
+}
+
+function abrirCie(bid) {
+  fetch(`/boletines/${bid}/abrir-cie`)
+    .then(r => r.json())
+    .then(d => { if (!d.ok) alert('CIE no encontrado: ' + (d.error || '')); })
+    .catch(() => {});
+}
+
+// Recoger todos los campos del formulario de datos técnicos y enviarlos al servidor
+function guardarDatosTecnicos(bid) {
+  const spinner = document.getElementById('spinner-guardar');
+  spinner.classList.remove('d-none');
+
+  const campos = [
+    'CIE_NUMERO','CIE_EXPEDIENTE',
+    'TITULAR_NOMBRE','TITULAR_APELLIDOS','TITULAR_DNI','TITULAR_TELEFONO','TITULAR_EMAIL',
+    'VEH_MARCA','VEH_TIPO','VEH_DENOMINACION','VEH_BASTIDOR','VEH_MATRICULA',
+    'POT_NOMINAL','POT_PICO_CAMPO','TENSION_NOMINAL',
+    'P_PREVISTA','P_INSTALADA','P_CONTRATADA','TENSION',
+    'DERIVACION_CU','ACOMETIDA_BT',
+    'GEN_FABRICANTE','GEN_MODELO','GEN_POT_PICO','GEN_NUM_MODULOS',
+    'COND_NATURALEZA_CC','COND_AISLAMIENTO_CC','COND_CLASE_CC','COND_SECCION_CC',
+    'ALUM_DENOMINACION','ALUM_POTENCIA','FUERZA_DENOMINACION','FUERZA_POTENCIA','POT_TOTAL',
+    'CALC_LONGITUD','CALC_MATERIAL','CALC_INTENSIDAD','CALC_CAIDA_PCT','CALC_CAIDA_V',
+    'CALC_TENSION','CALC_SECCION',
+    'PROT_IGA','PROT_MAGNETO','PROT_SOBRETENCION','PROT_DIFERENCIAL',
+    'MED_PAT','MED_AISLAMIENTO',
+    'EMP_DISTRIBUIDORA','OBJETIVO','DOCS_TECNICOS',
+    'EMPLAZAMIENTO_DIRECCION','EMPLAZAMIENTO_TM','EMPLAZAMIENTO_CP','EMPLAZAMIENTO_USO',
+    'TEC_NOMBRE','TEC_APELLIDOS','TEC_DOMICILIO','TEC_TELEFONO','TEC_EMAIL',
+    'TEC_NUM_COLEGIADO','TEC_COLEGIO',
+    'LUGAR_FIRMA','DIA_FIRMA','MES_FIRMA','ANIO_FIRMA','OBSERVACIONES',
+  ];
+
+  const payload = {};
+  campos.forEach(c => {
+    const el = document.getElementById('f_' + c);
+    if (el) payload[c] = el.value;
+  });
+
+  fetch(`/boletines/${bid}/datos-tecnicos`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      // Feedback visual breve
+      const btn = document.querySelector('[onclick="guardarDatosTecnicos(' + bid + ')"]');
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> Guardado';
+      btn.classList.replace('btn-outline-primary', 'btn-success');
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.classList.replace('btn-success', 'btn-outline-primary');
+      }, 2000);
+    } else {
+      alert('Error al guardar: ' + (d.error || ''));
+    }
+  })
+  .catch(err => alert('Error de red: ' + err))
+  .finally(() => spinner.classList.add('d-none'));
 }
 </script>
 {% endblock %}

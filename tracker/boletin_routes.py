@@ -5,8 +5,17 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 from db import (
     init_boletines_db, BOLETIN_PREFIJOS, siguiente_numero_boletin,
     crear_boletin, listar_boletines, get_boletin, actualizar_boletin, eliminar_boletin,
+    actualizar_datos_json,
 )
+import json
 import os
+import sys
+from pathlib import Path
+
+# Añadir la raíz del proyecto al path para importar generar_boletin_electrico
+_ROOT = Path(__file__).parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 bol_bp = Blueprint("bol", __name__, url_prefix="/boletines")
 
@@ -82,7 +91,37 @@ def detalle(bid):
     if not bol:
         flash("Boletín no encontrado.", "danger")
         return redirect(url_for("bol.lista"))
-    return render_template("boletines_detalle.html", bol=bol, prefijos=BOLETIN_PREFIJOS)
+
+    # Parsear datos_json para el template
+    datos_json = {}
+    raw = bol.get("datos_json") or "{}"
+    if isinstance(raw, str):
+        try:
+            datos_json = json.loads(raw)
+        except Exception:
+            datos_json = {}
+
+    # Verificar si los documentos ya fueron generados
+    carpeta = bol.get("carpeta") or ""
+    cie_numero = datos_json.get("CIE_NUMERO") or bol.get("numero", "")
+    mtd_path = ""
+    cie_path = ""
+    if carpeta and os.path.isdir(carpeta):
+        candidate_mtd = os.path.join(carpeta, f"MTD_{cie_numero}.docx")
+        candidate_cie = os.path.join(carpeta, f"CIE_{cie_numero}.docx")
+        if os.path.isfile(candidate_mtd):
+            mtd_path = candidate_mtd
+        if os.path.isfile(candidate_cie):
+            cie_path = candidate_cie
+
+    return render_template(
+        "boletines_detalle.html",
+        bol=bol,
+        prefijos=BOLETIN_PREFIJOS,
+        datos_json=datos_json,
+        mtd_path=mtd_path,
+        cie_path=cie_path,
+    )
 
 
 @bol_bp.route("/<int:bid>/editar", methods=["GET", "POST"])
@@ -126,6 +165,101 @@ def abrir_carpeta(bid):
     bol = get_boletin(bid)
     if bol and bol["carpeta"] and os.path.isdir(bol["carpeta"]):
         os.startfile(bol["carpeta"])
+    return jsonify({"ok": True})
+
+
+# ── Generar documentos MTD + CIE ─────────────────────────────────────────────
+@bol_bp.route("/<int:bid>/generar", methods=["POST"])
+def generar(bid):
+    try:
+        from generar_boletin_electrico import generar_boletin_docs
+        resultado = generar_boletin_docs(bid)
+        return jsonify(resultado)
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@bol_bp.route("/<int:bid>/abrir-mtd")
+def abrir_mtd(bid):
+    bol = get_boletin(bid)
+    if not bol:
+        return jsonify({"ok": False, "error": "Boletín no encontrado"}), 404
+    datos_json = {}
+    raw = bol.get("datos_json") or "{}"
+    try:
+        datos_json = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        pass
+    cie_numero = datos_json.get("CIE_NUMERO") or bol.get("numero", "")
+    carpeta = bol.get("carpeta") or ""
+    mtd_file = os.path.join(carpeta, f"MTD_{cie_numero}.docx") if carpeta else ""
+    if mtd_file and os.path.isfile(mtd_file):
+        os.startfile(mtd_file)
+        return jsonify({"ok": True, "path": mtd_file})
+    return jsonify({"ok": False, "error": "Archivo MTD no encontrado. Genera primero el documento."}), 404
+
+
+@bol_bp.route("/<int:bid>/abrir-cie")
+def abrir_cie(bid):
+    bol = get_boletin(bid)
+    if not bol:
+        return jsonify({"ok": False, "error": "Boletín no encontrado"}), 404
+    datos_json = {}
+    raw = bol.get("datos_json") or "{}"
+    try:
+        datos_json = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        pass
+    cie_numero = datos_json.get("CIE_NUMERO") or bol.get("numero", "")
+    carpeta = bol.get("carpeta") or ""
+    cie_file = os.path.join(carpeta, f"CIE_{cie_numero}.docx") if carpeta else ""
+    if cie_file and os.path.isfile(cie_file):
+        os.startfile(cie_file)
+        return jsonify({"ok": True, "path": cie_file})
+    return jsonify({"ok": False, "error": "Archivo CIE no encontrado. Genera primero el documento."}), 404
+
+
+# ── Guardar datos técnicos (datos_json) ──────────────────────────────────────
+@bol_bp.route("/<int:bid>/datos-tecnicos", methods=["POST"])
+def guardar_datos_tecnicos(bid):
+    bol = get_boletin(bid)
+    if not bol:
+        return jsonify({"ok": False, "error": "Boletín no encontrado"}), 404
+
+    # Campos técnicos esperados del formulario
+    campos = [
+        "CIE_NUMERO", "CIE_EXPEDIENTE",
+        "TITULAR_NOMBRE", "TITULAR_APELLIDOS", "TITULAR_DNI",
+        "TITULAR_TELEFONO", "TITULAR_EMAIL",
+        "VEH_MARCA", "VEH_TIPO", "VEH_DENOMINACION", "VEH_BASTIDOR", "VEH_MATRICULA",
+        "POT_NOMINAL", "POT_PICO_CAMPO", "TENSION_NOMINAL",
+        "P_PREVISTA", "P_INSTALADA", "P_CONTRATADA", "TENSION",
+        "DERIVACION_CU", "ACOMETIDA_BT",
+        "GEN_FABRICANTE", "GEN_MODELO", "GEN_POT_PICO", "GEN_NUM_MODULOS",
+        "COND_NATURALEZA_CC", "COND_AISLAMIENTO_CC", "COND_CLASE_CC", "COND_SECCION_CC",
+        "ALUM_DENOMINACION", "ALUM_POTENCIA", "FUERZA_DENOMINACION", "FUERZA_POTENCIA",
+        "POT_TOTAL",
+        "CALC_LONGITUD", "CALC_MATERIAL", "CALC_INTENSIDAD",
+        "CALC_CAIDA_PCT", "CALC_CAIDA_V", "CALC_TENSION", "CALC_SECCION",
+        "PROT_IGA", "PROT_MAGNETO", "PROT_SOBRETENCION", "PROT_DIFERENCIAL",
+        "MED_PAT", "MED_AISLAMIENTO",
+        "EMP_DISTRIBUIDORA", "OBJETIVO", "DOCS_TECNICOS",
+        "EMPLAZAMIENTO_DIRECCION", "EMPLAZAMIENTO_TM", "EMPLAZAMIENTO_CP", "EMPLAZAMIENTO_USO",
+        "TEC_NOMBRE", "TEC_APELLIDOS", "TEC_DOMICILIO", "TEC_TELEFONO",
+        "TEC_EMAIL", "TEC_NUM_COLEGIADO", "TEC_COLEGIO",
+        "LUGAR_FIRMA", "DIA_FIRMA", "MES_FIRMA", "ANIO_FIRMA",
+        "OBSERVACIONES",
+    ]
+
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {k: request.form.get(k, "") for k in campos}
+
+    datos_extra = {k: v for k, v in payload.items() if k in campos}
+    actualizar_datos_json(bid, datos_extra)
+
     return jsonify({"ok": True})
 
 

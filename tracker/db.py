@@ -791,6 +791,28 @@ def eliminar_boletin(bid):
     init_boletines_db()
     execute("DELETE FROM boletines WHERE id = ?", (bid,))
 
+def actualizar_datos_json(bid, datos_extra: dict):
+    """Fusiona datos_extra en el campo datos_json del boletín indicado."""
+    import json as _json
+    init_boletines_db()
+    row = query("SELECT datos_json FROM boletines WHERE id = ?", (bid,), one=True)
+    if not row:
+        return
+    existing = {}
+    raw = row.get("datos_json") or "{}"
+    if isinstance(raw, str):
+        try:
+            existing = _json.loads(raw)
+        except Exception:
+            existing = {}
+    elif isinstance(raw, dict):
+        existing = raw
+    existing.update(datos_extra)
+    execute(
+        "UPDATE boletines SET datos_json = ? WHERE id = ?",
+        (_json.dumps(existing, ensure_ascii=False), bid),
+    )
+
 
 # ---------------------------------------------------------------------------
 # Código de proyecto: P{año}-{NNNN}
