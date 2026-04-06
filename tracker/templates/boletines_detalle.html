@@ -108,7 +108,7 @@
     <!-- Generar documentos -->
     {% if bol.tipo == 'electrico_vehiculo' %}
     <div class="card mb-3 border-primary">
-      <div class="card-header fw-semibold text-primary"><i class="bi bi-file-earmark-word"></i> Documentos</div>
+      <div class="card-header fw-semibold text-primary"><i class="bi bi-file-earmark-text"></i> Documentos</div>
       <div class="card-body">
         <button id="btn-generar" class="btn btn-primary btn-sm w-100 mb-2" onclick="generarDocs({{ bol.id }})">
           <i class="bi bi-gear-fill"></i> Generar documentos
@@ -116,10 +116,10 @@
         </button>
         <div id="docs-generados" class="d-flex flex-column gap-2 {% if not mtd_path and not cie_path %}d-none{% endif %}">
           <button class="btn btn-outline-primary btn-sm" onclick="abrirMtd({{ bol.id }})" {% if not mtd_path %}disabled{% endif %} id="btn-abrir-mtd">
-            <i class="bi bi-file-earmark-text"></i> Abrir MTD
+            <i class="bi bi-file-earmark-word"></i> Abrir MTD (.docx)
           </button>
-          <button class="btn btn-outline-success btn-sm" onclick="abrirCie({{ bol.id }})" {% if not cie_path %}disabled{% endif %} id="btn-abrir-cie">
-            <i class="bi bi-file-earmark-check"></i> Abrir CIE
+          <button class="btn btn-outline-danger btn-sm" onclick="abrirCie({{ bol.id }})" {% if not cie_path %}disabled{% endif %} id="btn-abrir-cie">
+            <i class="bi bi-file-earmark-pdf-fill"></i> Abrir CIE oficial (.pdf)
           </button>
         </div>
         <div id="generar-error" class="alert alert-danger small mt-2 d-none"></div>
@@ -220,9 +220,19 @@
                    name="TENSION_NOMINAL" value="{{ datos_json.get('TENSION_NOMINAL', '') }}">
           </div>
           <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">P. prevista (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_P_PREVISTA"
+                   name="P_PREVISTA" value="{{ datos_json.get('P_PREVISTA', '') }}">
+          </div>
+          <div class="col-md-4">
             <label class="form-label form-label-sm fw-semibold">P. instalada (W)</label>
             <input type="text" class="form-control form-control-sm" id="f_P_INSTALADA"
                    name="P_INSTALADA" value="{{ datos_json.get('P_INSTALADA', '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">P. contratada (W)</label>
+            <input type="text" class="form-control form-control-sm" id="f_P_CONTRATADA"
+                   name="P_CONTRATADA" value="{{ datos_json.get('P_CONTRATADA', '') }}">
           </div>
           <div class="col-md-4">
             <label class="form-label form-label-sm fw-semibold">Derivación individual Cu mm²</label>
@@ -243,10 +253,72 @@
               <option value="Cambio tensión" {% if datos_json.get('OBJETIVO')=='Cambio tensión' %}selected{% endif %}>Cambio tensión</option>
             </select>
           </div>
-          <div class="col-12">
-            <label class="form-label form-label-sm fw-semibold">Observaciones</label>
-            <textarea class="form-control form-control-sm" id="f_OBSERVACIONES" name="OBSERVACIONES" rows="3">{{ datos_json.get('OBSERVACIONES', bol.observaciones or '') }}</textarea>
+
+          <!-- Emplazamiento (campos extra para PDF CIE) -->
+          <div class="col-12"><small class="text-muted fw-semibold">Emplazamiento / Vehículo (para el PDF CIE)</small></div>
+          <div class="col-md-5">
+            <label class="form-label form-label-sm fw-semibold">Dirección</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_DIRECCION"
+                   name="EMPLAZAMIENTO_DIRECCION" value="{{ datos_json.get('EMPLAZAMIENTO_DIRECCION', bol.direccion or '') }}">
           </div>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm fw-semibold">Nº</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_NUM"
+                   name="EMPLAZAMIENTO_NUM" value="{{ datos_json.get('EMPLAZAMIENTO_NUM', '') }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm fw-semibold">Portal/Planta</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_PORTAL"
+                   name="EMPLAZAMIENTO_PORTAL" value="{{ datos_json.get('EMPLAZAMIENTO_PORTAL', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">C.P.</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_CP"
+                   name="EMPLAZAMIENTO_CP" value="{{ datos_json.get('EMPLAZAMIENTO_CP', bol.cp or '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">T.M. (Municipio)</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_TM"
+                   name="EMPLAZAMIENTO_TM" value="{{ datos_json.get('EMPLAZAMIENTO_TM', bol.poblacion or '') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Isla</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_ISLA"
+                   name="EMPLAZAMIENTO_ISLA" value="{{ datos_json.get('EMPLAZAMIENTO_ISLA', 'Tenerife') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold">Uso / Destino</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_USO"
+                   name="EMPLAZAMIENTO_USO" value="{{ datos_json.get('EMPLAZAMIENTO_USO', 'Vehículo') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Superficie útil m²</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_SUPERFICIE"
+                   name="EMPLAZAMIENTO_SUPERFICIE" value="{{ datos_json.get('EMPLAZAMIENTO_SUPERFICIE', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Nº plantas</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMPLAZAMIENTO_PLANTAS"
+                   name="EMPLAZAMIENTO_PLANTAS" value="{{ datos_json.get('EMPLAZAMIENTO_PLANTAS', '') }}">
+          </div>
+
+          <!-- Observaciones (campo general + 4 líneas PDF) -->
+          <div class="col-12">
+            <label class="form-label form-label-sm fw-semibold">Observaciones (texto libre)</label>
+            <textarea class="form-control form-control-sm" id="f_OBSERVACIONES" name="OBSERVACIONES" rows="2">{{ datos_json.get('OBSERVACIONES', bol.observaciones or '') }}</textarea>
+          </div>
+          <div class="col-12"><small class="text-muted fw-semibold">Observaciones línea a línea (para el PDF CIE)</small></div>
+          <div class="col-12">
+            <input type="text" class="form-control form-control-sm mb-1" id="f_OBSERVACIONES_L1"
+                   name="OBSERVACIONES_L1" placeholder="Línea 1" value="{{ datos_json.get('OBSERVACIONES_L1', '') }}">
+            <input type="text" class="form-control form-control-sm mb-1" id="f_OBSERVACIONES_L2"
+                   name="OBSERVACIONES_L2" placeholder="Línea 2" value="{{ datos_json.get('OBSERVACIONES_L2', '') }}">
+            <input type="text" class="form-control form-control-sm mb-1" id="f_OBSERVACIONES_L3"
+                   name="OBSERVACIONES_L3" placeholder="Línea 3" value="{{ datos_json.get('OBSERVACIONES_L3', '') }}">
+            <input type="text" class="form-control form-control-sm" id="f_OBSERVACIONES_L4"
+                   name="OBSERVACIONES_L4" placeholder="Línea 4" value="{{ datos_json.get('OBSERVACIONES_L4', '') }}">
+          </div>
+
           <!-- Fecha de firma -->
           <div class="col-md-4">
             <label class="form-label form-label-sm fw-semibold">Lugar firma</label>
@@ -488,26 +560,52 @@
       <!-- Tab 6: Protecciones -->
       <div class="tab-pane fade" id="pane-protecciones" role="tabpanel">
         <div class="row g-3">
+          <!-- Corriente nominal / tensión -->
+          <div class="col-12"><small class="text-muted fw-semibold">Corriente nominal / Tensión</small></div>
           <div class="col-md-3">
             <label class="form-label form-label-sm fw-semibold">I.G.A. (A)</label>
             <input type="text" class="form-control form-control-sm" id="f_PROT_IGA"
                    name="PROT_IGA" value="{{ datos_json.get('PROT_IGA', '') }}">
           </div>
           <div class="col-md-3">
-            <label class="form-label form-label-sm fw-semibold">Magnetotérmicos / nº (A)</label>
+            <label class="form-label form-label-sm fw-semibold">Magnetotérmicos (A)</label>
             <input type="text" class="form-control form-control-sm" id="f_PROT_MAGNETO"
                    name="PROT_MAGNETO" value="{{ datos_json.get('PROT_MAGNETO', '') }}">
           </div>
           <div class="col-md-3">
-            <label class="form-label form-label-sm fw-semibold">Sobretensiones / cat. (kV)</label>
+            <label class="form-label form-label-sm fw-semibold">Sobretensiones (kV)</label>
             <input type="text" class="form-control form-control-sm" id="f_PROT_SOBRETENCION"
                    name="PROT_SOBRETENCION" value="{{ datos_json.get('PROT_SOBRETENCION', '') }}">
           </div>
           <div class="col-md-3">
-            <label class="form-label form-label-sm fw-semibold">Diferencial / sensibilidad (mA)</label>
+            <label class="form-label form-label-sm fw-semibold">Diferencial (A)</label>
             <input type="text" class="form-control form-control-sm" id="f_PROT_DIFERENCIAL"
                    name="PROT_DIFERENCIAL" value="{{ datos_json.get('PROT_DIFERENCIAL', '') }}">
           </div>
+          <!-- Icc / sensibilidad (campos CIE PDF) -->
+          <div class="col-12"><small class="text-muted fw-semibold">Icc / Sensibilidad (para el PDF CIE)</small></div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">IGA Icc (kA)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_IGA_ICC"
+                   name="PROT_IGA_ICC" value="{{ datos_json.get('PROT_IGA_ICC', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Magneto Icc (kA)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_MAGNETO_ICC"
+                   name="PROT_MAGNETO_ICC" value="{{ datos_json.get('PROT_MAGNETO_ICC', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Sobretensiones cat.</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_SOBRETENCION_CAT"
+                   name="PROT_SOBRETENCION_CAT" value="{{ datos_json.get('PROT_SOBRETENCION_CAT', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Diferencial sensib. (mA)</label>
+            <input type="text" class="form-control form-control-sm" id="f_PROT_DIFERENCIAL_MA"
+                   name="PROT_DIFERENCIAL_MA" value="{{ datos_json.get('PROT_DIFERENCIAL_MA', '') }}">
+          </div>
+          <!-- Mediciones y conductores -->
+          <div class="col-12"><small class="text-muted fw-semibold">Mediciones / Conductores</small></div>
           <div class="col-md-3">
             <label class="form-label form-label-sm fw-semibold">Resistencia p.a.t. (Ω)</label>
             <input type="text" class="form-control form-control-sm" id="f_MED_PAT"
@@ -519,14 +617,19 @@
                    name="MED_AISLAMIENTO" value="{{ datos_json.get('MED_AISLAMIENTO', '') }}">
           </div>
           <div class="col-md-3">
-            <label class="form-label form-label-sm fw-semibold">Empresa distribuidora</label>
-            <input type="text" class="form-control form-control-sm" id="f_EMP_DISTRIBUIDORA"
-                   name="EMP_DISTRIBUIDORA" value="{{ datos_json.get('EMP_DISTRIBUIDORA', '') }}">
-          </div>
-          <div class="col-md-3">
             <label class="form-label form-label-sm fw-semibold">Acometida Red BT</label>
             <input type="text" class="form-control form-control-sm" id="f_ACOMETIDA_BT"
                    name="ACOMETIDA_BT" value="{{ datos_json.get('ACOMETIDA_BT', '') }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm fw-semibold">Línea General Alimentación</label>
+            <input type="text" class="form-control form-control-sm" id="f_LINEA_GENERAL"
+                   name="LINEA_GENERAL" value="{{ datos_json.get('LINEA_GENERAL', '') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label form-label-sm fw-semibold">Empresa distribuidora</label>
+            <input type="text" class="form-control form-control-sm" id="f_EMP_DISTRIBUIDORA"
+                   name="EMP_DISTRIBUIDORA" value="{{ datos_json.get('EMP_DISTRIBUIDORA', '') }}">
           </div>
         </div>
       </div>
@@ -624,10 +727,15 @@ function guardarDatosTecnicos(bid) {
     'PROT_IGA','PROT_MAGNETO','PROT_SOBRETENCION','PROT_DIFERENCIAL',
     'MED_PAT','MED_AISLAMIENTO',
     'EMP_DISTRIBUIDORA','OBJETIVO','DOCS_TECNICOS',
-    'EMPLAZAMIENTO_DIRECCION','EMPLAZAMIENTO_TM','EMPLAZAMIENTO_CP','EMPLAZAMIENTO_USO',
+    'EMPLAZAMIENTO_DIRECCION','EMPLAZAMIENTO_NUM','EMPLAZAMIENTO_PORTAL',
+    'EMPLAZAMIENTO_TM','EMPLAZAMIENTO_CP','EMPLAZAMIENTO_ISLA',
+    'EMPLAZAMIENTO_USO','EMPLAZAMIENTO_SUPERFICIE','EMPLAZAMIENTO_PLANTAS',
+    'PROT_IGA_ICC','PROT_MAGNETO_ICC','PROT_SOBRETENCION_CAT','PROT_DIFERENCIAL_MA',
+    'LINEA_GENERAL',
     'TEC_NOMBRE','TEC_APELLIDOS','TEC_DOMICILIO','TEC_TELEFONO','TEC_EMAIL',
     'TEC_NUM_COLEGIADO','TEC_COLEGIO',
-    'LUGAR_FIRMA','DIA_FIRMA','MES_FIRMA','ANIO_FIRMA','OBSERVACIONES',
+    'LUGAR_FIRMA','DIA_FIRMA','MES_FIRMA','ANIO_FIRMA',
+    'OBSERVACIONES','OBSERVACIONES_L1','OBSERVACIONES_L2','OBSERVACIONES_L3','OBSERVACIONES_L4',
   ];
 
   const payload = {};

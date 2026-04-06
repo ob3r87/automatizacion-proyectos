@@ -108,7 +108,8 @@ def detalle(bid):
     cie_path = ""
     if carpeta and os.path.isdir(carpeta):
         candidate_mtd = os.path.join(carpeta, f"MTD_{cie_numero}.docx")
-        candidate_cie = os.path.join(carpeta, f"CIE_{cie_numero}.docx")
+        # CIE es ahora un PDF oficial rellenado
+        candidate_cie = os.path.join(carpeta, f"CIE_{cie_numero}.pdf")
         if os.path.isfile(candidate_mtd):
             mtd_path = candidate_mtd
         if os.path.isfile(candidate_cie):
@@ -213,7 +214,7 @@ def abrir_cie(bid):
         pass
     cie_numero = datos_json.get("CIE_NUMERO") or bol.get("numero", "")
     carpeta = bol.get("carpeta") or ""
-    cie_file = os.path.join(carpeta, f"CIE_{cie_numero}.docx") if carpeta else ""
+    cie_file = os.path.join(carpeta, f"CIE_{cie_numero}.pdf") if carpeta else ""
     if cie_file and os.path.isfile(cie_file):
         os.startfile(cie_file)
         return jsonify({"ok": True, "path": cie_file})
@@ -243,13 +244,17 @@ def guardar_datos_tecnicos(bid):
         "CALC_LONGITUD", "CALC_MATERIAL", "CALC_INTENSIDAD",
         "CALC_CAIDA_PCT", "CALC_CAIDA_V", "CALC_TENSION", "CALC_SECCION",
         "PROT_IGA", "PROT_MAGNETO", "PROT_SOBRETENCION", "PROT_DIFERENCIAL",
+        "PROT_IGA_ICC", "PROT_MAGNETO_ICC", "PROT_SOBRETENCION_CAT", "PROT_DIFERENCIAL_MA",
         "MED_PAT", "MED_AISLAMIENTO",
         "EMP_DISTRIBUIDORA", "OBJETIVO", "DOCS_TECNICOS",
-        "EMPLAZAMIENTO_DIRECCION", "EMPLAZAMIENTO_TM", "EMPLAZAMIENTO_CP", "EMPLAZAMIENTO_USO",
+        "EMPLAZAMIENTO_DIRECCION", "EMPLAZAMIENTO_NUM", "EMPLAZAMIENTO_PORTAL",
+        "EMPLAZAMIENTO_TM", "EMPLAZAMIENTO_CP", "EMPLAZAMIENTO_ISLA",
+        "EMPLAZAMIENTO_USO", "EMPLAZAMIENTO_SUPERFICIE", "EMPLAZAMIENTO_PLANTAS",
+        "LINEA_GENERAL",
         "TEC_NOMBRE", "TEC_APELLIDOS", "TEC_DOMICILIO", "TEC_TELEFONO",
         "TEC_EMAIL", "TEC_NUM_COLEGIADO", "TEC_COLEGIO",
         "LUGAR_FIRMA", "DIA_FIRMA", "MES_FIRMA", "ANIO_FIRMA",
-        "OBSERVACIONES",
+        "OBSERVACIONES", "OBSERVACIONES_L1", "OBSERVACIONES_L2", "OBSERVACIONES_L3", "OBSERVACIONES_L4",
     ]
 
     if request.is_json:

@@ -1,14 +1,17 @@
 """
 Generador de documentos para Boletín Eléctrico de Vehículo.
 Genera:
-  - MTD (Memoria Técnica de Diseño) — .docx rellenado desde plantilla
-  - CIE (Certificado de Instalación Eléctrica) — .docx creado programáticamente
+  - MTD (Memoria Técnica de Diseño) — .docx rellenado desde plantilla Word
+  - CIE (Certificado de Instalación Eléctrica) — rellenado sobre el PDF oficial AcroForm
 """
 import argparse
 import json
+import shutil
 import sys
 from copy import deepcopy
 from pathlib import Path
+
+import pypdf
 
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
@@ -25,6 +28,12 @@ MTD_TEMPLATE_PATH = Path(
     r"\S-064-2025-3584 KTP\5. DOCUMENTACIÓN\MTD_064_2025.docx"
 )
 FALLBACK_TEMPLATE = BASE_DIR / "PLANTILLA_MTD_VEHICULO.docx"
+
+CIE_TEMPLATE_PATH = Path(
+    r"\\PhicanServer\Estudio\2025\06 SERVICIOS"
+    r"\S-064-2025-3584 KTP\5. DOCUMENTACIÓN\CIE_64-2025.pdf"
+)
+FALLBACK_CIE_TEMPLATE = BASE_DIR / "PLANTILLA_CIE_VEHICULO.pdf"
 
 CONFIG_PATH = BASE_DIR / "config.json"
 
@@ -328,8 +337,158 @@ def _crear_mtd_base(datos: dict) -> Document:
 
 def generar_cie(datos: dict, output_dir: Path) -> Path:
     """
-    Genera el documento CIE (Certificado de Instalación Eléctrica) en formato DOCX.
-    Reproduce el formulario oficial en papel lo más fielmente posible.
+    Rellena el formulario oficial CIE (PDF con AcroForm) con los datos proporcionados.
+    IMPORTANTE: Se cumplimenta sobre el PDF oficial, no se crea un documento nuevo.
+    El PDF original tiene 84 campos AcroForm (Text1-Text84, Button19-Button69).
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Resolver plantilla PDF ─────────────────────────────────────────────────
+    template_path = None
+    if CIE_TEMPLATE_PATH.exists():
+        template_path = CIE_TEMPLATE_PATH
+        # Guardar copia local como fallback offline
+        if not FALLBACK_CIE_TEMPLATE.exists():
+            try:
+                shutil.copy2(str(CIE_TEMPLATE_PATH), str(FALLBACK_CIE_TEMPLATE))
+            except Exception as e:
+                print(f"[CIE] No se pudo copiar plantilla local: {e}", file=sys.stderr)
+    elif FALLBACK_CIE_TEMPLATE.exists():
+        template_path = FALLBACK_CIE_TEMPLATE
+
+    if template_path is None:
+        raise FileNotFoundError(
+            "No se encontró la plantilla PDF del CIE. Conecta al servidor PhicanServer "
+            f"o copia el archivo CIE_64-2025.pdf como: {FALLBACK_CIE_TEMPLATE}"
+        )
+
+    # ── Construir el diccionario de campos AcroForm ────────────────────────────
+    titular_completo = (
+        datos.get("TITULAR_NOMBRE", "") + " " + datos.get("TITULAR_APELLIDOS", "")
+    ).strip()
+    instalador_completo = (
+        datos.get("TEC_NOMBRE", "") + " " + datos.get("TEC_APELLIDOS", "")
+    ).strip()
+
+    # Observaciones: si hay claves _L1/_L2/_L3/_L4 se usan; si no, la general en L1
+    obs_general = datos.get("OBSERVACIONES", "")
+    obs_l1 = datos.get("OBSERVACIONES_L1") or obs_general
+    obs_l2 = datos.get("OBSERVACIONES_L2", "")
+    obs_l3 = datos.get("OBSERVACIONES_L3", "")
+    obs_l4 = datos.get("OBSERVACIONES_L4", "")
+
+    text_fields = {
+        # Titular / peticionario
+        "Text1":  titular_completo,
+        "Text2":  datos.get("TITULAR_DNI", ""),
+        # Emplazamiento
+        "Text3":  datos.get("EMPLAZAMIENTO_DIRECCION", ""),
+        "Text38": datos.get("EMPLAZAMIENTO_NUM", ""),
+        "Text5":  datos.get("EMPLAZAMIENTO_PORTAL", ""),
+        "Text11": datos.get("EMPLAZAMIENTO_TM", ""),
+        "Text14": datos.get("TITULAR_TELEFONO", ""),
+        "Text39": datos.get("EMPLAZAMIENTO_CP", ""),
+        "Text12": datos.get("EMPLAZAMIENTO_ISLA", "Tenerife"),
+        "Text4":  datos.get("EMPLAZAMIENTO_USO", "Vehículo"),
+        "Text40": datos.get("EMPLAZAMIENTO_SUPERFICIE", ""),
+        "Text6":  datos.get("EMPLAZAMIENTO_PLANTAS", ""),
+        # Potencias
+        "Text10": datos.get("P_PREVISTA", ""),
+        "Text16": datos.get("P_INSTALADA", ""),
+        "Text7":  datos.get("P_CONTRATADA", ""),
+        "Text13": datos.get("TENSION", ""),
+        # Protecciones — valores de corriente / tensión
+        "Text70": datos.get("PROT_IGA", ""),
+        "Text72": datos.get("PROT_MAGNETO", ""),
+        "Text71": datos.get("PROT_SOBRETENCION", ""),
+        "Text73": datos.get("PROT_DIFERENCIAL", ""),
+        # Protecciones — Icc / sensibilidad / categoría
+        "Text74": datos.get("PROT_IGA_ICC", ""),
+        "Text77": datos.get("PROT_MAGNETO_ICC", ""),
+        "Text75": datos.get("PROT_SOBRETENCION_CAT", ""),
+        "Text76": datos.get("PROT_DIFERENCIAL_MA", ""),
+        # Conductores
+        "Text55": datos.get("DERIVACION_CU", ""),
+        "Text56": datos.get("ACOMETIDA_BT", ""),
+        "Text57": datos.get("LINEA_GENERAL", ""),
+        # Mediciones
+        "Text17": datos.get("MED_PAT", ""),
+        "Text18": datos.get("MED_AISLAMIENTO", ""),
+        # Observaciones (4 líneas en el PDF)
+        "Text54": obs_l1,
+        "Text82": obs_l2,
+        "Text83": obs_l3,
+        "Text84": obs_l4,
+        # Instalador / técnico director
+        "Text45": instalador_completo,
+        "Text48": datos.get("TEC_NUM_COLEGIADO", ""),
+        "Text46": datos.get("TEC_COLEGIO", ""),
+        "Text47": datos.get("TEC_NUM_COLEGIADO", ""),
+        "Text49": datos.get("TEC_EMAIL", ""),
+        "Text50": datos.get("TEC_TELEFONO", ""),
+        # Empresa distribuidora / comercializadora
+        "Text51": datos.get("EMP_DISTRIBUIDORA", ""),
+        "Text52": "",
+        "Text53": "",
+        # Nº instalación (campo libre del formulario)
+        "Text19": datos.get("CIE_NUMERO", ""),
+        # Fecha y lugar de firma
+        "Text78": datos.get("LUGAR_FIRMA", ""),
+        "Text80": datos.get("DIA_FIRMA", ""),
+        "Text81": datos.get("MES_FIRMA", ""),
+        "Text79": datos.get("ANIO_FIRMA", ""),
+    }
+
+    # ── Checkboxes / Radio-buttons ─────────────────────────────────────────────
+    # Objetivo de la instalación (Button26=nueva, 27=modificación, 28=ampliación, 29=cambio tensión)
+    objetivo = datos.get("OBJETIVO", "Instalación nueva")
+    btn_objetivo = {
+        "Button26": "/No",   "Button27": "/Off",
+        "Button28": "/Off",  "Button29": "/Off",
+    }
+    if "odificaci" in objetivo:      # Modificación
+        btn_objetivo = {"Button26": "/Off", "Button27": "/No",  "Button28": "/Off", "Button29": "/Off"}
+    elif "mpliaci" in objetivo:      # Ampliación
+        btn_objetivo = {"Button26": "/Off", "Button27": "/Off", "Button28": "/No",  "Button29": "/Off"}
+    elif "ambio" in objetivo:        # Cambio de tensión
+        btn_objetivo = {"Button26": "/Off", "Button27": "/Off", "Button28": "/Off", "Button29": "/No"}
+
+    # Documentos técnicos (Button33=Proyecto, 34=MTD, 35=Esquema, 36=Memoria, 37=Otro)
+    docs = datos.get("DOCS_TECNICOS", "MTD")
+    btn_docs = {f"Button{n}": "/Off" for n in range(33, 38)}
+    if "MTD" in str(docs):
+        btn_docs["Button34"] = "/No"
+    elif "Proyecto" in str(docs):
+        btn_docs["Button33"] = "/No"
+
+    # Categoría del instalador (Button19=Básica, 20=E1, 21=E6, 22=E7, 23=E8, 24=E9, 25=otro)
+    btn_cat = {f"Button{n}": "/Off" for n in range(19, 26)}
+    btn_cat["Button19"] = "/No"   # Básica por defecto
+
+    # Verificaciones UNE 20 460 (Button60-69) — dejar en /Off por defecto
+    btn_une = {f"Button{n}": "/Off" for n in range(60, 70)}
+
+    all_fields = {**text_fields, **btn_objetivo, **btn_docs, **btn_cat, **btn_une}
+
+    # ── Rellenar PDF y guardar ────────────────────────────────────────────────
+    reader = pypdf.PdfReader(str(template_path))
+    writer = pypdf.PdfWriter()
+    writer.append(reader)
+    writer.update_page_form_field_values(writer.pages[0], all_fields)
+
+    output_name = f"CIE_{datos.get('CIE_NUMERO', 'BOLETIN')}.pdf"
+    out = output_dir / output_name
+    with open(str(out), "wb") as fh:
+        writer.write(fh)
+
+    return out
+
+
+def _cie_legacy_docx(datos: dict, output_dir: Path) -> Path:
+    """
+    Genera una versión DOCX del CIE como documento de respaldo (sin valor oficial).
+    Solo se usa si el PDF oficial no está disponible y se necesita un borrador.
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -669,7 +828,7 @@ def generar_cie(datos: dict, output_dir: Path) -> Path:
     # Espacio mínimo para la observación
     obs_cell._tc.get_or_add_tcPr()
 
-    output_name = f"CIE_{datos.get('CIE_NUMERO', 'BOLETIN')}.docx"
+    output_name = f"CIE_BORRADOR_{datos.get('CIE_NUMERO', 'BOLETIN')}.docx"
     out = output_dir / output_name
     doc.save(str(out))
     return out
@@ -794,9 +953,21 @@ def _default_datos(boletin_row) -> dict:
         "DOCS_TECNICOS": datos_json.get("DOCS_TECNICOS", "MTD"),
         # Emplazamiento
         "EMPLAZAMIENTO_DIRECCION": datos_json.get("EMPLAZAMIENTO_DIRECCION") or boletin_row.get("direccion", "") or "",
+        "EMPLAZAMIENTO_NUM": datos_json.get("EMPLAZAMIENTO_NUM", ""),
+        "EMPLAZAMIENTO_PORTAL": datos_json.get("EMPLAZAMIENTO_PORTAL", ""),
         "EMPLAZAMIENTO_TM": datos_json.get("EMPLAZAMIENTO_TM") or boletin_row.get("poblacion", "") or "",
         "EMPLAZAMIENTO_CP": datos_json.get("EMPLAZAMIENTO_CP") or boletin_row.get("cp", "") or "",
+        "EMPLAZAMIENTO_ISLA": datos_json.get("EMPLAZAMIENTO_ISLA") or config.get("EMPLAZAMIENTO_ISLA", "Tenerife"),
         "EMPLAZAMIENTO_USO": datos_json.get("EMPLAZAMIENTO_USO", "Vehículo"),
+        "EMPLAZAMIENTO_SUPERFICIE": datos_json.get("EMPLAZAMIENTO_SUPERFICIE", ""),
+        "EMPLAZAMIENTO_PLANTAS": datos_json.get("EMPLAZAMIENTO_PLANTAS", ""),
+        # Protecciones — ICC y sensibilidad (campos extra del PDF CIE)
+        "PROT_IGA_ICC": datos_json.get("PROT_IGA_ICC", ""),
+        "PROT_MAGNETO_ICC": datos_json.get("PROT_MAGNETO_ICC", ""),
+        "PROT_SOBRETENCION_CAT": datos_json.get("PROT_SOBRETENCION_CAT", ""),
+        "PROT_DIFERENCIAL_MA": datos_json.get("PROT_DIFERENCIAL_MA", ""),
+        # Línea general de alimentación
+        "LINEA_GENERAL": datos_json.get("LINEA_GENERAL", ""),
         # Técnico (desde config.json)
         "TEC_NOMBRE": datos_json.get("TEC_NOMBRE") or config.get("TEC_NOMBRE", ""),
         "TEC_APELLIDOS": datos_json.get("TEC_APELLIDOS") or config.get("TEC_APELLIDOS", ""),
@@ -810,8 +981,12 @@ def _default_datos(boletin_row) -> dict:
         "DIA_FIRMA": datos_json.get("DIA_FIRMA") or str(hoy.day),
         "MES_FIRMA": datos_json.get("MES_FIRMA") or meses_es[hoy.month],
         "ANIO_FIRMA": datos_json.get("ANIO_FIRMA") or str(hoy.year),
-        # Observaciones
+        # Observaciones — campo general y 4 líneas para el PDF CIE
         "OBSERVACIONES": datos_json.get("OBSERVACIONES") or boletin_row.get("observaciones", "") or "",
+        "OBSERVACIONES_L1": datos_json.get("OBSERVACIONES_L1", ""),
+        "OBSERVACIONES_L2": datos_json.get("OBSERVACIONES_L2", ""),
+        "OBSERVACIONES_L3": datos_json.get("OBSERVACIONES_L3", ""),
+        "OBSERVACIONES_L4": datos_json.get("OBSERVACIONES_L4", ""),
     }
 
     return datos
