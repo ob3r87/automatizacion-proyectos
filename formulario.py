@@ -3757,8 +3757,13 @@ Devuelve SOLO el JSON, sin explicaciones ni markdown."""
         self._sil_dim_canvas.pack(fill="x", expand=True, pady=(2, 0))
 
         # ── Selectores debajo de los canvas (en fila horizontal) ─────────
-        opts = tk.Frame(frm, bg=BLANCO)
-        opts.pack(fill="x", pady=(8, 2))
+        # ── Selectores centrados debajo de los canvas ────────────────────
+        # opts_wrap ocupa todo el ancho; opts_inner se centra dentro de él
+        opts_wrap = tk.Frame(frm, bg=BLANCO)
+        opts_wrap.pack(fill="x", pady=(8, 2))
+
+        opts = tk.Frame(opts_wrap, bg=BLANCO)
+        opts.pack(anchor="center")          # siempre centrado, sin importar el ancho
 
         # Grupo: Tipo de vehículo (2 columnas de 4 para no ocupar mucha altura)
         tipo_frm = tk.LabelFrame(opts, text=" Tipo de vehículo ", bg=BLANCO, fg=AZUL,
