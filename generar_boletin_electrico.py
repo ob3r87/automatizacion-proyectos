@@ -472,10 +472,17 @@ def generar_cie(datos: dict, output_dir: Path) -> Path:
     all_fields = {**text_fields, **btn_objetivo, **btn_docs, **btn_cat, **btn_une}
 
     # ── Rellenar PDF y guardar ────────────────────────────────────────────────
-    reader = pypdf.PdfReader(str(template_path))
+    # Si existe una plantilla local pre-rellenada (con datos fijos de empresa),
+    # la usamos como base para reducir los campos a rellenar en cada generación
+    plantilla_prefilled = BASE_DIR / "PLANTILLA_CIE_VEHICULO.pdf"
+    base_path = plantilla_prefilled if plantilla_prefilled.exists() else template_path
+
+    reader = pypdf.PdfReader(str(base_path))
     writer = pypdf.PdfWriter()
     writer.append(reader)
     writer.update_page_form_field_values(writer.pages[0], all_fields)
+    # Asegurar que todos los campos se muestren (genera appearance streams)
+    writer.set_need_appearances_writer()
 
     output_name = f"CIE_{datos.get('CIE_NUMERO', 'BOLETIN')}.pdf"
     out = output_dir / output_name
@@ -483,6 +490,90 @@ def generar_cie(datos: dict, output_dir: Path) -> Path:
         writer.write(fh)
 
     return out
+
+
+# ── Plantilla CIE con datos fijos de empresa ──────────────────────────────────
+
+def generar_plantilla_cie(config: dict = None, output_path: Path = None) -> Path:
+    """
+    Genera una plantilla PDF del CIE con los datos fijos de la empresa ya rellenados:
+      - Instalador / técnico director (nombre, CCI, empresa, email, teléfono)
+      - Lugar de firma
+      - Checkboxes por defecto (Instalación nueva, MTD, Básica)
+
+    Se usa como base para generar_cie(), evitando rellenar esos campos cada vez.
+    Guardar en PLANTILLA_CIE_VEHICULO.pdf (fallback offline).
+    """
+    if config is None:
+        config = _load_config()
+
+    # Resolver PDF oficial como origen
+    origen = None
+    if CIE_TEMPLATE_PATH.exists():
+        origen = CIE_TEMPLATE_PATH
+    else:
+        # Buscar cualquier PDF original sin datos variables en la carpeta
+        origen_alt = BASE_DIR / "CIE_64-2025.pdf"
+        if origen_alt.exists():
+            origen = origen_alt
+
+    if origen is None:
+        raise FileNotFoundError(
+            "No se encontró el PDF original CIE_64-2025.pdf. "
+            "Conecta a PhicanServer o copia el PDF original a la carpeta del proyecto."
+        )
+
+    if output_path is None:
+        output_path = BASE_DIR / "PLANTILLA_CIE_VEHICULO.pdf"
+    output_path = Path(output_path)
+
+    # Campos fijos: datos de la empresa / instalador / configuración
+    tec_nombre = config.get("TEC_NOMBRE", "")
+    tec_apellidos = config.get("TEC_APELLIDOS", "")
+    instalador_completo = (tec_nombre + " " + tec_apellidos).strip()
+
+    campos_fijos = {
+        # Instalador / técnico director
+        "Text45": instalador_completo,
+        "Text48": config.get("TEC_NUM_COLEGIADO", ""),
+        "Text46": config.get("TEC_COLEGIO", ""),
+        "Text47": config.get("TEC_NUM_COLEGIADO", ""),
+        "Text49": config.get("TEC_EMAIL", ""),
+        "Text50": config.get("TEC_TELEFONO", ""),
+        # Lugar de firma habitual
+        "Text78": config.get("LUGAR_FIRMA", "Santa Úrsula"),
+        # Isla por defecto
+        "Text12": config.get("EMPLAZAMIENTO_ISLA", "Tenerife"),
+        # Uso por defecto para vehículos
+        "Text4":  "Vehículo de uso recreativo",
+    }
+
+    # Checkboxes de uso habitual:
+    # Objetivo → Instalación nueva (Button26)
+    campos_fijos["Button26"] = "/No"
+    campos_fijos["Button27"] = "/Off"
+    campos_fijos["Button28"] = "/Off"
+    campos_fijos["Button29"] = "/Off"
+    # Documentos → MTD (Button34)
+    for n in range(33, 38):
+        campos_fijos[f"Button{n}"] = "/Off"
+    campos_fijos["Button34"] = "/No"
+    # Categoría → Básica (Button19)
+    for n in range(19, 26):
+        campos_fijos[f"Button{n}"] = "/Off"
+    campos_fijos["Button19"] = "/No"
+
+    reader = pypdf.PdfReader(str(origen))
+    writer = pypdf.PdfWriter()
+    writer.append(reader)
+    writer.update_page_form_field_values(writer.pages[0], campos_fijos)
+    writer.set_need_appearances_writer()
+
+    with open(str(output_path), "wb") as fh:
+        writer.write(fh)
+
+    print(f"[CIE] Plantilla guardada en: {output_path}")
+    return output_path
 
 
 def _cie_legacy_docx(datos: dict, output_dir: Path) -> Path:
@@ -1034,16 +1125,30 @@ def generar_boletin_docs(boletin_id: int) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genera documentos de Boletín Eléctrico Vehículo")
-    parser.add_argument("--boletin_id", type=int, required=True,
+    parser.add_argument("--boletin_id", type=int, default=None,
                         help="ID del boletín en la base de datos")
+    parser.add_argument("--plantilla-cie", action="store_true",
+                        help="Genera/actualiza la plantilla CIE con datos fijos de empresa")
     args = parser.parse_args()
 
-    resultado = generar_boletin_docs(args.boletin_id)
-    if resultado["ok"]:
-        print(f"[OK] MTD: {resultado['mtd']}")
-        print(f"[OK] CIE: {resultado['cie']}")
+    if args.plantilla_cie:
+        config = _load_config()
+        try:
+            out = generar_plantilla_cie(config=config)
+            print(f"[OK] Plantilla CIE: {out}")
+        except Exception as e:
+            print(f"[ERROR] {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.boletin_id is not None:
+        resultado = generar_boletin_docs(args.boletin_id)
+        if resultado["ok"]:
+            print(f"[OK] MTD: {resultado['mtd']}")
+            print(f"[OK] CIE: {resultado['cie']}")
+        else:
+            print(f"[ERROR] {resultado['error']}", file=sys.stderr)
+            if "traceback" in resultado:
+                print(resultado["traceback"], file=sys.stderr)
+            sys.exit(1)
     else:
-        print(f"[ERROR] {resultado['error']}", file=sys.stderr)
-        if "traceback" in resultado:
-            print(resultado["traceback"], file=sys.stderr)
+        parser.print_help()
         sys.exit(1)

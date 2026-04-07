@@ -269,6 +269,24 @@ def guardar_datos_tecnicos(bid):
 
 
 # ── API: siguiente número ────────────────────────────────────────────────────
+@bol_bp.route("/plantilla-cie", methods=["POST"])
+def crear_plantilla_cie():
+    """Genera/actualiza la plantilla CIE con los datos fijos de empresa desde config.json."""
+    try:
+        from generar_boletin_electrico import generar_plantilla_cie
+        import json as _json
+        config_path = _ROOT / "config.json"
+        config = {}
+        if config_path.exists():
+            with open(config_path, encoding="utf-8") as f:
+                config = _json.load(f)
+        out = generar_plantilla_cie(config=config)
+        return jsonify({"ok": True, "plantilla": str(out)})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @bol_bp.route("/api/siguiente-numero")
 def api_siguiente_numero():
     tipo = request.args.get("tipo", "electrico_local")

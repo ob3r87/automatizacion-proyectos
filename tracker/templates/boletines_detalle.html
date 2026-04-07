@@ -123,6 +123,13 @@
           </button>
         </div>
         <div id="generar-error" class="alert alert-danger small mt-2 d-none"></div>
+        <hr class="my-2">
+        <button class="btn btn-outline-secondary btn-sm w-100" onclick="crearPlantillaCie()"
+                title="Rellena los datos fijos de empresa en el PDF oficial y lo guarda como plantilla base">
+          <i class="bi bi-file-earmark-arrow-down"></i> Actualizar plantilla CIE
+          <span id="spinner-plantilla" class="spinner-border spinner-border-sm ms-1 d-none" role="status"></span>
+        </button>
+        <div id="plantilla-result" class="small mt-1 d-none"></div>
       </div>
     </div>
     {% endif %}
@@ -705,6 +712,33 @@ function abrirCie(bid) {
     .then(r => r.json())
     .then(d => { if (!d.ok) alert('CIE no encontrado: ' + (d.error || '')); })
     .catch(() => {});
+}
+
+function crearPlantillaCie() {
+  const spinner = document.getElementById('spinner-plantilla');
+  const resultDiv = document.getElementById('plantilla-result');
+  spinner.classList.remove('d-none');
+  resultDiv.classList.add('d-none');
+
+  fetch('/boletines/plantilla-cie', { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      spinner.classList.add('d-none');
+      resultDiv.classList.remove('d-none');
+      if (d.ok) {
+        resultDiv.className = 'small mt-1 text-success';
+        resultDiv.innerHTML = '<i class="bi bi-check-circle-fill"></i> Plantilla creada: <code>' + d.plantilla + '</code>';
+      } else {
+        resultDiv.className = 'small mt-1 text-danger';
+        resultDiv.textContent = 'Error: ' + (d.error || 'desconocido');
+      }
+    })
+    .catch(e => {
+      spinner.classList.add('d-none');
+      resultDiv.classList.remove('d-none');
+      resultDiv.className = 'small mt-1 text-danger';
+      resultDiv.textContent = 'Error de red: ' + e;
+    });
 }
 
 // Recoger todos los campos del formulario de datos técnicos y enviarlos al servidor
